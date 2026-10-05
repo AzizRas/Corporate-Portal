@@ -28,10 +28,10 @@ export async function buildData(): Promise<Record<string, unknown>> {
 /* ---------- первичное наполнение из assist/seed.json ---------- */
 export async function seedAssist(force = false) {
   const has = (await q('SELECT 1 FROM assist_collections LIMIT 1')).rows.length > 0;
-  if (has && !force) return false;
   const file = [path.resolve(process.cwd(), '../assist/seed.json'), path.resolve(process.cwd(), 'assist/seed.json')].find(fs.existsSync);
   if (!file) return false;
   const seed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (has && !force) { await addMissingCollections(seed); return false; }
   await tx(async (c) => {
     await c.query('DELETE FROM assist_collections');
     for (const [name, col] of Object.entries<any>(seed.collections)) {
@@ -44,6 +44,22 @@ export async function seedAssist(force = false) {
     await c.query(`INSERT INTO assist_releases(note,snapshot,active) VALUES('Первичный импорт из Darian·Assist',$1,true)`, [JSON.stringify(snap)]);
   });
   return true;
+}
+// Новые коллекции из seed.json (например, исключения транслитерации) добавляются в уже работающую базу,
+// ничего не затирая; в активный выпуск они попадают сразу, чтобы страница помощника их видела.
+async function addMissingCollections(seed: any) {
+  const have = new Set((await q('SELECT name FROM assist_collections')).rows.map((r) => r.name));
+  const missing = Object.entries<any>(seed.collections).filter(([n]) => !have.has(n));
+  if (!missing.length) return;
+  await tx(async (c) => {
+    for (const [name, col] of missing) {
+      await c.query('INSERT INTO assist_collections(name,kind,title,grp,descr,id_field,sort) VALUES($1,$2,$3,$4,$5,$6,$7)',
+        [name, col.kind, col.title, col.grp, col.descr, col.id_field, col.sort]);
+      await writeCollection(c, name, col.kind, col.id_field, col.value, null);
+      await c.query('UPDATE assist_releases SET snapshot = snapshot || $1::jsonb WHERE active', [JSON.stringify({ [name]: col.value })]);
+    }
+  });
+  cache = null;
 }
 async function buildDataTx(c: { query: typeof q }) {
   const cols = (await c.query('SELECT name,kind FROM assist_collections')).rows;

@@ -1,0 +1,10 @@
+/* язык клиента RU / UZ */
+.langbox{display:flex;align-items:center;gap:6px;flex:none}
+.langsw{display:flex;border:1px solid rgba(255,255,255,.28);border-radius:4px;overflow:hidden}
+.langsw button,.scriptsw{font:600 12px/1 var(--f-mono,monospace);letter-spacing:.04em;padding:8px 10px;border:0;background:transparent;color:#fff;cursor:pointer}
+.langsw button.on{background:#fff;color:#111}
+.scriptsw{border:1px solid rgba(255,255,255,.28);border-radius:4px}
+/* UZ: фразы клиенту на узбекском становятся основными, русский дубль скрывается */
+body[data-lang="uz"] .say.has-uz{display:none}
+body[data-lang="uz"] .say.uz{border-left-style:solid;background:var(--accent-soft,rgba(0,120,90,.08))}
+@media (max-width:760px){.langbox{order:3}}

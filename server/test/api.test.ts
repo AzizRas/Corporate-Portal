@@ -180,7 +180,7 @@ test('Помощник оператора: страница собирается
   assert.ok(!page.body.includes('@@ASSIST_DATA@@'));
   const ed = await login('editor');
   const cols = (await get(ed, '/api/admin/assist/collections')).json();
-  assert.equal(cols.collections.length, 28);
+  assert.equal(cols.collections.length, 29);
   const shops = (await get(ed, '/api/admin/assist/SHOPS/items')).json();
   const first = shops.items[0];
   const edited = { ...first.data, name: 'ИЗМЕНЁННЫЙ-МАГАЗИН' };

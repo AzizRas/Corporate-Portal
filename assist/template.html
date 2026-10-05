@@ -397,6 +397,17 @@ table.w td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
   .kicker{display:none}
   #brand{margin-left:auto}
 }
+/* язык клиента RU / UZ */
+.langbox{display:flex;align-items:center;gap:6px;flex:none}
+.langsw{display:flex;border:1px solid rgba(255,255,255,.28);border-radius:4px;overflow:hidden}
+.langsw button,.scriptsw{font:600 12px/1 var(--f-mono,monospace);letter-spacing:.04em;padding:8px 10px;border:0;background:transparent;color:#fff;cursor:pointer}
+.langsw button.on{background:#fff;color:#111}
+.scriptsw{border:1px solid rgba(255,255,255,.28);border-radius:4px}
+/* UZ: фразы клиенту на узбекском становятся основными, русский дубль скрывается */
+body[data-lang="uz"] .say.has-uz{display:none}
+body[data-lang="uz"] .say.uz{border-left-style:solid;background:var(--accent-soft,rgba(0,120,90,.08))}
+@media (max-width:760px){.langbox{order:3}}
+
 </style>
 
 </head>
@@ -1738,8 +1749,8 @@ function openPage(id){
       ['Прощание','Спасибо за обращение! Если появятся вопросы — звоните 71 230 70 00. Хорошего дня!',UZ.close]
     ];
     h+=`<p class="sub">Большинство клиентов говорит по-узбекски. Фразы — простые и вежливые, на «вы» (siz).</p>
-      <div class="tbl"><table class="w"><thead><tr><th>Момент</th><th>Русский</th><th>O‘zbekcha (lotin)</th></tr></thead><tbody>
-        ${S.map(r=>`<tr><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td>${esc(r[2])} ${cp(r[2])}</td></tr>`).join('')}
+      <div class="tbl"><table class="w"><thead><tr><th>Момент</th><th>Русский</th><th class="uzh">O‘zbekcha (lotin)</th></tr></thead><tbody>
+        ${S.map(r=>`<tr><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td class="uz">${esc(r[2])} ${cp(r[2])}</td></tr>`).join('')}
       </tbody></table></div>`;
   }
 
@@ -1842,5 +1853,159 @@ home();
 
 </script>
 
+<script>
+/* Узбекский: латиница → кириллица. Работает на показе, данные в базе остаются латиницей.
+   fix — словарь исключений (слово в нижнем регистре → результат); значение с заглавной буквы
+   (бренды: Ziffler, Immer) возвращается как есть, значение «=» оставляет слово латиницей (Wi-Fi, Clean). Правится в админке: «Исключения: латиница → кириллица». */
+(function (root) {
+  var V = 'aeiouўе';
+  var SINGLE = { a: 'а', b: 'б', d: 'д', f: 'ф', g: 'г', h: 'ҳ', i: 'и', j: 'ж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'қ', r: 'р', s: 'с',
+    t: 'т', u: 'у', v: 'в', w: 'в', x: 'х', y: 'й', z: 'з', c: 'ц' };
+  var APOS = /[ʻʼ‘’'`´ʹ]/g;
+  var TOKEN = /[A-Za-z0-9ʻʼ‘’'`´]+/g;
+
+  function isVowel(ch) { return !!ch && 'аеёиоуўэюя'.indexOf(ch) >= 0; }
+
+  function convertWord(w, fix) {
+    var lw = w.toLowerCase().replace(APOS, '’');
+    // 1) исключения
+    if (fix) {
+      var key = lw.replace(/’/g, '');
+      var f = fix[lw] !== undefined ? fix[lw] : fix[key];
+      if (f !== undefined) {
+        if (f === '=') return w;                                                 // оставить латиницей как есть
+        if (f && f.charAt(0) !== f.charAt(0).toLowerCase()) return f;           // бренд: как записан
+        return /^[A-Z]/.test(w) ? f.charAt(0).toUpperCase() + f.slice(1) : f;
+      }
+    }
+    // 2) o‘ → ў, g‘ → ғ
+    lw = lw.replace(/o’/g, 'ў').replace(/g’/g, 'ғ');
+    var out = '', i = 0, n = lw.length;
+    while (i < n) {
+      var c = lw[i], two = lw.substr(i, 2);
+      if (two === 'sh') { out += 'ш'; i += 2; continue; }
+      if (two === 'ch') { out += 'ч'; i += 2; continue; }
+      if (two === 'ts') { out += 'ц'; i += 2; continue; }
+      if (two === 'yo') { out += 'ё'; i += 2; continue; }
+      if (two === 'yu') { out += 'ю'; i += 2; continue; }
+      if (two === 'ya') { out += 'я'; i += 2; continue; }
+      if (two === 'ye') { out += 'е'; i += 2; continue; }
+      if (c === 'e') { out += (i === 0 || isVowel(out[out.length - 1])) ? 'э' : 'е'; i++; continue; }
+      if (c === '’') { out += (i === 0 || i === n - 1 ? '’' : 'ъ'); i++; continue; }
+      out += SINGLE[c] !== undefined ? SINGLE[c] : c; i++;
+    }
+    if (/^[A-Z]/.test(w)) out = out.charAt(0).toUpperCase() + out.slice(1);
+    return out;
+  }
+
+  // слова с цифрами, ЗАГЛАВНЫЕ (DCRM, P1) и смешанный регистр (amoCRM) не трогаем
+  function skip(w) { return /[0-9]/.test(w) || /[A-Z].*[A-Z]/.test(w.replace(/^[A-Z]/, '')) || (w.length > 1 && w === w.toUpperCase() && /[A-Z]/.test(w)); }
+
+  // Wi-Fi остаётся латиницей целиком (суффиксы после него переводятся)
+  var KEEP = /Wi-?Fi/gi;
+  function uzToCyr(text, fix) {
+    var kept = [];
+    var t = String(text == null ? '' : text).replace(KEEP, function (m) { kept.push(m); return '\u0001' + (kept.length - 1) + '\u0001'; });
+    t = t.replace(TOKEN, function (w) { return skip(w) ? w : convertWord(w, fix); });
+    return t.replace(/\u0001(\d+)\u0001/g, function (_m, i) { return kept[Number(i)]; });
+  }
+  var api = { uzToCyr: uzToCyr, hasLatin: function (s) { return /[A-Za-z]/.test(s); } };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.UZCYR = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* Переключатель языка клиента RU / UZ и письменность узбекского (кириллица / латиница).
+   Подключается к Darian·Assist скриптом import-assist.mjs; данные остаются латиницей, перевод — на показе. */
+(function () {
+  var FIX = (typeof __ASSIST !== 'undefined' && __ASSIST.UZ_FIX) || {};
+  var store = { get: function (k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  var lang = store.get('assistLang', 'ru');          // ru | uz — на каком языке говорим с клиентом
+  var script = store.get('assistScript', 'cyr');     // cyr | lat — как показывать узбекский
+  var orig = new WeakMap();                          // исходный (латинский) текст узлов
+  var busy = false, timer = 0;
+
+  function conv(text) { return UZCYR.uzToCyr(text, FIX); }
+
+  function textNodes(root) {
+    var out = [], w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    for (var n = w.nextNode(); n; n = w.nextNode()) {
+      var p = n.parentNode;
+      if (!p || (p.closest && p.closest('.who, .cp, code, input, textarea, select, script, style'))) continue;
+      out.push(n);
+    }
+    return out;
+  }
+
+  // «UZ: слова клиента» в подсказках поиска: переводим только часть после метки
+  function applyNode(n, toCyr) {
+    var o = orig.has(n) ? orig.get(n) : n.nodeValue;
+    var inUz = n.parentNode && n.parentNode.closest && n.parentNode.closest('.uz');
+    var next = o;
+    if (toCyr) {
+      if (inUz) { var pm = /^(\s*UZ: )/.exec(o); next = pm ? pm[1] + conv(o.slice(pm[1].length)) : conv(o); }
+      else { var m = /UZ: /.exec(o); if (m) next = o.slice(0, m.index + 4) + conv(o.slice(m.index + 4)); }
+    }
+    if (next !== o) { if (!orig.has(n)) orig.set(n, o); if (n.nodeValue !== next) n.nodeValue = next; }
+    else if (orig.has(n)) { if (n.nodeValue !== o) n.nodeValue = o; }
+  }
+
+  function markPairs(root) {
+    root.querySelectorAll('.say.uz').forEach(function (u) {
+      var prev = u.previousElementSibling;
+      if (prev && prev.classList.contains('say') && !prev.classList.contains('uz')) prev.classList.add('has-uz');
+    });
+  }
+
+  function process(root) {
+    busy = true;
+    try {
+      markPairs(root);
+      var cand = (root.matches && root.matches('.uz')) ? [root] : [];
+      root.querySelectorAll('.uz').forEach(function (e) { cand.push(e); });
+      cand.forEach(function (e) { textNodes(e).forEach(function (n) { applyNode(n, script === 'cyr'); }); });
+      // подсказки «UZ: …» вне .uz
+      textNodes(root).forEach(function (n) { if (/UZ: /.test(orig.has(n) ? orig.get(n) : n.nodeValue)) applyNode(n, script === 'cyr'); });
+    } finally { busy = false; }
+  }
+  function processAll() {
+    process(document.body);
+    busy = true;
+    document.querySelectorAll('th.uzh').forEach(function (th) { th.textContent = script === 'cyr' ? 'Ўзбекча (кирилл)' : 'O‘zbekcha (lotin)'; });
+    busy = false;
+  }
+  // кнопка «копировать» внутри узбекского текста копирует то, что видит оператор (кириллицу)
+  document.addEventListener('click', function (e) {
+    var c = e.target.closest && e.target.closest('[data-copy]');
+    if (c && c.closest('.uz')) {
+      if (!c.dataset.orig) c.dataset.orig = c.dataset.copy;
+      c.dataset.copy = script === 'cyr' ? conv(c.dataset.orig) : c.dataset.orig;
+    }
+  }, true);
+
+  /* ---- интерфейс в шапке ---- */
+  var bar = document.querySelector('.hbar'), nc = document.getElementById('newcall');
+  var box = document.createElement('div');
+  box.className = 'langbox';
+  box.innerHTML = '<div class="langsw" role="group" aria-label="Язык разговора с клиентом"><button type="button" data-l="ru">RU</button><button type="button" data-l="uz">UZ</button></div>' +
+    '<button type="button" class="scriptsw" id="scriptsw" title="Узбекский: кириллица / латиница"></button>';
+  if (bar && nc) bar.insertBefore(box, nc);
+  function sync() {
+    document.body.dataset.lang = lang;
+    box.querySelectorAll('[data-l]').forEach(function (b) { b.classList.toggle('on', b.dataset.l === lang); b.setAttribute('aria-pressed', b.dataset.l === lang); });
+    var sb = document.getElementById('scriptsw'); sb.textContent = script === 'cyr' ? 'Кир' : 'Lat';
+    sb.style.display = lang === 'uz' || true ? '' : 'none';
+  }
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-l]');
+    if (b) { lang = b.dataset.l; store.set('assistLang', lang); sync(); return; }
+    if (e.target.id === 'scriptsw') { script = script === 'cyr' ? 'lat' : 'cyr'; store.set('assistScript', script); sync(); processAll(); }
+  });
+  sync();
+
+  var mo = new MutationObserver(function () { if (busy) return; clearTimeout(timer); timer = setTimeout(processAll, 0); });
+  mo.observe(document.body, { childList: true, subtree: true });
+  processAll();
+})();
+
+</script>
 </body>
 </html>

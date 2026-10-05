@@ -38,6 +38,7 @@ const META = [
   ['ESC', 'Эскалация', 'amoCRM', ''],
   ['SLA', 'Сроки (SLA)', 'amoCRM', ''],
   ['PLAN_DAYS', 'Плановый срок ремонта, дней', 'amoCRM', ''],
+  ['UZ_FIX', 'Исключения: латиница → кириллица (узбекский)', 'Справочники', 'Слово (латиницей, в нижнем регистре) → как показывать. «=» оставляет слово латиницей (Wi-Fi), слово с заглавной (Ziffler) показывается как записано.'],
   ['PAGES', 'Страницы справочника', 'Обучение', ''],
   ['QUIZ', 'Тренажёр: вопросы', 'Обучение', ''],
   ['ERRORS', 'Частые ошибки в CRM', 'Обучение', ''],
@@ -64,6 +65,12 @@ for (const n of ast.body) {
   }
 }
 const values = { ...result, ...later };
+// словарь исключений транслитерации (редактируется в админке)
+values.UZ_FIX = {
+  ziffler: 'Ziffler', immer: 'Immer', everal: 'Everal', rulls: 'Rulls', hisense: 'Hisense', samsung: 'Samsung', artel: 'Artel', moonx: 'MoonX', telegram: 'Telegram',
+  clean: '=', tech: '=', wait: '=', late: '=', missed: '=',
+  model: 'модель', shchitdagi: 'щитдаги', shchitidagi: 'щитидаги', shchit: 'щит',
+};
 
 // 3) seed.json
 const seed = { collections: {} };
@@ -95,7 +102,16 @@ for (const n of ast.body) {
 let out = js;
 edits.sort((a, b) => b[0] - a[0]).forEach(([s, e, t]) => { out = out.slice(0, s) + t + out.slice(e); });
 out = `const __ASSIST = /*@@ASSIST_DATA@@*/{};\n` + out;
-fs.writeFileSync('assist/template.html', html.slice(0, s0) + out + html.slice(s1));
+const css = fs.readFileSync('assist/patch/uzlang.css', 'utf8');
+const patchJs = fs.readFileSync('assist/patch/uzcyr.js', 'utf8') + '\n' + fs.readFileSync('assist/patch/uzlang.js', 'utf8');
+let tpl = html.slice(0, s0) + out + html.slice(s1);
+// таблица «Фразы RU / UZ»: узбекская колонка помечается классом uz (перевод и копирование в кириллице)
+const phraseTd = '<td>${esc(r[2])} ${cp(r[2])}</td>';
+const phraseTh = '<th>O‘zbekcha (lotin)</th>';
+if (!tpl.includes(phraseTd) || !tpl.includes(phraseTh)) throw new Error('таблица «Фразы RU / UZ» изменилась — обновите правку в import-assist.mjs');
+tpl = tpl.replace(phraseTd, '<td class="uz">${esc(r[2])} ${cp(r[2])}</td>').replace(phraseTh, '<th class="uzh">O‘zbekcha (lotin)</th>');
+tpl = tpl.replace('</style>', css + '\n</style>').replace('</body>', '<script>\n' + patchJs + '\n</script>\n</body>');
+fs.writeFileSync('assist/template.html', tpl);
 
 const summary = Object.entries(seed.collections).map(([k, c]) => `${k}:${c.kind}${Array.isArray(c.value) ? `[${c.value.length}]` : ''}`);
 console.log('seed.json:', summary.join(' '));
