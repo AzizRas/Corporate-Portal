@@ -1,3 +1,0 @@
-# Railway: Node 22 (по умолчанию ставится 18, а Fastify 5 и playwright требуют 20+)
-[phases.setup]
-nixPkgs = ["nodejs_22"]
