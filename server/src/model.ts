@@ -2,13 +2,13 @@
 export interface Comp { id: string; grp: 'soft' | 'hard'; name_ru: string; name_uz: string; sort: number }
 export interface RatingRow { period: string; comp: string; rater_type: 'self' | 'manager' | 'peer' | 'sub'; level: number }
 
-export const POSITIONS: Record<string, { ru: string; uz: string; short_ru: string; short_uz: string }> = {
-  op: { ru: 'Оператор', uz: 'Operator', short_ru: 'Оператор', short_uz: 'Operator' },
-  sr: { ru: 'Старший оператор', uz: 'Katta operator', short_ru: 'Ст. оператор', short_uz: 'Katta op.' },
-  sv: { ru: 'Супервайзер', uz: 'Supervayzer', short_ru: 'Супервайзер', short_uz: 'Supervayzer' },
-  hd: { ru: 'Руководитель отдела', uz: 'Bo‘lim boshlig‘i', short_ru: 'Рук. отдела', short_uz: 'Bo‘lim boshlig‘i' },
-  wh: { ru: 'Кладовщик', uz: 'Omborchi', short_ru: 'Кладовщик', short_uz: 'Omborchi' },
-  ex: { ru: 'Мастер сервиса', uz: 'Servis ustasi', short_ru: 'Мастер', short_uz: 'Usta' },
+export const POSITIONS: Record<string, { ru: string; uz: string; short_ru: string; short_uz: string; dat_ru: string; dat_uz: string }> = {
+  op: { ru: 'Оператор', uz: 'Operator', short_ru: 'Оператор', short_uz: 'Operator', dat_ru: 'оператору', dat_uz: 'operatorga' },
+  sr: { ru: 'Старший оператор', uz: 'Katta operator', short_ru: 'Ст. оператор', short_uz: 'Katta op.', dat_ru: 'старшему оператору', dat_uz: 'katta operatorga' },
+  sv: { ru: 'Супервайзер', uz: 'Supervayzer', short_ru: 'Супервайзер', short_uz: 'Supervayzer', dat_ru: 'супервайзеру', dat_uz: 'supervayzerga' },
+  hd: { ru: 'Руководитель отдела', uz: 'Bo‘lim boshlig‘i', short_ru: 'Рук. отдела', short_uz: 'Bo‘lim boshlig‘i', dat_ru: 'руководителю отдела', dat_uz: 'bo‘lim boshlig‘iga' },
+  wh: { ru: 'Кладовщик', uz: 'Omborchi', short_ru: 'Кладовщик', short_uz: 'Omborchi', dat_ru: 'кладовщику', dat_uz: 'omborchiga' },
+  ex: { ru: 'Мастер сервиса', uz: 'Servis ustasi', short_ru: 'Мастер', short_uz: 'Usta', dat_ru: 'мастеру', dat_uz: 'ustaga' },
 };
 export const LADDER = ['op', 'sr', 'sv'];
 

@@ -14,9 +14,12 @@
     "migrate": "npm run migrate -w server",
     "seed": "npm run seed -w server",
     "assist:import": "node scripts/import-assist.mjs",
+    "assist:load": "npm run assist:load -w server",
+    "shots": "node scripts/shots.mjs",
     "test": "npm test -w server"
   },
   "devDependencies": {
-    "acorn": "^8.18.0"
+    "acorn": "^8.18.0",
+    "playwright-core": "^1.63.0"
   }
 }

@@ -55,7 +55,7 @@ export async function buildApp() {
 
   // собранный интерфейс (если есть) + SPA-фолбэк
   if (fs.existsSync(path.join(config.webDir, 'index.html'))) {
-    await app.register(fstatic, { root: config.webDir, wildcard: false, maxAge: '1h', immutable: false });
+    await app.register(fstatic, { root: config.webDir, maxAge: '1h' });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'not_found' });
       return reply.type('text/html').send(fs.readFileSync(path.join(config.webDir, 'index.html')));
