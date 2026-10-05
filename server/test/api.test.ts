@@ -66,18 +66,19 @@ test('ЗП: сотрудник видит только свои цифры, чу
   assert.ok(log >= 2, 'отказ попал в журнал');
 });
 
-test('ЗП: загрузка Excel → ошибки → публикация → сотрудник видит', async () => {
+test('ЗП: ведомость в формате заказчика (шапка над таблицей, ФИО), ошибки, публикация, откат', async () => {
   const buh = await login('buh');
   const wb = new ExcelJS.Workbook();
-  const a = wb.addWorksheet('Ведомость');
-  a.addRow(['Табельный номер', 'Оклад', 'Бонус', 'Штраф', 'Удержания', 'Итого']);
-  a.addRow(['1002', 3500000, 700000, 0, 420000, 3780000]);
-  a.addRow(['9999', 1, 1, 1, 1, 1]);          // нет такого сотрудника
-  a.addRow(['1002', 1, 1, 1, 1, 1]);          // дубль
-  a.addRow(['2010', 'abc', 1, 1, 1, 1]);      // текст в числе
-  const k = wb.addWorksheet('Колл-центр');
-  k.addRow(['Табельный номер', 'KPI', 'План', 'Факт', 'Бонус за единицу']);
-  k.addRow(['1002', 'Принятые звонки', 900, 810, 1000]);
+  const a = wb.addWorksheet('Лист1');
+  a.addRow(['СОТРУДНИКИ КОЛЛ-ЦЕНТРА']);
+  a.addRow([' ']);
+  a.addRow([]);
+  a.addRow(['№', 'ФИО', 'Должность', 'Дата приёма', 'Фикс', 'Сумма', 'Бонус', 'Итого ЗП']);
+  a.addRow([1, 'дилноза  к.', 'Старший оператор', new Date('2026-09-01'), 5500000, 4800000, 500000, 5300000]); // регистр и пробелы
+  a.addRow([2, 'Неизвестный Человек', 'Оператор', null, 1, 1, 1, 2]);                                           // нет в портале
+  a.addRow([3, 'Дилноза К.', 'Оператор', null, 1, 1, 1, 2]);                                                    // дубль
+  a.addRow([4, 'Азиз Р.', 'Оператор', null, 5000000, 'abc', 0, 0]);                                              // текст в числе
+  a.addRow([5, 'Мадина С.', 'Оператор', null, 5000000, 4000000, 0, 4100000]);                                    // итого не сходится
   const buf = Buffer.from(await wb.xlsx.writeBuffer());
   const boundary = '----t';
   const body = Buffer.concat([
@@ -86,18 +87,19 @@ test('ЗП: загрузка Excel → ошибки → публикация →
   const up = await app.inject({ method: 'POST', url: '/api/admin/payroll/upload', body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}` }, ...buh });
   assert.equal(up.statusCode, 200, up.body);
   const j = up.json();
-  assert.equal(j.rows, 1);
-  assert.equal(j.errors.length, 3);
-  // публикация с ошибками без force запрещена
+  assert.equal(j.rows, 2);                                               // Дилноза и Мадина
+  assert.equal(j.errors.filter((e: any) => e.level !== 'warn').length, 3);
+  assert.equal(j.errors.filter((e: any) => e.level === 'warn').length, 1);
   assert.equal((await send(buh, 'POST', `/api/admin/payroll/${j.period_id}/publish`, {})).statusCode, 409);
-  // до публикации сотрудник месяц не видит
   const dil = await login('dilnoza');
   assert.ok(!(await get(dil, '/api/payroll/me')).json().periods.some((p: any) => p.month === '2027-01'));
   assert.equal((await send(buh, 'POST', `/api/admin/payroll/${j.period_id}/publish`, { force: true })).statusCode, 200);
   const p = (await get(dil, '/api/payroll/me')).json().periods.find((x: any) => x.month === '2027-01');
-  assert.equal(p.data.total, 3780000);
-  assert.equal(p.data.kpi[0].fact, 810);
-  // откат публикации
+  assert.deepEqual([p.data.fixed, p.data.earned, p.data.bonus, p.data.total], [5500000, 4800000, 500000, 5300000]);
+  // каждый видит только свою строку; свод по команде руководителю недоступен
+  const sv = await login('rustam');
+  assert.ok(!(await get(sv, '/api/payroll/me')).json().periods.some((x: any) => x.month === '2027-01'));
+  assert.equal((await get(sv, '/api/payroll/team?month=2027-01')).statusCode, 403);
   await send(buh, 'POST', `/api/admin/payroll/${j.period_id}/unpublish`);
   assert.ok(!(await get(dil, '/api/payroll/me')).json().periods.some((x: any) => x.month === '2027-01'));
 });

@@ -118,10 +118,11 @@ export async function seedDemo() {
     const month = prevPeriod(now, i);
     const p = (await q(`INSERT INTO payroll_periods(month,status,file_name,published_at) VALUES($1,'published','demo.xlsx',now()) RETURNING id`, [month])).rows[0].id;
     for (const uid of everyone) {
-      const salary = uid === sv ? 5000000 : uid === dil ? 3500000 : 3000000;
+      const fixed = uid === sv ? 8000000 : uid === dil ? 5500000 : 5000000;
+      const earned = Math.round(fixed * (0.9 + crypto.randomInt(0, 10) / 100));
       const plan = 900, fact = Math.round(plan * (0.85 + crypto.randomInt(0, 20) / 100));
-      const bonus = Math.round(((fact / plan) * 800000) / 1000) * 1000, penalty = crypto.randomInt(0, 3) * 50000, deductions = Math.round(salary * 0.12);
-      await q('INSERT INTO payroll_rows VALUES($1,$2,$3)', [p, uid, JSON.stringify({ salary, bonus, penalty, deductions, total: salary + bonus - penalty - deductions,
+      const bonus = crypto.randomInt(0, 5) * 250000, penalty = crypto.randomInt(0, 3) * 50000, deductions = 0;
+      await q('INSERT INTO payroll_rows VALUES($1,$2,$3)', [p, uid, JSON.stringify({ fixed, earned, bonus, penalty, deductions, total: earned + bonus - penalty - deductions,
         kpi: [{ name: 'Принятые звонки', plan, fact, per_unit: 1000 }, { name: 'Качество (QA), %', plan: 90, fact: 82 + crypto.randomInt(0, 14), per_unit: 20000 }] })]);
     }
   }

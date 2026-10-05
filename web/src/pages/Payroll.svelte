@@ -5,11 +5,10 @@
   import { fmtMoney, monthLong, monthShort, nowMonth } from '../lib/format';
 
   let d: any = $state(null), sel = $state(''), why = $state(false), qtext = $state(''), qsent = $state(false), mine: any[] = $state([]);
-  let pct = $state(90), what: number | null = $state(null), team: any = $state(null);
+  let pct = $state(90), what: number | null = $state(null);
 
   api.get('/api/payroll/me').then((r) => { d = r; sel = r.periods.at(-1)?.month ?? ''; });
   api.get('/api/requests/mine').then((r) => (mine = r.items.filter((x: any) => x.kind === 'payroll_question')));
-  if (has('manager', 'accountant', 'hr')) api.get(`/api/payroll/team?month=${nowMonth()}`).then((r) => (team = r)).catch(() => {});
 
   const cur = $derived(d?.periods.find((p: any) => p.month === sel));
   const max = $derived(Math.max(1, ...(d?.periods ?? []).map((p: any) => p.data.total)));
@@ -55,10 +54,11 @@
         <div class="muted small">{t('pay_net')}</div>
         <div class="big-num" style="margin:6px 0 18px">{fmtMoney(cur.data.total)}</div>
         <div class="list">
-          <div><span>{t('pay_salary')}</span><b>{fmtMoney(cur.data.salary)}</b></div>
-          <div><span>{t('pay_bonus')}</span><b class="pill-ok">+ {fmtMoney(cur.data.bonus)}</b></div>
-          <div><span>{t('pay_penalty')}</span><b class="pill-bad">− {fmtMoney(cur.data.penalty)}</b></div>
-          <div><span>{t('pay_deductions')}</span><b>− {fmtMoney(cur.data.deductions)}</b></div>
+          {#if cur.data.fixed != null}<div><span>{t('pay_fixed')}</span><b>{fmtMoney(cur.data.fixed)}</b></div>{/if}
+          {#if cur.data.earned != null}<div><span>{t('pay_earned')}</span><b>{fmtMoney(cur.data.earned)}</b></div>{/if}
+          <div><span>{t('pay_bonus')}</span><b class:pill-ok={cur.data.bonus > 0}>{cur.data.bonus > 0 ? '+ ' : ''}{fmtMoney(cur.data.bonus ?? 0)}</b></div>
+          {#if cur.data.penalty}<div><span>{t('pay_penalty')}</span><b class="pill-bad">− {fmtMoney(cur.data.penalty)}</b></div>{/if}
+          {#if cur.data.deductions}<div><span>{t('pay_deductions')}</span><b>− {fmtMoney(cur.data.deductions)}</b></div>{/if}
         </div>
         {#if d.formula.text_ru}
           <button class="btn sm" style="margin-top:16px" onclick={() => (why = !why)}>{t('pay_why')} {why ? '▴' : '▾'}</button>
@@ -66,6 +66,7 @@
         {/if}
       </section>
 
+      {#if cur.data.kpi?.length}
       <section class="card">
         <div class="card-head"><h3>{t('pay_kpi')}</h3></div>
         {#each cur.data.kpi as k}
@@ -76,8 +77,9 @@
             <div class="muted xs" style="margin-top:6px">{t('pay_plan')} {fmtMoney(k.plan)} · {t('pay_fact')} {fmtMoney(k.fact)}
               {#if k.per_unit && k.fact < k.plan} · {t('pay_boost')} {fmtMoney(k.plan - k.fact)} → <b class="pill-ok">+{fmtMoney((k.plan - k.fact) * k.per_unit)}</b>{/if}</div>
           </div>
-        {:else}<p class="muted">{t('no_data')}</p>{/each}
+        {/each}
       </section>
+      {/if}
     {/if}
 
     {#if d.formula.calc?.enabled}
@@ -102,12 +104,5 @@
       {/if}
     </section>
 
-    {#if team}
-      <section class="card">
-        <div class="card-head"><h3>{t('pay_team')}</h3><span class="aside">{monthLong(nowMonth())}</span></div>
-        <div class="list"><div><span>{t('pay_team_n')}</span><b>{team.n}</b></div><div><span>{t('pay_team_sum')}</span><b>{fmtMoney(team.total)}</b></div><div><span>{t('pay_team_avg')}</span><b>{fmtMoney(team.avg)}</b></div></div>
-        <p class="muted xs" style="margin-top:10px">{t('pay_hidden')}</p>
-      </section>
-    {/if}
   </div>
 {/if}

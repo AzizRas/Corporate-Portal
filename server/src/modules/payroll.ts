@@ -4,13 +4,16 @@ import { q, tx } from '../db.js';
 import { audit, hasRole, requireAuth, requireRole, teamIds } from '../auth.js';
 import { getSetting } from '../settings.js';
 
+// Колонки ведомости: заголовки ищутся по названию (регистр и порядок не важны).
 const MONEY = [
-  { key: 'salary', label: 'Оклад', headers: ['оклад', 'oklad'] },
-  { key: 'bonus', label: 'Бонус', headers: ['бонус', 'премия', 'bonus'] },
-  { key: 'penalty', label: 'Штраф', headers: ['штраф', 'штрафы', 'jarima'] },
-  { key: 'deductions', label: 'Удержания', headers: ['удержания', 'удержание', 'ushlanma'] },
-  { key: 'total', label: 'Итого на руки', headers: ['итого', 'на руки', 'итого на руки', 'jami'] },
+  { key: 'fixed', label: 'Фикс', headers: ['фикс', 'оклад', 'fiks', 'oklad'], required: false },
+  { key: 'earned', label: 'Сумма', headers: ['сумма', 'начислено', 'summa'], required: false },
+  { key: 'bonus', label: 'Бонус', headers: ['бонус', 'премия', 'bonus'], required: false },
+  { key: 'penalty', label: 'Штраф', headers: ['штраф', 'штрафы', 'jarima'], required: false },
+  { key: 'deductions', label: 'Удержания', headers: ['удержания', 'удержание', 'ushlanma'], required: false },
+  { key: 'total', label: 'Итого ЗП', headers: ['итого зп', 'итого', 'на руки', 'итого на руки', 'jami'], required: true },
 ] as const;
+const NAME_HEADERS = ['фио', 'ф.и.о.', 'ф.и.о', 'сотрудник', 'fio'];
 const TAB_HEADERS = ['табельный', 'табельный номер', 'таб. номер', 'таб.номер', 'tab', 'tabel'];
 const KPI_HEADERS = {
   name: ['kpi', 'показатель', 'метрика'],
@@ -20,6 +23,8 @@ const KPI_HEADERS = {
 };
 
 const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+// ФИО: без регистра, ё=е, без апострофов и лишних пробелов
+export const normName = (v: unknown) => norm(v).replace(/ё/g, 'е').replace(/[’'`ʼ‘.]/g, '').replace(/\s+/g, ' ');
 const cellVal = (v: ExcelJS.CellValue): unknown => {
   if (v && typeof v === 'object') {
     if ('result' in v) return (v as any).result;
@@ -29,72 +34,98 @@ const cellVal = (v: ExcelJS.CellValue): unknown => {
   return v;
 };
 
-function headerMap(ws: ExcelJS.Worksheet) {
-  const m = new Map<string, number>();
-  ws.getRow(1).eachCell((c, i) => m.set(norm(cellVal(c.value)), i));
-  return m;
+// Строка заголовков не обязана быть первой: над таблицей может быть название («СОТРУДНИКИ КОЛЛ-ЦЕНТРА»).
+function findHeader(ws: ExcelJS.Worksheet, must: readonly (readonly string[])[]) {
+  for (let r = 1; r <= Math.min(ws.rowCount, 30); r++) {
+    const m = new Map<string, number>();
+    ws.getRow(r).eachCell((c, i) => { const k = norm(cellVal(c.value)); if (k && !m.has(k)) m.set(k, i); });
+    if (must.every((names) => names.some((n) => m.has(n)))) return { row: r, map: m };
+  }
+  return null;
 }
 const findCol = (m: Map<string, number>, names: readonly string[]) => {
   for (const n of names) if (m.has(n)) return m.get(n)!;
   return 0;
 };
 function toNum(v: unknown): number | null {
-  if (v === null || v === undefined || v === '') return 0;
+  if (v === null || v === undefined || v === '' || v === ' ') return 0;
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   const s = String(v).replace(/\s/g, '').replace(',', '.');
   return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : null;
 }
 
+export interface PayrollIssue { sheet: string; row: number; msg: string; level?: 'warn' }
+
 export async function parsePayroll(buf: Buffer) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as any);
-  const errors: { sheet: string; row: number; msg: string }[] = [];
-  const main = wb.getWorksheet('Ведомость') ?? wb.worksheets[0];
-  if (!main) return { rows: new Map<string, any>(), errors: [{ sheet: '', row: 0, msg: 'Нет листа «Ведомость»' }] };
+  const errors: PayrollIssue[] = [];
+  const rows = new Map<number, any>();   // user_id → строка
+  const main = wb.worksheets.find((w) => findHeader(w, [TAB_HEADERS.concat(NAME_HEADERS), ['итого зп', 'итого', 'на руки', 'итого на руки', 'jami']]));
+  if (!main) return { rows, errors: [{ sheet: '', row: 0, msg: 'Не найдена таблица: нужны колонки «ФИО» (или «Табельный номер») и «Итого ЗП»' }] as PayrollIssue[] };
 
-  const users = new Map((await q('SELECT id,tab_number FROM users WHERE tab_number IS NOT NULL')).rows.map((u) => [String(u.tab_number), u.id as number]));
-  const rows = new Map<string, any>();
-  const mh = headerMap(main);
-  const tabCol = findCol(mh, TAB_HEADERS);
-  if (!tabCol) errors.push({ sheet: main.name, row: 1, msg: 'Не найдена колонка «Табельный номер»' });
-  else {
-    const cols = MONEY.map((c) => ({ ...c, col: findCol(mh, c.headers) }));
-    for (const c of cols) if (!c.col) errors.push({ sheet: main.name, row: 1, msg: `Не найдена колонка «${c.label}»` });
-    main.eachRow((row, n) => {
-      if (n === 1) return;
-      const tab = String(cellVal(row.getCell(tabCol).value) ?? '').trim();
-      if (!tab) return;
-      if (!users.has(tab)) return void errors.push({ sheet: main.name, row: n, msg: `Нет сотрудника с табельным ${tab}` });
-      if (rows.has(tab)) return void errors.push({ sheet: main.name, row: n, msg: `Дубль табельного ${tab}` });
-      const data: any = { kpi: [] };
-      let bad = false;
-      for (const c of cols) {
-        if (!c.col) continue;
-        const v = toNum(cellVal(row.getCell(c.col).value));
-        if (v === null) { errors.push({ sheet: main.name, row: n, msg: `«${c.label}»: не число` }); bad = true; }
-        else data[c.key] = v;
-      }
-      if (!bad) rows.set(tab, { user_id: users.get(tab), data });
-    });
-  }
+  const users = (await q('SELECT id,name,tab_number FROM users WHERE active')).rows;
+  const byTab = new Map(users.filter((u) => u.tab_number).map((u) => [String(u.tab_number), u.id as number]));
+  const byName = new Map<string, number[]>();
+  for (const u of users) (byName.get(normName(u.name)) ?? byName.set(normName(u.name), []).get(normName(u.name))!).push(u.id);
+
+  const hd = findHeader(main, [TAB_HEADERS.concat(NAME_HEADERS)])!;
+  const tabCol = findCol(hd.map, TAB_HEADERS), nameCol = findCol(hd.map, NAME_HEADERS);
+  const cols = MONEY.map((c) => ({ ...c, col: findCol(hd.map, c.headers) }));
+  for (const c of cols) if (!c.col && c.required) errors.push({ sheet: main.name, row: hd.row, msg: `Не найдена колонка «${c.label}»` });
+  const seen = new Set<number>();
+
+  main.eachRow((row, n) => {
+    if (n <= hd.row) return;
+    const tab = tabCol ? String(cellVal(row.getCell(tabCol).value) ?? '').trim() : '';
+    const name = nameCol ? String(cellVal(row.getCell(nameCol).value) ?? '').trim() : '';
+    if (!tab && !name) return;
+    let uid: number | undefined;
+    if (tab) uid = byTab.get(tab);
+    if (uid === undefined && name) {
+      const c = byName.get(normName(name)) ?? [];
+      if (c.length > 1) return void errors.push({ sheet: main.name, row: n, msg: `Несколько сотрудников с ФИО «${name}» — укажите табельный номер` });
+      uid = c[0];
+    }
+    if (uid === undefined) return void errors.push({ sheet: main.name, row: n, msg: `Сотрудник «${name || tab}» не найден в портале (проверьте написание ФИО)` });
+    if (seen.has(uid)) return void errors.push({ sheet: main.name, row: n, msg: `Дубль: «${name || tab}»` });
+    const data: any = { kpi: [] };
+    let bad = false;
+    for (const c of cols) {
+      if (!c.col) continue;
+      const raw = cellVal(row.getCell(c.col).value);
+      const v = toNum(raw);
+      if (v === null) { errors.push({ sheet: main.name, row: n, msg: `«${c.label}»: «${String(raw)}» — не число (${name || tab})` }); bad = true; }
+      else data[c.key] = v;
+    }
+    if (bad) return;
+    seen.add(uid);
+    // контроль: итого должно сходиться с составляющими (предупреждение, публикацию не блокирует)
+    const base = data.earned ?? data.fixed ?? 0;
+    const calc = base + (data.bonus ?? 0) - (data.penalty ?? 0) - (data.deductions ?? 0);
+    if (data.total !== undefined && Math.abs(calc - data.total) > 1)
+      errors.push({ sheet: main.name, row: n, level: 'warn', msg: `«${name || tab}»: итого ${data.total} не равно расчёту ${Math.round(calc)} (сумма + бонус − штраф − удержания)` });
+    rows.set(uid, { user_id: uid, data });
+  });
+
+  // остальные листы — необязательные KPI-листы
   for (const ws of wb.worksheets) {
     if (ws === main) continue;
-    const kh = headerMap(ws);
-    const t = findCol(kh, TAB_HEADERS), nm = findCol(kh, KPI_HEADERS.name);
-    const pl = findCol(kh, KPI_HEADERS.plan), fc = findCol(kh, KPI_HEADERS.fact), pu = findCol(kh, KPI_HEADERS.per_unit);
-    if (!t || !pl || !fc) { errors.push({ sheet: ws.name, row: 1, msg: 'Лист KPI: нужны колонки «Табельный», «План», «Факт»' }); continue; }
+    const kh = findHeader(ws, [TAB_HEADERS.concat(NAME_HEADERS), KPI_HEADERS.plan, KPI_HEADERS.fact]);
+    if (!kh) continue;
+    const t = findCol(kh.map, TAB_HEADERS), nmc = findCol(kh.map, NAME_HEADERS), nm = findCol(kh.map, KPI_HEADERS.name);
+    const pl = findCol(kh.map, KPI_HEADERS.plan), fc = findCol(kh.map, KPI_HEADERS.fact), pu = findCol(kh.map, KPI_HEADERS.per_unit);
     ws.eachRow((row, n) => {
-      if (n === 1) return;
-      const tab = String(cellVal(row.getCell(t).value) ?? '').trim();
-      if (!tab) return;
-      const target = rows.get(tab);
-      if (!target) return void errors.push({ sheet: ws.name, row: n, msg: `Табельный ${tab} не найден в «Ведомости»` });
+      if (n <= kh.row) return;
+      const tab = t ? String(cellVal(row.getCell(t).value) ?? '').trim() : '';
+      const name = nmc ? String(cellVal(row.getCell(nmc).value) ?? '').trim() : '';
+      if (!tab && !name) return;
+      const uid = (tab && byTab.get(tab)) || byName.get(normName(name))?.[0];
+      const target = uid !== undefined ? rows.get(uid) : undefined;
+      if (!target) return void errors.push({ sheet: ws.name, row: n, msg: `«${name || tab}» не найден в основной таблице` });
       const plan = toNum(cellVal(row.getCell(pl).value)), fact = toNum(cellVal(row.getCell(fc).value));
       if (plan === null || fact === null) return void errors.push({ sheet: ws.name, row: n, msg: 'План/факт: не число' });
-      target.data.kpi.push({
-        name: nm ? String(cellVal(row.getCell(nm).value) ?? ws.name) : ws.name, plan, fact,
-        per_unit: pu ? toNum(cellVal(row.getCell(pu).value)) ?? 0 : 0,
-      });
+      target.data.kpi.push({ name: nm ? String(cellVal(row.getCell(nm).value) ?? ws.name) : ws.name, plan, fact, per_unit: pu ? toNum(cellVal(row.getCell(pu).value)) ?? 0 : 0 });
     });
   }
   return { rows, errors };
@@ -105,12 +136,13 @@ export async function payrollRoutes(app: FastifyInstance) {
 
   app.get('/api/payroll/template', { preHandler: requireRole('accountant', 'hr', 'admin') }, async (_req, reply) => {
     const wb = new ExcelJS.Workbook();
-    const a = wb.addWorksheet('Ведомость');
-    a.addRow(['Табельный номер', ...MONEY.map((m) => m.label)]);
-    a.addRow(['1001', 3000000, 800000, 0, 150000, 3650000]);
-    const k = wb.addWorksheet('Колл-центр');
-    k.addRow(['Табельный номер', 'KPI', 'План', 'Факт', 'Бонус за единицу']);
-    k.addRow(['1001', 'Принятые звонки', 900, 850, 1000]);
+    const a = wb.addWorksheet('Лист1');
+    a.addRow(['СОТРУДНИКИ КОЛЛ-ЦЕНТРА']);
+    a.addRow([]);
+    a.addRow(['№', 'ФИО', 'Должность', 'Дата приёма', 'Фикс', 'Сумма', 'Бонус', 'Штраф', 'Итого ЗП']);
+    a.addRow([1, 'Иванов Иван', 'Оператор', new Date('2026-09-01'), 5000000, 4800000, 500000, 0, 5300000]);
+    a.addRow([]);
+    a.addRow(['Колонки «Штраф» и «Удержания» необязательны. Лист KPI (необязательно): ФИО, KPI, План, Факт, Бонус за единицу.']);
     reply.header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     reply.header('content-disposition', 'attachment; filename="payroll-template.xlsx"');
     return reply.send(Buffer.from(await wb.xlsx.writeBuffer()));
@@ -165,7 +197,8 @@ export async function payrollRoutes(app: FastifyInstance) {
     const { force } = (req.body ?? {}) as { force?: boolean };
     const p = (await q('SELECT * FROM payroll_periods WHERE id=$1', [id])).rows[0];
     if (!p) return reply.code(404).send({ error: 'not_found' });
-    if (p.errors.length && !force) return reply.code(409).send({ error: 'has_errors', errors: p.errors });
+    const hard = p.errors.filter((e: any) => e.level !== 'warn');
+    if (hard.length && !force) return reply.code(409).send({ error: 'has_errors', errors: hard });
     await q(`UPDATE payroll_periods SET status='published', published_at=now() WHERE id=$1`, [id]);
     await audit(req, 'payroll_publish', p.month);
     return { ok: true };
@@ -217,7 +250,7 @@ export async function payrollRoutes(app: FastifyInstance) {
   }));
 
   // --- руководитель: свод по команде без имён
-  app.get('/api/payroll/team', { preHandler: requireRole('manager', 'accountant', 'hr') }, async (req) => {
+  app.get('/api/payroll/team', { preHandler: requireRole('accountant') }, async (req) => {
     const month = String((req.query as any).month ?? '');
     const ids = hasRole(req.user, 'accountant') ? null : await teamIds(req.user!);
     const r = await q(
