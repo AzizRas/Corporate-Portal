@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Darian·Assist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: тёмная шапка с брендом и поиском; слева — сценарии звонка, техника и справочники;
+   справа — рабочая зона, где каждое дерево заканчивается «талоном» решения и карточкой amoCRM. */
+:root{
+  --paper:#E9ECEA; --panel:#FFFFFF; --ink:#101C24; --ink-2:#3B4C54; --muted:#6B7C83;
+  --line:#D2D8D5; --line-soft:#E6EAE8; --rail:#C7D0CC; --hover:#DFE4E1;
+  --accent:#0B5E4F; --accent-ink:#FFFFFF; --accent-soft:#DDE8E4; --accent-softer:#F4F8F6; --accent-line:#C3D6CF;
+  --p1:#B0322B; --p1-soft:#FBF1F0; --p2:#A9670A; --p2-soft:#FBF3E6; --p3:#0B5E4F; --p4:#5A6A70; --badge-ink:#FFFFFF;
+  --gap-bg:#FDF7EC; --gap-line:#C2740E; --gap-ink:#6B4A0B;
+  --head-bg:#101C24; --head-ink:#FFFFFF; --head-2:#1A2A33; --head-line:#33474F; --head-muted:#8FA3AC; --head-accent:#7FCBB8;
+  --btn-bg:#101C24; --btn-ink:#FFFFFF;
+  --f-disp:"Barlow Condensed","IBM Plex Sans","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1517; --panel:#152024; --ink:#E4EBE8; --ink-2:#A9BAB4; --muted:#85979D;
+    --line:#2A3A3E; --line-soft:#1F2D31; --rail:#34484C; --hover:#1C2A2E;
+    --accent:#4DB59C; --accent-ink:#06201A; --accent-soft:#1B3530; --accent-softer:#172A2A; --accent-line:#2B5048;
+    --p1:#EC7066; --p1-soft:#3A1E1C; --p2:#E2A54B; --p2-soft:#33260F; --p3:#4DB59C; --p4:#93A5AB; --badge-ink:#0E1517;
+    --gap-bg:#30260F; --gap-line:#C99036; --gap-ink:#EDCF92;
+    --head-bg:#0A1113; --head-ink:#E4EBE8; --head-2:#132024; --head-line:#2A3D43; --head-muted:#7F949C; --head-accent:#7FCBB8;
+    --btn-bg:#E4EBE8; --btn-ink:#0E1517;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1517; --panel:#152024; --ink:#E4EBE8; --ink-2:#A9BAB4; --muted:#85979D;
+  --line:#2A3A3E; --line-soft:#1F2D31; --rail:#34484C; --hover:#1C2A2E;
+  --accent:#4DB59C; --accent-ink:#06201A; --accent-soft:#1B3530; --accent-softer:#172A2A; --accent-line:#2B5048;
+  --p1:#EC7066; --p1-soft:#3A1E1C; --p2:#E2A54B; --p2-soft:#33260F; --p3:#4DB59C; --p4:#93A5AB; --badge-ink:#0E1517;
+  --gap-bg:#30260F; --gap-line:#C99036; --gap-ink:#EDCF92;
+  --head-bg:#0A1113; --head-ink:#E4EBE8; --head-2:#132024; --head-line:#2A3D43; --head-muted:#7F949C; --head-accent:#7FCBB8;
+  --btn-bg:#E4EBE8; --btn-ink:#0E1517;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:var(--f-body);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:var(--f-mono)}
+.disp{font-family:var(--f-disp);letter-spacing:.02em}
+a{color:var(--accent)}
+
+/* ---------- шапка ---------- */
+header{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:40;
+  background:var(--head-bg);color:var(--head-ink);
+  border-bottom:3px solid var(--accent);
+}
+.hbar{max-width:1280px;margin:0 auto;padding:10px 18px;display:flex;gap:14px;align-items:center}
+.logo{font-family:var(--f-disp);font-weight:700;font-size:24px;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer;background:none;border:0;color:var(--head-ink);padding:0}
+.logo span{color:var(--head-accent)}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--head-muted);font-family:var(--f-mono);white-space:nowrap}
+.search{margin-left:auto;position:relative;flex:1;max-width:440px;min-width:0}
+.search input{
+  width:100%;padding:9px 34px 9px 34px;border-radius:2px;border:1px solid var(--head-line);
+  background:var(--head-2);color:var(--head-ink);font-family:inherit;font-size:14px;
+}
+.search input::placeholder{color:var(--head-muted)}
+.search input:focus{outline:2px solid var(--head-accent);outline-offset:1px}
+.search .ic{position:absolute;left:11px;top:8px;color:var(--head-muted);font-size:15px}
+.slash{position:absolute;right:10px;top:9px;font-size:11px;color:var(--head-muted);font-family:var(--f-mono)}
+#brand{
+  background:var(--head-2);color:var(--head-ink);border:1px solid var(--head-line);border-radius:2px;
+  padding:8px 8px;font-family:var(--f-disp);font-size:16px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;max-width:170px;
+}
+#brand:focus-visible,#newcall:focus-visible{outline:2px solid var(--head-accent);outline-offset:1px}
+#newcall{
+  background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:2px;
+  padding:8px 13px;font-family:var(--f-body);font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap;
+}
+#newcall:hover{filter:brightness(1.08)}
+
+/* ---------- раскладка ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding:0 18px 80px;display:grid;grid-template-columns:250px minmax(0,1fr)}
+aside{border-right:1px solid var(--line);padding:20px 16px 22px 0}
+main{padding:22px 0 22px 26px;min-width:0}
+.navtoggle{display:none}
+.navlabel{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);font-family:var(--f-mono);margin:0 0 10px}
+.grp{margin-bottom:18px}
+.grp h4{margin:0 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.navbtn{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:none;border:0;border-left:2px solid transparent;
+  padding:5px 8px;margin:1px 0;cursor:pointer;
+  font-family:inherit;font-size:14.5px;color:var(--ink);border-radius:0;
+}
+.navbtn:hover{background:var(--hover)}
+.navbtn.on{border-left-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.navbtn .g{font-size:14px;width:18px;text-align:center;opacity:.8;flex:none}
+.navbtn .nocrm{margin-left:auto;font-family:var(--f-mono);font-size:10px;color:var(--gap-line)}
+.navbtn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* ---------- заголовки ---------- */
+.crumbs{font-size:12px;color:var(--ink-2);font-family:var(--f-mono);margin-bottom:6px}
+h1{font-family:var(--f-disp);font-size:38px;line-height:1.05;margin:0 0 6px;font-weight:600;text-wrap:balance}
+h2{font-family:var(--f-disp);font-size:25px;line-height:1.1;margin:26px 0 8px;font-weight:600;text-wrap:balance}
+.sub{color:var(--ink-2);font-size:14.5px;margin:0 0 22px;max-width:70ch}
+.lbl5{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono);font-weight:500}
+p.txt{max-width:70ch;margin:0 0 12px}
+
+/* ---------- роутер звонка (стартовый экран) ---------- */
+.router{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;max-width:980px}
+.rbtn{
+  display:flex;flex-direction:column;gap:4px;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--rail);
+  padding:13px 15px 12px;font-family:inherit;color:var(--ink);min-width:0;
+}
+.rbtn:hover{border-top-color:var(--accent);background:var(--accent-softer)}
+.rbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rbtn .t{font-size:16.5px;font-weight:600;line-height:1.25;display:flex;gap:9px;align-items:baseline}
+.rbtn .t .k{font-family:var(--f-mono);font-size:11px;color:var(--muted);border:1px solid var(--line);padding:0 5px;flex:none}
+.rbtn .h{font-size:13px;color:var(--ink-2);line-height:1.4}
+.rbtn .c{font-family:var(--f-mono);font-size:11px;color:var(--accent);margin-top:2px}
+.rbtn.main{border-top-color:var(--accent);grid-column:1/-1}
+.rbtn.main .t{font-size:19px}
+.rbtn.danger{border-top-color:var(--p1)}
+.rbtn.danger .t{color:var(--p1)}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0;max-width:980px}
+.quick button{font-family:inherit;font-size:13.5px;padding:7px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;border-radius:2px}
+.quick button:hover{border-color:var(--accent)}
+
+/* ---------- экран безопасности ---------- */
+.safe{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:9px;max-width:900px}
+.sbtn{
+  text-align:left;cursor:pointer;font-family:inherit;color:var(--ink);
+  background:var(--p1-soft);border:1px solid var(--p1);padding:13px 15px;min-width:0;
+}
+.sbtn b{display:block;color:var(--p1);font-size:16px;margin-bottom:2px}
+.sbtn span{font-size:13px;color:var(--ink-2)}
+.sbtn:hover{filter:brightness(.97)}
+.sbtn.none{background:var(--panel);border-color:var(--accent)}
+.sbtn.none b{color:var(--accent)}
+.sbtn:focus-visible{outline:2px solid var(--p1);outline-offset:2px}
+
+/* ---------- список симптомов ---------- */
+.sym{display:grid;gap:8px;max-width:760px}
+.symbtn{
+  display:flex;align-items:baseline;gap:12px;width:100%;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--rail);
+  padding:12px 15px;font-family:inherit;font-size:16px;color:var(--ink);
+}
+.symbtn:hover{border-left-color:var(--accent);transform:translateX(2px)}
+.symbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.symbtn .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);flex:none}
+.symbtn .uz{display:block;font-size:12.5px;color:var(--muted);font-family:var(--f-mono);margin-top:2px}
+.symbtn .arr{margin-left:auto;color:var(--muted);flex:none}
+.symbtn.red{border-left-color:var(--p1)}
+@media (prefers-reduced-motion:no-preference){.symbtn{transition:transform .12s ease,border-color .12s ease}}
+
+/* ---------- дерево ---------- */
+.rail{border-left:1px solid var(--rail);margin-left:13px;padding-left:26px;position:relative}
+.step{position:relative;padding-bottom:24px}
+.step:last-child{padding-bottom:0}
+.dot{
+  position:absolute;left:-33px;top:2px;width:15px;height:15px;border-radius:50%;
+  background:var(--paper);border:1px solid var(--rail);
+  font-family:var(--f-mono);font-size:9px;line-height:14px;text-align:center;color:var(--muted);
+}
+.dot.done{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.q{font-size:19px;font-weight:600;margin:0 0 3px;line-height:1.3;max-width:62ch}
+.hint{font-size:13.5px;color:var(--ink-2);margin:0 0 12px;max-width:70ch}
+.hint b{color:var(--ink)}
+.opts{display:grid;gap:7px;max-width:660px}
+.opt{
+  display:flex;align-items:center;gap:11px;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);padding:10px 14px;
+  font-family:inherit;font-size:15.5px;color:var(--ink);
+}
+.opt:hover{border-color:var(--accent);background:var(--accent-softer)}
+.opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+kbd,.opt kbd{
+  font-family:var(--f-mono);font-size:11px;background:var(--paper);
+  border:1px solid var(--line);padding:1px 6px;color:var(--ink-2);flex:none;
+}
+.answered{background:var(--accent-soft);border:1px solid var(--accent-line);padding:8px 13px;max-width:660px}
+.answered .lbl{font-size:12px;color:var(--ink-2);font-family:var(--f-mono)}
+.answered .val{font-weight:600;font-size:15px}
+
+/* ---------- талон решения ---------- */
+.ticket{
+  background:var(--panel);border:1px solid var(--line);max-width:760px;
+  border-top:5px solid var(--pc,var(--accent));position:relative;
+}
+.tkhead{padding:15px 18px 13px;border-bottom:1px dashed var(--line)}
+.badge{
+  display:inline-block;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;
+  background:var(--pc,var(--accent));color:var(--badge-ink);padding:3px 9px;margin-bottom:8px;
+}
+.tkhead h3{margin:0;font-size:22px;font-family:var(--f-disp);font-weight:600;line-height:1.2;text-wrap:balance}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line-soft);border-bottom:1px dashed var(--line)}
+.meta div{background:var(--panel);padding:10px 18px;min-width:0}
+.meta .k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono)}
+.meta .v{font-size:14.5px;font-weight:600;margin-top:2px}
+.tkbody{padding:15px 18px 20px}
+.tkbody h5{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono);font-weight:500}
+.do{margin:0 0 18px;padding:0;list-style:none;display:grid;gap:6px;max-width:70ch}
+.do li{display:flex;gap:9px;font-size:15px}
+.do li::before{content:"□";color:var(--accent);font-size:15px;flex:none}
+.do.nums{counter-reset:n}
+.do.nums li::before{counter-increment:n;content:counter(n);font-family:var(--f-mono);font-size:11px;border:1px solid var(--accent-line);color:var(--accent);width:20px;height:20px;line-height:18px;text-align:center;flex:none;margin-top:1px}
+.say{border-left:3px solid var(--accent);background:var(--accent-softer);padding:10px 14px;font-size:15.5px;margin-bottom:12px;max-width:72ch}
+.say .who{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-family:var(--f-mono);display:block;margin-bottom:3px}
+.say.uz{border-left-style:dashed}
+.warn{border-left:3px solid var(--p1);background:var(--p1-soft);padding:10px 14px;font-size:14.5px;margin-bottom:16px;max-width:72ch}
+.warn b{color:var(--p1)}
+.gap{border:1px dashed var(--gap-line);background:var(--gap-bg);padding:9px 13px;font-size:13.5px;margin-bottom:16px;color:var(--gap-ink);max-width:72ch}
+.gap b{color:var(--gap-ink)}
+.okbox{border-left:3px solid var(--accent);background:var(--accent-softer);padding:9px 13px;font-size:14px;margin-bottom:16px;max-width:72ch}
+.gapmark{font-family:var(--f-mono);background:var(--gap-bg);border:1px dashed var(--gap-line);padding:0 4px;font-size:12.5px;color:var(--gap-ink)}
+.acts{display:flex;gap:9px;flex-wrap:wrap}
+button.pri,button.sec{font-family:inherit;font-size:14px;padding:9px 15px;cursor:pointer;border-radius:2px}
+button.pri{background:var(--btn-bg);color:var(--btn-ink);border:1px solid var(--btn-bg)}
+button.pri:hover{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.sec{background:none;color:var(--ink);border:1px solid var(--line)}
+button.sec:hover{border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.footnote{margin-top:24px;font-size:12.5px;color:var(--ink-2);max-width:760px;border-top:1px solid var(--line);padding-top:12px}
+
+/* ---------- карточка amoCRM ---------- */
+.crm{border:1px solid var(--accent-line);background:var(--accent-softer);margin:4px 0 18px}
+.crm .ch{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--accent-line);background:var(--accent-soft)}
+.crm .ch b{font-family:var(--f-disp);font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+.crm .ch .stg{font-size:14px}
+.crm .ch .stg code{font-weight:600}
+.crm .cb{padding:10px 14px 12px}
+.fl{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr);gap:0;margin:0 0 10px;border-top:1px solid var(--line-soft)}
+.fl>div{padding:6px 8px 6px 0;border-bottom:1px solid var(--line-soft);font-size:14px;min-width:0}
+.fl .fn{color:var(--ink-2);font-size:13px}
+.fl .fn .req{color:var(--p1);font-weight:600;margin-left:2px}
+.fl .fv{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+code,.code{font-family:var(--f-mono);font-size:13px;background:var(--panel);border:1px solid var(--line);padding:1px 6px;color:var(--ink);overflow-wrap:anywhere}
+.fv small{color:var(--muted);font-size:12px}
+.cp{font-family:var(--f-mono);font-size:11px;padding:2px 7px;border:1px solid var(--accent-line);background:var(--panel);color:var(--accent);cursor:pointer;border-radius:2px;flex:none}
+.cp:hover{background:var(--accent);color:var(--accent-ink)}
+.chk{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:5px;max-width:72ch}
+.chk label{display:flex;gap:9px;align-items:flex-start;font-size:14.5px;cursor:pointer}
+.chk input{margin-top:4px;accent-color:var(--accent);flex:none}
+.chk .fmt{display:block;font-size:12.5px;color:var(--muted)}
+.desc{display:block;width:100%;min-height:64px;font-family:var(--f-mono);font-size:13px;line-height:1.45;padding:8px 10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);resize:vertical;border-radius:2px}
+.extras{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:0 0 14px}
+.extras label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--ink-2);min-width:0}
+.extras input{font-family:var(--f-mono);font-size:14px;padding:7px 9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:2px;width:100%;min-width:0}
+.extras input:focus{outline:2px solid var(--accent);outline-offset:0}
+.res-box{font-size:13.5px;margin:-4px 0 12px;display:grid;gap:6px}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:11px;padding:1px 7px;border:1px solid currentColor;border-radius:999px;white-space:nowrap}
+.pill.good{color:var(--accent)}
+.pill.bad{color:var(--p1)}
+.pill.mid{color:var(--p2)}
+
+/* ---------- справочники ---------- */
+.wcard{border:1px solid var(--line);background:var(--panel);padding:13px 15px;margin-bottom:16px;max-width:760px}
+.wcard .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.wcard .bn{font-family:var(--f-disp);font-size:19px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.wcard .term{font-family:var(--f-mono);font-size:13px;background:var(--accent);color:var(--accent-ink);padding:2px 8px}
+.wrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:14px}
+.wrow ul{margin:4px 0 0;padding-left:16px}
+.wrow li{margin-bottom:2px}
+.wrow .yes{color:var(--p3);font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-family:var(--f-mono)}
+.wrow .no{color:var(--p1);font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-family:var(--f-mono)}
+.conflict{border:1px solid var(--p1);background:var(--p1-soft);padding:10px 14px;font-size:13.5px;margin:10px 0;max-width:760px}
+.conflict b{color:var(--p1)}
+.conflict ul{margin:6px 0 0;padding-left:18px}
+.tbl{overflow-x:auto;max-width:100%;margin-bottom:18px;border:1px solid var(--line);background:var(--panel)}
+table.w{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);min-width:560px}
+table.w th{text-align:left;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-family:var(--f-mono);font-weight:500;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.w td{padding:8px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+table.w tr:last-child td{border-bottom:0}
+table.w tr:hover td{background:var(--accent-softer)}
+table.w td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{font-family:var(--f-mono);font-size:12px;background:var(--paper);border:1px solid var(--line);padding:1px 6px;white-space:nowrap}
+.stages{display:flex;flex-wrap:wrap;gap:6px 4px;align-items:center;margin:4px 0 18px;max-width:980px}
+.stages .s{font-size:12.5px;padding:5px 9px;border:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.stages .s.op{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.stages .s.auto{border-style:dashed;color:var(--ink-2)}
+.stages .s.end{border-color:var(--ink-2)}
+.stages .a{color:var(--muted);font-size:13px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--ink-2);margin:-8px 0 18px}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{display:inline-block;width:14px;height:10px;border:1px solid var(--line)}
+.legend i.op{border-color:var(--accent);background:var(--accent-soft)}
+.legend i.auto{border-style:dashed}
+.phone{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;max-width:980px}
+.cols2>div{min-width:0}
+
+/* ---------- сервисные центры ---------- */
+.scpick{margin:0 0 16px;max-width:760px}
+.scpick label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:4px}
+.scpick select{font-family:inherit;font-size:14.5px;padding:7px 9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:2px;max-width:100%}
+.scpick select:focus{outline:2px solid var(--accent);outline-offset:0}
+.sccard{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--panel);padding:11px 14px;margin-top:10px;min-width:0}
+.sccard .sch{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin-bottom:8px}
+.sccard .sch b{font-family:var(--f-disp);font-size:19px;letter-spacing:.03em;font-weight:600}
+.sccard .sch small{color:var(--muted);font-size:12px}
+.scp,.sca{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:6px}
+.scp li,.sca li{font-size:14.5px;display:flex;flex-wrap:wrap;gap:3px 8px;align-items:baseline}
+.scp li>span:first-child{min-width:7.5em;color:var(--ink-2)}
+.sca .lm{display:block;width:100%;font-size:12.5px;color:var(--muted)}
+.scgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;max-width:1000px;margin-bottom:16px}
+.scgrid .sccard{margin-top:0}
+
+/* ---------- коды ошибок Ziffler ---------- */
+.zpick{max-width:760px}
+.zser{max-width:1000px;margin:0 0 16px}
+.zser summary{cursor:pointer;font-size:13.5px;color:var(--ink-2);margin-bottom:10px}
+.zchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.zchip{font-family:inherit;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;cursor:pointer;border-radius:2px;display:flex;flex-direction:column;gap:1px;max-width:100%}
+.zchip b{font-size:13.5px;font-weight:600}
+.zchip small{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.zchip:hover{border-color:var(--accent)}
+.zchip.on{border-color:var(--accent);background:var(--accent-soft)}
+.zlist{display:grid;gap:6px;max-width:860px;margin:0 0 16px}
+.zrow{display:flex;align-items:center;gap:12px;text-align:left;font-family:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 12px;cursor:pointer;width:100%;border-radius:0}
+.zrow:hover{border-color:var(--accent)}
+.zrow .zcode{font-family:var(--f-mono);font-weight:600;font-size:15px;min-width:4.8em;flex:none}
+.zrow .zrn{flex:1;min-width:0;font-size:14.5px}
+.zrow .zrn small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.zrow .pill{flex:none}
+.zcard{border:1px solid var(--line);border-top:4px solid var(--accent);background:var(--panel);padding:14px 16px;margin:0 0 16px;max-width:860px}
+.zcard.z-master,.zcard.z-urgent{border-top-color:var(--p1)}
+.zcard.z-self,.zcard.z-reset{border-top-color:var(--p2)}
+.zh{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.zbig{font-family:var(--f-mono);font-size:30px;font-weight:600;letter-spacing:.02em;line-height:1}
+.zbl{font-size:13px;color:var(--ink-2)}
+.zsrc{margin:8px 0 2px;font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.zn{font-size:18px;font-weight:600;margin:0 0 12px;max-width:62ch}
+.zouts{display:grid;grid-template-columns:1fr;gap:10px;margin:0 0 12px;max-width:760px}
+.zout{border:1px solid var(--line-soft);padding:10px 12px 2px;min-width:0}
+.zout>b{display:block;font-size:13px;margin-bottom:6px}
+.zmd{margin-top:12px}
+.zmd summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
+.zm{white-space:pre-line;font-size:13.5px;line-height:1.5;background:var(--paper);border:1px solid var(--line-soft);padding:10px 12px;margin:8px 0;max-width:80ch;overflow-wrap:anywhere}
+@media (max-width:640px){.zbig{font-size:26px}.zrow{gap:8px;padding:8px 10px}.zrow .zcode{min-width:3.6em}}
+
+/* ---------- поиск ---------- */
+.res{display:grid;gap:7px;max-width:760px}
+.res .r{background:var(--panel);border:1px solid var(--line);padding:10px 14px;cursor:pointer;text-align:left;font-family:inherit;font-size:15.5px;width:100%;color:var(--ink)}
+.res .r:hover{border-color:var(--accent)}
+.res .r small{display:block;color:var(--ink-2);font-size:12px;font-family:var(--f-mono);margin-top:2px}
+.res .r.red{border-left:3px solid var(--p1)}
+.empty{color:var(--ink-2);font-size:15px}
+
+/* ---------- тренажёр ---------- */
+.qz{background:var(--panel);border:1px solid var(--line);padding:14px 16px;max-width:760px;margin-bottom:12px}
+.qz .qn{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
+.qz .qt{font-size:17px;font-weight:600;margin:4px 0 10px}
+.qz .qt .cl{font-family:var(--f-mono);font-weight:500;background:var(--paper);border:1px solid var(--line);padding:1px 6px}
+.qz .qo{display:grid;gap:6px}
+.qz .qo button{text-align:left;font-family:inherit;font-size:14.5px;padding:8px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.qz .qo button:hover{border-color:var(--accent)}
+.qz .qo button.right{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.qz .qo button.wrong{border-color:var(--p1);background:var(--p1-soft)}
+.qz .fb{margin-top:10px;font-size:14px}
+.score{font-family:var(--f-disp);font-size:22px;margin:0 0 14px}
+
+/* ---------- тост ---------- */
+#toast{
+  position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);
+  background:var(--btn-bg);color:var(--btn-ink);padding:11px 20px;font-size:14px;border-radius:2px;
+  opacity:0;pointer-events:none;z-index:60;max-width:calc(100% - 32px);
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:no-preference){#toast{transition:opacity .2s,transform .2s}}
+
+@media (max-width:640px){.wrow{grid-template-columns:1fr}.fl{grid-template-columns:1fr}.fl .fn{border-bottom:0;padding-bottom:0}}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr);padding:0 16px 60px}
+  aside{border-right:0;border-bottom:1px solid var(--line);padding:12px 0;min-width:0}
+  main{padding:18px 0}
+  .grp{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;padding-bottom:4px}
+  .grp h4{display:none}
+  .navbtn{width:auto;white-space:nowrap;border:1px solid var(--line);border-left-width:2px;flex:none}
+  .navlabel{display:none}
+  .navtoggle{display:flex;align-items:center;justify-content:space-between;width:100%;font-family:inherit;font-size:14.5px;font-weight:600;padding:9px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:2px;cursor:pointer}
+  .navtoggle::after{content:"▾";color:var(--muted)}
+  aside.open .navtoggle::after{content:"▴"}
+  aside nav{display:none;margin-top:10px}
+  aside.open nav{display:block}
+  h1{font-size:30px}
+  .hbar{flex-wrap:wrap;gap:8px;padding:10px 16px}
+  .search{max-width:none;flex-basis:100%;margin-left:0;order:5}
+  .kicker{display:none}
+  #brand{margin-left:auto}
+}
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="hbar">
+    <button class="logo" id="logo" type="button" aria-label="На главную: новый звонок">Darian<span>·</span>Assist</button>
+    <div class="kicker">Линия 7TECH · amoCRM · v2.0</div>
+    <select id="brand" aria-label="Бренд техники клиента"></select>
+    <div class="search">
+      <span class="ic" aria-hidden="true">⌕</span>
+      <input id="q" type="search" placeholder="Клиент говорит: «не морозит», «suv oqyapti», модель 7WM4S…" autocomplete="off" aria-label="Поиск по словам клиента на русском или узбекском, или по модели">
+      <span class="slash" aria-hidden="true">/</span>
+    </div>
+    <button id="newcall" type="button">Новый звонок</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <aside id="aside">
+    <p class="navlabel">Разделы</p>
+    <button id="navtoggle" class="navtoggle" type="button" aria-expanded="false" aria-controls="nav">Разделы помощника</button>
+    <nav id="nav" aria-label="Разделы помощника"></nav>
+  </aside>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>const __ASSIST = /*@@ASSIST_DATA@@*/{};
+
+/* ==========================================================================
+   DARIAN·ASSIST v2.0 — помощник оператора горячей линии 7TECH
+   Сверено с amoCRM seventech.amocrm.ru 02.10.2026 (воронка «Воронка», 3 439 сделок).
+   Всё, что зависит от CRM, собрано в блоке CRM ниже: если в amoCRM изменят
+   поле, значение или этап — правьте только его.
+   ========================================================================== */
+
+const CRM = __ASSIST.CRM;
+
+/* Эскалация. Метки — те же, что используются в Telegram-группе «7 tech support». */
+const ESC = __ASSIST.ESC;
+
+/* Контакты, которых нет ни в CRM, ни на сайте 7TECH. Впишите номер вместо null —
+   в помощнике сразу пропадёт пометка «уточнить у супервайзера». */
+const CONTACTS = __ASSIST.CONTACTS;
+
+/* Приоритеты. Это внутренняя срочность, а не обещание клиенту по часам:
+   реальный плановый срок ремонта в DCRM — 7 дней от регистрации,
+   по данным CRM за сентябрь ремонт в среднем занимает около 4 дней. */
+const SLA = __ASSIST.SLA;
+const PLAN_DAYS = __ASSIST.PLAN_DAYS;
+
+/* Стандартные причины закрытия. lr — значение из списка причин amoCRM при закрытии,
+   txt — что вписать в обязательное поле «причина отказа». */
+const CLOSE = __ASSIST.CLOSE;
+const closeBy = id => CLOSE.find(c=>c.id===id);
+
+/* ---------------- гарантия ---------------- */
+/* 7TECH, сайт seventech.uz/warranty-terms: «Гарантийный срок 1 год — мы берем на себя все
+   расходы: работу и запчасти» и «Бесплатное сервисное обслуживание 2 года — мы покрываем
+   работу специалиста». С какой даты считать 2 года, на сайте не сказано: по умолчанию
+   помощник считает их от даты покупки (осторожный вариант — ничего лишнего не обещаем).
+   Правило утверждено 02.10.2026: 2 года считаются от даты покупки (всего до 24 мес.).
+   full — месяцев полной гарантии, labor — до какого месяца работа мастера бесплатна,
+   yesMax — до какого месяца ставить «Статус гарантии: Да». */
+const W7 = __ASSIST.W7;
+
+const UNIVERSAL_EXC = __ASSIST.UNIVERSAL_EXC;
+const EXC_7TECH = __ASSIST.EXC_7TECH;
+const DOCS = __ASSIST.DOCS;
+
+const CATNAMES = __ASSIST.CATNAMES;
+
+/* раздел помощника → категория гарантии */
+const APPCAT = __ASSIST.APPCAT;
+
+const BRANDS = __ASSIST.BRANDS;
+
+let brand = BRANDS[0];
+
+function catInfo(catKey){
+  const c = brand.cats && brand.cats[catKey];
+  if(brand.official) return {t:'1 год — работа и запчасти; до 2 лет — работа мастера бесплатно', cov:['Дефекты материалов и производственные дефекты'], exc:EXC_7TECH, exact:true};
+  if(c) return {t:c.t, cov:c.cov&&c.cov.length?c.cov:['Заводской брак и производственные дефекты сборки'],
+                exc:[...(c.exc||[]), ...UNIVERSAL_EXC], exact:true};
+  return {t:brand.base, cov:['Заводской брак и производственные дефекты сборки'], exc:UNIVERSAL_EXC, exact:false};
+}
+
+/* ---------------- расшифровка модели 7TECH ----------------
+   Префиксы сверены с моделями из 1 071 заявки в CRM и каталогом seventech.uz. */
+const MODELS = __ASSIST.MODELS;
+
+function decodeModel(raw){
+  const m = String(raw||'').toUpperCase().replace(/[\s\-_.]/g,'').replace(/^SEVEN/,'7');
+  if(!/^7[A-Z]/.test(m)) return null;
+  const hit = MODELS.find(x=>m.startsWith(x[0]));
+  if(!hit) return {model:m, prefix:null};
+  return {model:m, prefix:hit[0], crm:hit[1], app:hit[2], note:hit[3]||''};
+}
+
+/* ---------------- сервисные центры и менеджеры ----------------
+   Источник: файлы сервиса «7 Tech servis raqamlari» и «Adres», переданы 02.10.2026.
+   crm — как СЦ называется в поле «Сервисный центр» сделки (его ставит DCRM),
+   eng — как инженер записан в поле «Инженер». Телефоны — 9 цифр без +998.
+   addrs.who — контактное лицо по этому адресу из файла «Adres». */
+const SC = __ASSIST.SC;
+/* Номер есть в файле, но регион не указан. */
+const SC_EXTRA = __ASSIST.SC_EXTRA;
+function fmtTel(t){ const d=String(t||'').replace(/\D/g,'').slice(-9); return d.length===9 ? '+998 '+d.slice(0,2)+' '+d.slice(2,5)+' '+d.slice(5,7)+' '+d.slice(7) : String(t||''); }
+function scById(id){ return SC.find(s=>s.id===id); }
+function scByPhone(digits){ const d=String(digits||'').replace(/\D/g,'').slice(-9); if(d.length<7) return null;
+  for(const s of SC){ const p=s.people.find(x=>x.tel.endsWith(d)||d.endsWith(x.tel)); if(p) return {s,p}; }
+  const e=SC_EXTRA.find(x=>x.tel.endsWith(d)||d.endsWith(x.tel)); return e?{s:null,p:e}:null; }
+/* Магазины и шоурумы — с сайта seventech.uz/branches, проверено 02.10.2026. */
+const SHOPS = __ASSIST.SHOPS;
+const SUPPORT = __ASSIST.SUPPORT;
+
+/* ---------------- фразы на узбекском для основных моментов звонка ---------------- */
+const UZ = __ASSIST.UZ;
+
+/* ---------------- даты ---------------- */
+const pad2 = n => String(n).padStart(2,'0');
+const fmtD = d => pad2(d.getDate())+'.'+pad2(d.getMonth()+1)+'.'+d.getFullYear();
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const addMonths = (d,n) => { const x=new Date(d); x.setMonth(x.getMonth()+n); return x; };
+const today = () => { const t=new Date(); t.setHours(0,0,0,0); return t; };
+const planDate = () => fmtD(addDays(today(),PLAN_DAYS));
+function monthsBetween(a,b){ let m=(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth()); if(b.getDate()<a.getDate()) m--; return m; }
+function parseDate(s){
+  if(!s) return null;
+  let m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m = String(s).trim().match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+  if(m){ const y=+m[3]<100?2000+ +m[3]:+m[3]; return new Date(y,+m[2]-1,+m[1]); }
+  return null;
+}
+/* Статус гарантии по дате покупки — для 7TECH по правилу W7, для остальных брендов только подсказка. */
+function warrantyByDate(pd){
+  const t=today();
+  if(pd>t) return {cls:'bad', crm:null, head:'Дата покупки позже сегодняшней', text:'Переспросите дату: в CRM уже есть заявки с датой покупки «в будущем» — это ошибка.', say:null};
+  const m=monthsBetween(pd,t);
+  if(!brand.official) return {cls:'mid', crm:null, head:`С покупки прошло ${m} мес.`, text:`Срок гарантии ${brand.n} — ${catInfo(APPCAT[(state.app||{}).id]||'').t}. Сверьте с гарантийным талоном, «Статус гарантии» ставьте по талону.`, say:null};
+  if(m<W7.full) return {cls:'good', crm:'Да', end:fmtD(addMonths(pd,W7.full)), head:`Гарантия: ${m} мес. из ${W7.full}`, text:'Ремонт бесплатный: работа и запчасти. «Статус гарантии» — Да, «Дата окончания гарантии» — '+fmtD(addMonths(pd,W7.full))+'.', say:'Ваша техника на гарантии — ремонт бесплатный.'};
+  if(m<W7.labor) return {cls:'mid', crm:m<W7.yesMax?'Да':'Нет', end:fmtD(addMonths(pd,W7.full)), head:`Бесплатный сервис: ${m} мес. с покупки`, text:`Гарантийный год закончился ${fmtD(addMonths(pd,W7.full))}. Работа мастера бесплатно до ${fmtD(addMonths(pd,W7.labor))}, запчасти — платно. «Статус гарантии» — ${m<W7.yesMax?'Да':'Нет'}. В «Комментарий»: «Бесплатный сервис: работа бесплатно, запчасти платно».`, say:'Гарантийный год закончился, но действует бесплатное сервисное обслуживание: работа мастера бесплатна, запчасти — платно. Стоимость деталей мастер назовёт до ремонта.', uz:UZ.labor};
+  return {cls:'bad', crm:'Нет', end:fmtD(addMonths(pd,W7.full)), head:`Гарантия закончилась: ${m} мес. с покупки`, text:'Ремонт платный. Стоимость мастер называет до начала работ, клиент решает. «Статус гарантии» — Нет.', say:'Срок гарантии закончился, ремонт будет платным. Мастер назовёт стоимость до начала работ, и вы решите, продолжать ли.', uz:UZ.paid};
+}
+
+/* ==========================================================================
+   ЭКРАН БЕЗОПАСНОСТИ. Открывается первым при любой новой неисправности.
+   ========================================================================== */
+const SAFE = __ASSIST.SAFE;
+
+/* ==========================================================================
+   ДЕРЕВЬЯ ТЕХНИКИ. Дерево = вопросы (q) → варианты (opts) → исход (out).
+   Вариант может вести в другое дерево: go:'washer:w2' или на экран безопасности: go:'safe:gas'.
+   Исходы: ticket — заявка мастеру, remote — решено по телефону, info — консультация,
+   parts — запчасти/аксессуары, route — перенаправить, safety — опасно.
+   follow:24 — нужен контрольный звонок через 24 часа (этап «Перезвонить» + задача).
+   crm — точное значение поля «Тип устройство» в amoCRM (null — такого значения нет).
+   uz — слова клиента на узбекском (латиница; кириллицу поиск понимает сам).
+   ========================================================================== */
+const DATA = __ASSIST.DATA;
+
+/* ---------- газ: общие симптомы для варочной панели и плиты ---------- */
+function gasSyms(stove){
+  const dev = stove ? 'gasstove' : 'gashob';
+  return [
+  {id:'g0',name:'Запах газа',red:true,tags:'запах газа утечка пахнет газом шипит',uz:'gaz hidi gaz hidi kelyapti gaz chiqyapti utechka',go:'safe:gas'},
+  {id:'g1',name:'Не зажигается конфорка',tags:'не зажигается конфорка поджиг искра электроподжиг зажигалка не горит',uz:'yonmayapti konforka yonmayapti ishlamayapti zajigalka chaqmoq iskra gugurt bilan yonmayapti spichka olov chiqmayapti',
+   start:'a',nodes:{
+    a:{q:'Не зажигается одна конфорка или все?',opts:[
+      {l:'Одна или две',to:'b'},
+      {l:'Все конфорки',to:'c'}]},
+    b:{q:'Конфорку недавно мыли? Крышка рассекателя лежит ровно?',hint:'Вода в горелке и на свече поджига мешает искре. Сдвинутая крышка рассекателя — частая причина.',opts:[
+      {l:'Да, мыли или крышка была сдвинута',to:'b1'},
+      {l:'Нет, всё сухо и на месте',to:'b2'}]},
+    b1:{out:{k:'remote',p:'P4',follow:24,title:'Мокрая горелка или сдвинут рассекатель',
+      do:['Попросить закрыть газ, снять рассекатель и крышку, вытереть и просушить несколько часов, лучше до утра',
+          'Установить крышку ровно, до посадки на место','Проверить, что свеча поджига — белый керамический стержень — чистая',
+          'Перезвонить; если после просушки не зажигается — оформить заявку P3'],
+      say:'После мытья горелке нужно хорошо просохнуть. Протрите её и дайте высохнуть — обычно этого достаточно.'}},
+    b2:{q:'При повороте ручки щёлкает искра?',opts:[
+      {l:'Щёлкает, но газ не загорается',to:'b3'},
+      {l:'Не щёлкает, но от спички горит',to:'b4'},
+      {l:'Газ не идёт совсем, шипения нет',to:'b5'}]},
+    b3:{out:{k:'ticket',p:'P3',title:'Газ не поджигается при наличии искры',
+      do:['Уточнить: держат ли ручку нажатой 3–5 секунд при поджиге','Записать модель и серийный номер','Создать заявку P3'],
+      say:'Искра есть, а газ не загорается — мастер проверит горелку. Оформляю заявку.'}},
+    b4:{out:{k:'ticket',p:'P3',title:'Не работает электроподжиг',
+      do:['Проверить, включена ли вилка в розетку — поджиг питается от сети','Уточнить, работает ли поджиг на других конфорках',
+          'По инструкции большинства моделей конфорку можно зажечь спичкой: поднести огонь, затем нажать и повернуть ручку','Записать модель и серийный номер, создать заявку P3'],
+      say:'Пока поджиг не работает, конфорку можно зажигать спичкой. Мастер починит поджиг.'}},
+    b5:{out:{k:'ticket',p:'P2',title:'Газ не поступает в конфорку',
+      do:['Убедиться, что газовый кран на трубе открыт полностью и другие конфорки горят','Если газа нет во всём доме — вопрос к газовой службе: справочная 1104',
+          'Если не идёт только в эту конфорку — записать модель и серийный номер, создать заявку P2'],
+      say:'Газ не доходит до конфорки — нужен мастер. Оформляю заявку.'}},
+    c:{q:'Другие газовые приборы в доме работают?',opts:[
+      {l:'Газа нет нигде',to:'c1'},
+      {l:'Газ есть, а '+(stove?'плита':'панель')+' не работает целиком',to:'c2'}]},
+    c1:{out:{k:'info',p:'P4',title:'Нет газа в сети',
+      do:['Объяснить: проблема в газоснабжении, а не в технике','Справочная газовой службы — 1104, аварийная — 104','Зафиксировать консультацию'],
+      say:'Газа нет во всём доме — это вопрос к газовой службе. Справочная — 1104.'}},
+    c2:{out:{k:'ticket',p:'P2',title:(stove?'Не работает газовая плита':'Не работает варочная панель')+' целиком',
+      do:['Проверить, включена ли вилка в розетку — для электроподжига','Убедиться, что газовый кран на подводке открыт полностью','Записать модель и серийный номер','Создать заявку P2'],
+      say:'Газ есть, а техника не работает — нужен мастер. Оформляю заявку.'}}
+  }},
+  {id:'g2',name:'Пламя гаснет, когда отпускаешь ручку',tags:'гаснет пламя отпускаешь ручку газ контроль термопара тухнет',uz:'ochib qolyapti olov ochadi ruchkani qoyib yuborsa ochadi',
+   start:'a',nodes:{
+    a:{q:'Сколько секунд держат ручку нажатой после того, как пламя загорелось?',hint:'Датчику газ-контроля нужно нагреться: держать ручку 10–15 секунд.',opts:[
+      {l:'Меньше 5 секунд',to:'b'},
+      {l:'Держат 15 секунд — всё равно гаснет',to:'c'}]},
+    b:{out:{k:'remote',p:'P4',title:'Не прогрет датчик газ-контроля',
+      do:['Объяснить: после поджига держать ручку нажатой 10–15 секунд','Проверить, что пламя касается датчика — медного штырька у горелки','Если и после этого гаснет — заявка P3'],
+      say:'Это защита от утечки газа: после поджига подержите ручку нажатой секунд 10–15, и пламя останется.'}},
+    c:{out:{k:'ticket',p:'P3',title:'Не держит газ-контроль',
+      do:['Уточнить: на одной конфорке или на всех','Записать модель и серийный номер','Создать заявку P3'],
+      say:'Система газ-контроля защищает от утечки, если пламя погасло. Мастер проверит датчик.'}}
+  }},
+  {id:'g3',name:'Слабое пламя, газ плохо идёт',tags:'слабое пламя газ плохо идёт маленький огонь',uz:'gaz past gaz kelmayapti olov past gaz yaxshi kelmayapti',
+   start:'a',nodes:{
+    a:{q:'Слабое пламя где?',opts:[
+      {l:'На всех конфорках и на других газовых приборах',to:'b'},
+      {l:'Только на одной конфорке',to:'c'},
+      {l:'На всех конфорках, другие приборы в норме',to:'d'}]},
+    b:{out:{k:'info',p:'P4',title:'Низкое давление газа в сети',
+      do:['Объяснить: зимой давление в сети падает — вопрос к газовой службе, справочная 1104','Зафиксировать консультацию'],
+      say:'Слабое давление газа во всём доме — это сеть, а не техника. Справочная газовой службы — 1104.'}},
+    c:{out:{k:'ticket',p:'P3',title:'Слабое пламя одной конфорки',
+      do:['Попросить почистить отверстия рассекателя — без острых металлических предметов','Если не помогло — записать модель и создать заявку P3: вероятен засор форсунки'],
+      say:'Сначала почистим рассекатель. Если не поможет — мастер прочистит форсунку.'}},
+    d:{out:{k:'ticket',p:'P3',title:'Слабое пламя всех конфорок',
+      do:['Уточнить, какой газ: магистральный или баллон — для баллона нужны другие форсунки','Записать модель','Создать заявку P3'],
+      say:'Мастер проверит форсунки и подключение. Оформляю заявку.',
+      warn:'Форсунки под баллонный газ меняет только мастер. Самостоятельная переделка опасна и лишает гарантии.'}}
+  }},
+  {id:'g4',name:'Треснуло или лопнуло стекло',tags:'стекло треснуло лопнуло разбилось трещина',uz:'oynasi sindi shisha singan ozidan ozi sindi darz ketdi',
+   start:'a',nodes:{
+    a:{q:'Как это произошло?',opts:[
+      {l:'Упало что-то, удар, горячая посуда на краю',to:'b'},
+      {l:'Лопнуло само, без удара',to:'c'}]},
+    b:{out:{k:'info',p:'P4',title:'Механическое повреждение стекла',
+      do:['Объяснить: удары и сколы не входят в гарантию','Предложить платную замену стекла — заявку P3 только с согласия клиента на оплату','Пока стекло треснуло — газом не пользоваться'],
+      say:'Повреждение от удара гарантия не покрывает, но стекло можно заменить платно. Пока пользоваться техникой не стоит.'}},
+    c:{out:{k:'ticket',p:'P3',title:'Стекло лопнуло без удара',
+      do:['Попросить перекрыть газ и не пользоваться техникой','Попросить фото трещины и наклейки с моделью','Записать модель, серийный номер, дату покупки','Создать заявку P3: гарантийный ли случай, решает СЦ после осмотра'],
+      say:'Пользоваться техникой с треснувшим стеклом нельзя. Мастер осмотрит и скажет, гарантийный ли это случай.',
+      warn:'Не обещать бесплатную замену и не отказывать по телефону — решение за СЦ.'}}
+  }},
+  {id:'g5',name:'Сломалась или оплавилась ручка, решётка',tags:'ручка сломалась оплавилась решётка чугун',uz:'ruchkasi singan erib ketgan chugun singan reshyotka',
+   start:'a',nodes:{
+    a:{out:{k:'parts',p:'P4',title:'Замена ручки или решётки',
+      do:['Уточнить, что сломано и как','Ручки и решётки подбирают по модели — дать контакт по запчастям','Если ручка оплавилась от пламени сбоку — оформить заявку P3: проверить горелку'],
+      say:'Ручку или решётку можно заменить — подскажу, куда обратиться.'}}
+  }}
+  ].concat(stove ? [
+  {id:'g6',name:'Духовка не зажигается, гаснет или плохо печёт',tags:'духовка не зажигается гаснет не печёт не греет',uz:'duxovka yonmayapti duxovka isitmayapti duxovka ochib qolyapti',
+   start:'a',nodes:{
+    a:{q:'Что с духовкой?',opts:[
+      {l:'Не зажигается',to:'b'},
+      {l:'Зажигается и гаснет через несколько секунд',to:'c'},
+      {l:'Горит, но печёт плохо',to:'d'}]},
+    b:{out:{k:'ticket',p:'P3',title:'Не зажигается газовая духовка',
+      do:['Уточнить, работают ли конфорки','Проверить, включена ли вилка в розетку — для электроподжига','Записать модель и серийный номер','Создать заявку P3'],
+      say:'Мастер проверит поджиг и горелку духовки. Оформляю заявку.'}},
+    c:{out:{k:'remote',p:'P4',title:'Не прогрет газ-контроль духовки',
+      do:['После поджига держать ручку нажатой 15 секунд','Если всё равно гаснет — заявка P3'],
+      say:'Подержите ручку нажатой секунд 15 после поджига — датчик должен прогреться.'}},
+    d:{out:{k:'remote',p:'P4',title:'Особенности режима, не поломка',
+      do:['Разогревать духовку 15 минут до загрузки','Ставить форму на средний уровень, не закрывать вентиляцию фольгой','Если отклонение заметное и постоянное — заявка P3'],
+      say:'Духовке нужен предварительный прогрев. Расскажу порядок — обычно этого достаточно.'}}
+  }},
+  {id:'g7',name:'Не работает вентилятор, подсветка или кнопки',tags:'вентилятор подсветка кнопки сенсор таймер не работает',uz:'ventilyator aylanmayapti knopkalar ishlamayapti sensor chiroq',
+   start:'a',nodes:{
+    a:{out:{k:'ticket',p:'P3',title:'Не работают электрические функции плиты',
+      do:['Проверить, включена ли вилка в розетку и работает ли розетка','Уточнить, что именно не работает: вентилятор, свет, таймер, кнопки','Записать модель и серийный номер','Создать заявку P3'],
+      say:'Мастер проверит электрическую часть плиты. Оформляю заявку.'}}
+  }}] : []);
+}
+
+/* перенесено в базу */
+
+/* ==========================================================================
+   КОДЫ ОШИБОК ZIFFLER — таблицы производителя из чата 29.09.2026
+   (trouble shoot*.xls, AC,WM Коды ошибок.xlsx, КОДЫ ОШИБОК.xlsx, WM_ERROR CODE.xls, PDF Lima/Oslo).
+   n — значение для оператора (рус.), t — подсказка из ZTIPS, m — текст таблицы для мастера
+   на языке источника, b — индикатор (мигания), h/note — пометки. Собрано zbuild.py.
+   ========================================================================== */
+const ZTIPS = __ASSIST.ZTIPS;
+const ZTAB = __ASSIST.ZTAB;
+
+/* ==========================================================================
+   СЦЕНАРИИ ЗВОНКА (не поломка). Те же деревья, но в исходе сразу указано,
+   что сделать в amoCRM: crm.stage — этап, crm.obr — «Тип обращения»,
+   crm.close — причина закрытия из CLOSE, crm.main — действия в основной сделке.
+   ========================================================================== */
+const FLOWS = __ASSIST.FLOWS;
+
+/* ==========================================================================
+   ЛОГИКА ИНТЕРФЕЙСА
+   ========================================================================== */
+const $ = s => document.querySelector(s);
+const nav = $('#nav'), main = $('#main'), qin = $('#q'), bsel = $('#brand');
+let state = {view:'home'};
+let extras = {model:'', pdate:'', code:'', sc:''};
+let descDirty = false;
+
+const LS = {
+  get(k,d){ try{ const v=localStorage.getItem('darian2:'+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem('darian2:'+k, JSON.stringify(v)); }catch(e){} }
+};
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function cp(v,label){ return `<button class="cp" type="button" data-copy="${esc(v)}">${label||'копировать'}</button>`; }
+function codeCp(v){ return `<code>${esc(v)}</code>${cp(v)}`; }
+
+/* ---------- что спросить у клиента для заявки ---------- */
+const ASK = [
+  {n:'ФИО',req:true,f:'Имя и фамилия, как представился клиент: «Ergasheva Nafisa». Не «mijoz» и не одно имя, если фамилию назвали.'},
+  {n:'Адрес / Город',req:true,f:'С области: «Toshkent sh., Yashnobod t., Gozal mahallasi, 35-uy, 6-xonadon» + ориентир. По адресу DCRM выбирает сервисный центр.'},
+  {n:'Модель',req:false,f:'С наклейки на технике, латиницей без пробелов: 7WM4S1070GCS1. Впишите её и в поле выше — помощник проверит тип.'},
+  {n:'Серийный номер',req:false,f:'С той же наклейки. Сейчас он есть только в 4% заявок, а мастеру он нужен.'},
+  {n:'Дата покупки',req:false,f:'По чеку или электронному талону в приложении 7TECH. Дата не может быть позже сегодняшней.'},
+  {n:'Магазин покупки',req:false,f:'Название и город: «Abu Sahiy, Toshkent». Не просто «магазин».'},
+  {n:'Второй номер телефона',req:false,f:'В карточку контакта, поле «Телефон», а не в комментарий.'}
+];
+
+/* ---------- стартовый экран ---------- */
+const ROUTER = [
+  {t:'Сломалась техника',h:'Новая заявка на ремонт или совет по неисправности',c:'Диагностика → Требуется сервис',go:'start',cls:'main'},
+  {t:'Статус заявки, где мастер',h:'Клиент уже оставлял заявку',c:'Консультация · статус заявки',go:'flow:status'},
+  {t:'Повторно, жалоба',h:'Не починили, мастер не пришёл, недоволен',c:'Жалоба · эскалация',go:'flow:repeat'},
+  {t:'Покупка, цены, магазин',h:'Цена, наличие, рассрочка, адрес шоурума',c:'Информация о покупке / магазине',go:'flow:buy'},
+  {t:'Смартфон 7 Mobile',h:'Покупка, ремонт, настройка телефона',c:'Тип устройство · Телефон',go:'app:phone'},
+  {t:'Запчасти, пульт, фильтр',h:'Нужна деталь, а не ремонт',c:'Запрос по запчастям',go:'flow:parts'},
+  {t:'Другой бренд',h:'Ziffler, Immer, Artel и другие',c:'Другое · другой бренд',go:'flow:brand'},
+  {t:'Адрес сервисного центра',h:'Хочет привезти технику сам',c:'Консультация · информация о СЦ',go:'flow:sc'},
+  {t:'Возврат, обмен, претензия',h:'Деньги, обмен, юрист',c:'Жалоба · эскалация',go:'flow:return'},
+  {t:'Ошиблись номером, тишина',h:'Не по адресу, молчание, сброс',c:'ошиблись номером',go:'flow:wrong'}
+];
+
+/* ---------- навигация ---------- */
+const NAVTOP = [
+  {h:'Звонок',items:[
+    {id:'home',n:'Новый звонок',g:'☎'},
+    {id:'start',n:'Сломалась техника',g:'⚠'},
+    {id:'flow:status',n:'Статус заявки',g:'⏱'},
+    {id:'flow:missed',n:'Пропущенный звонок',g:'↻'},
+    {id:'flow:hc',n:'Happy Call',g:'★'},
+    {id:'flow:repeat',n:'Жалоба, повторный ремонт',g:'!'}]}
+];
+const NAVBOTTOM = [
+  {h:'amoCRM',items:[
+    {id:'page:crm',n:'Как вести сделку',g:'⇢'},
+    {id:'page:fields',n:'Как заполнять поля',g:'✎'},
+    {id:'page:close',n:'Причины закрытия',g:'✓'},
+    {id:'page:model',n:'Расшифровка модели',g:'7'}]},
+  {h:'Гарантия',items:[
+    {id:'page:warranty',n:'Гарантия по бренду',g:'◎'},
+    {id:'page:exc',n:'Что не покрывает',g:'✕'},
+    {id:'page:check',n:'Чек-лист перед заявкой',g:'☑'},
+    {id:'page:refusal',n:'Платный ремонт и отказ',g:'❝'}]},
+  {h:'Справочник',items:[
+    {id:'page:sc',n:'Сервисные центры',g:'⌂'},
+    {id:'page:shops',n:'Магазины и шоурумы',g:'⌘'},
+    {id:'page:scripts',n:'Фразы RU / UZ',g:'⁂'},
+    {id:'page:zcodes',n:'Коды ошибок Ziffler',g:'Z'}]},
+  {h:'Обучение',items:[
+    {id:'page:day1',n:'Первый день',g:'1'},
+    {id:'page:errors',n:'Частые ошибки в CRM',g:'⚑'},
+    {id:'page:quiz',n:'Тренажёр',g:'?'},
+    {id:'page:admin',n:'Для супервайзера',g:'⚙'}]}
+];
+function navBtn(it){ return `<button class="navbtn" type="button" data-nav="${it.id}"><span class="g" aria-hidden="true">${it.g}</span><span>${esc(it.n)}</span>${it.nocrm?'<span class="nocrm" title="Значения нет в поле «Тип устройство» amoCRM">∅ CRM</span>':''}</button>`; }
+function buildNav(){
+  let h='';
+  NAVTOP.forEach(g=>{ h+=`<div class="grp"><h4>${esc(g.h)}</h4>${g.items.map(navBtn).join('')}</div>`; });
+  const groups=[...new Set(DATA.map(d=>d.group))];
+  groups.forEach(gr=>{ h+=`<div class="grp"><h4>${esc(gr)}</h4>${DATA.filter(d=>d.group===gr).map(d=>navBtn({id:'app:'+d.id,n:d.name,g:d.g,nocrm:!d.crm})).join('')}</div>`; });
+  NAVBOTTOM.forEach(g=>{ h+=`<div class="grp"><h4>${esc(g.h)}</h4>${g.items.map(navBtn).join('')}</div>`; });
+  nav.innerHTML=h;
+  const aside=$('#aside'), tg=$('#navtoggle');
+  nav.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{ goTo(b.dataset.nav); if(aside.classList.contains('open')){ aside.classList.remove('open'); tg.setAttribute('aria-expanded','false'); } });
+  tg.onclick=()=>{ const o=aside.classList.toggle('open'); tg.setAttribute('aria-expanded',o?'true':'false'); };
+}
+function markNav(id){ nav.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('on',b.dataset.nav===id)); }
+function top0(){ try{ window.scrollTo({top:0,behavior:'instant'}); }catch(e){ window.scrollTo(0,0); } }
+
+/* ---------- переходы ---------- */
+function goTo(target, fromApp){
+  if(!target) return;
+  if(target==='home'){ home(); return; }
+  if(target==='start'){ openSafety(); return; }
+  const i=target.indexOf(':'); const t=target.slice(0,i), a=target.slice(i+1);
+  if(t==='flow') return openFlow(a);
+  if(t==='safe') return openSafe(a, fromApp===undefined?state.app:fromApp);
+  if(t==='app') return openApp(a);
+  if(t==='page') return openPage(a);
+  if(t==='sc'){ extras.sc=a; return openPage('sc'); }
+  if(t==='zc') return zOpen(a);
+  return openSym(t,a);
+}
+function newCall(){
+  extras={model:'',pdate:'',code:'',sc:''}; zst={t:'',m:'',c:''}; descDirty=false;
+  brand=BRANDS[0]; bsel.value=brand.id;
+  home(); toast('Новый звонок: бренд 7TECH, данные прошлого звонка очищены');
+}
+
+/* ---------- стартовый экран ---------- */
+function home(){
+  state={view:'home'}; markNav('home'); qin.value='';
+  main.innerHTML=`
+    <p class="crumbs">Новый звонок · ${fmtD(today())}</p>
+    <h1>Что нужно клиенту?</h1>
+    <p class="sub">Поздоровайтесь и выслушайте. Сделка уже создана телефонией — «Входящий 99…» в этапе «Новое обращение». Выберите, зачем звонят: помощник доведёт до готовой записи в amoCRM.</p>
+    <div class="say uz"><span class="who">Приветствие · UZ</span>${esc(UZ.open)}</div>
+    <div class="router">${ROUTER.map(r=>`<button class="rbtn ${r.cls||''}" type="button" data-go="${r.go}"><span class="t">${esc(r.t)}</span><span class="h">${esc(r.h)}</span><span class="c">${esc(r.c)}</span></button>`).join('')}</div>
+    <div class="quick">
+      <button type="button" data-go="flow:missed">↻ Пропущенный: перезвонить</button>
+      <button type="button" data-go="flow:hc">★ Happy Call</button>
+      <button type="button" data-go="page:model">Расшифровать модель</button>
+      <button type="button" data-go="page:close">Причины закрытия</button>
+      <button type="button" data-go="page:zcodes">Коды ошибок Ziffler</button>
+      <button type="button" data-go="page:day1">Я первый день</button>
+    </div>
+    <p class="footnote">Линия ${esc(CRM.hotline)}, ${esc(CRM.hours)}. Поиск вверху понимает слова клиента на русском и узбекском (латиницей и кириллицей) и модель с наклейки. Клавиша «/» — поиск, Esc — шаг назад.</p>`;
+  top0();
+}
+
+/* ---------- экран безопасности и выбор техники ---------- */
+function openSafety(){
+  state={view:'safety'}; markNav('start'); qin.value='';
+  const groups=[...new Set(DATA.map(d=>d.group))];
+  main.innerHTML=`
+    <p class="crumbs">Новый звонок / Сломалась техника</p>
+    <h1>Сначала безопасность</h1>
+    <p class="sub">Спросите клиента: есть запах газа, дым или гарь, бьёт током, вода рядом с розеткой? Если да — сначала инструкция по безопасности, потом заявка.</p>
+    <div class="say uz"><span class="who">Спросить · UZ</span>Gaz hidi, tutun yoki kuygan hid bormi? Texnika tok uryaptimi? Rozetka yonida suv yo‘qmi?</div>
+    <div class="safe">
+      <button class="sbtn" type="button" data-go="safe:gas"><b>Запах газа</b><span>Плита, варочная панель, духовка</span></button>
+      <button class="sbtn" type="button" data-go="safe:smoke"><b>Дым, гарь, искры</b><span>Любая техника</span></button>
+      <button class="sbtn" type="button" data-go="safe:shock"><b>Бьёт током</b><span>Пощипывает от корпуса</span></button>
+      <button class="sbtn" type="button" data-go="safe:water"><b>Вода у розетки</b><span>Лужа рядом с электрикой</span></button>
+      <button class="sbtn none" type="button" id="safe-ok"><b>Ничего такого нет</b><span>Выбрать технику ниже</span></button>
+    </div>
+    <h2 id="devpick">Какая техника?</h2>
+    <p class="sub">Выберите технику или впишите модель с наклейки — помощник определит тип и значение для amoCRM.</p>
+    <div class="extras" style="max-width:520px"><label for="dev-model">Модель с наклейки<input id="dev-model" autocomplete="off" placeholder="например 7WM4S1070GCS1" value="${esc(extras.model)}"></label></div>
+    <div id="dev-model-res" class="res-box"></div>
+    ${groups.map(gr=>`<p class="lbl5" style="margin-top:14px">${esc(gr)}</p><div class="router">${DATA.filter(d=>d.group===gr).map(d=>`<button class="rbtn" type="button" data-go="app:${d.id}"><span class="t"><span class="k" aria-hidden="true">${d.g}</span>${esc(d.name)}</span><span class="c">${d.crm?'CRM: '+esc(d.crm):'нет значения в CRM'}</span></button>`).join('')}</div>`).join('')}`;
+  $('#safe-ok').onclick=()=>{ const el=$('#devpick'); if(el) el.scrollIntoView({behavior:'smooth'}); const m=$('#dev-model'); if(m) m.focus({preventScroll:true}); };
+  const mi=$('#dev-model'), mr=$('#dev-model-res');
+  const upd=()=>{ extras.model=mi.value; mr.innerHTML=modelResHTML(mi.value, null); };
+  mi.addEventListener('input',upd); if(extras.model) upd();
+  top0();
+}
+function modelResHTML(raw, curApp){
+  if(!String(raw||'').trim()) return '';
+  const md=decodeModel(raw);
+  if(!md){ const zt=zDetect(raw);
+    if(zt.length) return `<div><span class="pill mid">Ziffler</span> Похоже на модель Ziffler — ${esc(zById(zt[0]).title)}. Ремонт Ziffler не на этой линии: <button class="cp" type="button" data-go="flow:brand">«Другой бренд»</button>. Код ошибки можно расшифровать: <button class="cp" type="button" data-go="zc:${zt.length===1?zt[0]:''}::${esc(String(raw).trim())}">коды Ziffler</button></div>`;
+    return `<div><span class="pill mid">модель</span> Не похоже на модель 7TECH: они начинаются с «7», например 7WM4S1070GCS1. Это может быть другой бренд — сценарий «Другой бренд».</div>`; }
+  if(!md.prefix) return `<div><span class="pill mid">${esc(md.model)}</span> Такого начала модели нет в справочнике — тип техники уточните у клиента.</div>`;
+  const app=DATA.find(d=>d.id===md.app);
+  const wrong = curApp && curApp.id!==md.app;
+  return `<div><span class="pill ${wrong?'bad':'good'}">${esc(md.prefix)}…</span> ${md.crm?`«Тип устройство»: <code>${esc(md.crm)}</code>`:`${esc(md.note)} — значения нет в CRM`}${md.crm&&md.note?` · ${esc(md.note)}`:''}
+    ${wrong?` <b style="color:var(--p1)">Это не «${esc(curApp.name)}».</b>`:''}
+    ${(!curApp||wrong)?` <button class="cp" type="button" data-go="app:${md.app}">открыть «${esc(app.name)}»</button>`:''}</div>`;
+}
+
+/* ---------- раздел техники ---------- */
+function crmDevLine(app){
+  if(app.crm) return `<div class="okbox">В amoCRM поле «Тип устройство»: <code>${esc(app.crm)}</code> — только одно значение.${app.crmAlt?` Или <code>${esc(app.crmAlt.v)}</code> — ${esc(app.crmAlt.when)}.`:''}${app.crmNote?` ${esc(app.crmNote)}`:''}</div>`;
+  return `<div class="gap"><b>В поле «Тип устройство» нет значения «${esc(app.name)}».</b> Не выбирайте несколько значений сразу: в CRM уже 127 сделок, где отмечено сразу несколько типов. Спросите супервайзера, какое значение ставить, и начните «Описание неисправности» с названия техники.</div>`;
+}
+function uzHint(s){ const w=String(s||'').split(/\s+/).filter(Boolean); return w.length? 'UZ: '+w.slice(0,4).join(' ')+(w.length>4?'…':'') : ''; }
+function openApp(id){
+  const app=DATA.find(d=>d.id===id); if(!app){ home(); return; }
+  state={view:'app',app}; markNav('app:'+id); qin.value='';
+  main.innerHTML=`
+    <p class="crumbs">Сломалась техника / ${esc(app.name)}</p>
+    <h1>${esc(app.name)}</h1>
+    ${crmDevLine(app)}
+    ${app.route?'':`<button class="sbtn" type="button" data-go="start" style="width:100%;max-width:760px;margin:0 0 16px;padding:9px 14px"><b style="display:inline;font-size:14px">Опасно?</b> <span>Газ, дым, ток, вода у розетки — сначала экран безопасности</span></button>`}
+    <p class="sub">Выберите то, что говорит клиент. Дерево задаст уточняющие вопросы и приведёт к решению с готовой записью для amoCRM.</p>
+    <div class="sym">${app.symptoms.map((s,i)=>`<button class="symbtn ${s.red?'red':''}" type="button" data-sym="${s.id}"><span class="n">${pad2(i+1)}</span><span>${esc(s.name)}${s.uz?`<span class="uz">${esc(uzHint(s.uz))}</span>`:''}</span><span class="arr">→</span></button>`).join('')}</div>
+    <p class="footnote">Группа мастеров: <b>${esc(app.team)}</b>. Сервисный центр и мастера назначает DCRM по адресу клиента — оператор их не выбирает.</p>`;
+  main.querySelectorAll('.symbtn').forEach(b=>b.onclick=()=>openSym(app.id,b.dataset.sym));
+  top0();
+}
+
+/* ---------- деревья ---------- */
+function openSym(appId,symId){
+  const app=DATA.find(d=>d.id===appId); if(!app){ home(); return; }
+  const sym=app.symptoms.find(s=>s.id===symId); if(!sym){ openApp(appId); return; }
+  if(sym.go){ goTo(sym.go, app); return; }
+  state={view:'tree',kind:'dev',app,sym,path:[],node:sym.start}; descDirty=false;
+  markNav('app:'+appId); qin.value=''; render();
+}
+function openFlow(id){
+  const f=FLOWS.find(x=>x.id===id); if(!f){ home(); return; }
+  state={view:'tree',kind:'flow',app:null,sym:f,path:[],node:f.start}; descDirty=false;
+  markNav('flow:'+id); qin.value=''; render();
+}
+function openSafe(key, fromApp){
+  const o=SAFE[key]; if(!o){ openSafety(); return; }
+  state={view:'tree',kind:'safe',app:fromApp||null,sym:{name:o.title,start:'x',nodes:{x:{out:o}}},path:[],node:'x',safeKey:key}; descDirty=false;
+  markNav(fromApp?'app:'+fromApp.id:'start'); qin.value=''; render();
+}
+function choose(i){
+  const nd=state.sym.nodes[state.node]; const o=nd.opts&&nd.opts[i]; if(!o) return;
+  if(o.go){ goTo(o.go, state.app); return; }
+  state.path.push({q:nd.q,a:o.l,node:state.node});
+  state.node=o.to; render();
+}
+function back(){
+  if(state.view!=='tree'){ return; }
+  if(!state.path.length){ if(state.kind==='dev') openApp(state.app.id); else if(state.kind==='safe') openSafety(); else home(); return; }
+  const last=state.path.pop(); state.node=last.node; render();
+}
+function render(){
+  const {sym,app}=state; const nd=sym.nodes[state.node];
+  if(!nd){ main.innerHTML=`<div class="warn"><b>Ошибка в дереве.</b> Узел «${esc(state.node)}» не найден. Сообщите супервайзеру и вернитесь на главную.</div>`; return; }
+  const crumbs = state.kind==='flow' ? 'Звонок / '+sym.name : state.kind==='safe' ? (app?app.name+' / ':'')+'Безопасность' : app.name+' / симптом';
+  let html=`<p class="crumbs">${esc(crumbs)}</p><h1>${esc(sym.name)}</h1>`;
+  if(state.kind==='dev' && brand.id==='ziffler' && app && ((app.id==='ac'&&sym.id==='a4')||(app.id==='washer'&&sym.id==='w6')))
+    html+=`<div class="okbox"><b>Ziffler:</b> коды этого бренда расшифрованы — откройте <button class="cp" type="button" data-go="page:zcodes">«Коды ошибок Ziffler»</button>: там совет клиенту и как закрыть обращение.</div>`;
+  if(nd.q) html+=`<p class="sub">Шаг ${state.path.length+1}. Отвечайте со слов клиента. Клавиши 1–${Math.min(nd.opts.length,9)} — выбор ответа, Esc — шаг назад.</p>`;
+  html+=`<div class="rail">`;
+  state.path.forEach(step=>{ html+=`<div class="step"><span class="dot done" aria-hidden="true">✓</span><div class="answered"><span class="lbl">${esc(step.q)}</span><div class="val">${esc(step.a)}</div></div></div>`; });
+  if(nd.q){
+    html+=`<div class="step"><span class="dot" aria-hidden="true">${state.path.length+1}</span><p class="q">${esc(nd.q)}</p>${nd.hint?`<p class="hint">${esc(nd.hint)}</p>`:''}
+      <div class="opts">${nd.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}"><kbd>${i+1}</kbd><span>${esc(o.l)}</span>${o.go?'<span class="mono" style="margin-left:auto;font-size:11px;color:var(--muted);flex:none">→ раздел</span>':''}</button>`).join('')}</div></div>`;
+  } else {
+    html+=`<div class="step"><span class="dot done" aria-hidden="true">✓</span>${ticketHTML(nd.out)}</div>`;
+  }
+  html+=`</div>`;
+  if(state.path.length) html+=`<div style="margin-top:20px"><button class="sec" type="button" id="back">← Шаг назад</button></div>`;
+  main.innerHTML=html;
+  main.querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(+b.dataset.i));
+  const bk=$('#back'); if(bk) bk.onclick=back;
+  if(!nd.q) wireTicket(nd.out);
+  top0();
+}
+
+/* ---------- исход: талон + карточка amoCRM ---------- */
+const BADGE = {ticket:'ЗАЯВКА МАСТЕРУ',safety:'ОПАСНО · СНАЧАЛА БЕЗОПАСНОСТЬ',remote:'РЕШЕНО ПО ТЕЛЕФОНУ',info:'КОНСУЛЬТАЦИЯ',parts:'ЗАПЧАСТИ И АКСЕССУАРЫ',route:'ПЕРЕНАПРАВИТЬ',close:'ЗАКРЫТЬ ОБРАЩЕНИЕ',action:'ДЕЙСТВИЕ В amoCRM'};
+const isService = o => o.k==='ticket' || o.k==='safety';
+function whenText(h){ if(h<=2) return 'через '+h+' ч'; if(h<=12) return 'через '+h+' часов'; if(h<=24) return 'завтра в это же время'; return 'через '+Math.round(h/24)+' дня'; }
+function crmFor(o){
+  let spec;
+  if(o.crm) spec={...o.crm};
+  else switch(o.k){
+    case 'ticket': case 'safety': spec={stage:'Требуется сервис',obr:o.obr||'Диагностика',service:true}; break;
+    case 'remote': spec = o.follow
+      ? {stage:'Перезвонить',obr:'вопрос решён по телефону',task:{type:'Связаться',when:whenText(o.follow),text:'Контрольный звонок: '+o.title},then:true}
+      : {stage:'Закрыто и не реализовано',obr:'вопрос решён по телефону',close:'solved'}; break;
+    case 'info': spec={stage:'Закрыто и не реализовано',obr:'Консультация',close:'consult'}; break;
+    case 'parts': spec={stage:'Закрыто и не реализовано',obr:'Запрос по запчастям',close:'parts'}; break;
+    case 'route': { const c=closeBy(o.close); spec={stage:'Закрыто и не реализовано',obr:c?c.obr:'Консультация',close:o.close}; break; }
+    default: spec={stage:'—'};
+  }
+  if(o.k==='safety'||o.p==='P1') spec.urgent=true;
+  if(o.esc) spec.esc=true;
+  return spec;
+}
+function reasonText(c,o){
+  if(!c) return '';
+  if(['solved','consult','parts','refuse'].includes(c.id)) return c.txt.replace('…', o.title);
+  if(c.id==='brand' && !brand.crm) return c.txt.replace('…', brand.n);
+  return c.txt;
+}
+function devCell(){
+  const app=state.app;
+  const symCrm = state.sym && state.kind==='dev' ? state.sym.crm : null;
+  if(app && symCrm) return `${codeCp(symCrm)}<small>одно значение</small>`;
+  if(app && app.crm) return `${codeCp(app.crm)}<small>одно значение</small>${app.crmAlt?`<small>или «${esc(app.crmAlt.v)}» — ${esc(app.crmAlt.when)}</small>`:''}`;
+  if(app) return `<span class="pill bad">нет в CRM</span><small>не выбирать несколько значений — спросить супервайзера</small>`;
+  const md=extras.model?decodeModel(extras.model):null;
+  if(md && md.crm) return `${codeCp(md.crm)}<small>по модели ${esc(md.prefix)}…</small>`;
+  return `<small>по технике клиента — одно значение</small>`;
+}
+function brandCell(){
+  if(brand.crm) return codeCp(brand.crm);
+  return `<span class="pill bad">${esc(brand.n)} — не на этой линии</span><small>сценарий «Другой бренд»</small>`;
+}
+function warrantyCell(){
+  const pd=parseDate(extras.pdate);
+  if(!pd) return `<small>впишите дату покупки выше — посчитаю</small>`;
+  const w=warrantyByDate(pd);
+  if(w.crm) return codeCp(w.crm)+(w.end?`<small>окончание гарантии: ${esc(w.end)}</small>`:'');
+  return `<small>${esc(w.head)}</small>`;
+}
+function row(name,cell,req){ return `<div class="fn">${esc(name)}${req?'<span class="req" title="обязательное поле">*</span>':''}</div><div class="fv">${cell}</div>`; }
+function crmRows(o,spec){
+  let h='';
+  if(spec.service){
+    h+=row('Тип обращения',codeCp(spec.obr));
+    h+=row('Тип устройство',devCell(),true);
+    h+=row('Бренд',brandCell(),true);
+    h+=row('Канал обращения',codeCp('Телефон')+'<small>«Телеграм бот» — если заявка из бота</small>');
+    h+=row('Источник',codeCp('Звонок'));
+    h+=row('Статус гарантии',warrantyCell());
+    h+=row('Дата регистрации',codeCp(fmtD(today())));
+    if(spec.urgent) h+=row('Тег',codeCp('срочно'));
+    return h;
+  }
+  if(spec.obr && spec.obr!=='—') h+=row('Тип обращения',codeCp(spec.obr));
+  if(state.app && state.app.crm) h+=row('Тип устройство',codeCp((state.kind==='dev'&&state.sym.crm)||state.app.crm)+'<small>если клиент назвал технику</small>');
+  if(spec.close){ const c=closeBy(spec.close); h+=row('Причина (список при закрытии)',codeCp(c.lr)); h+=row('Поле «причина отказа»',codeCp(reasonText(c,o)),true); }
+  if(spec.task){ h+=row('Задача',codeCp(spec.task.type)+`<small>${esc(spec.task.when)}</small>`); h+=row('Текст задачи',codeCp(spec.task.text)); }
+  if(spec.fields) spec.fields.forEach(f=>{ const lit=!/[—–]|со слов|дословно|что /.test(f[1]); h+=row(f[0], lit?codeCp(f[1]):`<span>${esc(f[1])}</span>`); });
+  if(spec.then) h+=row('После звонка',`<span>Помогло — закрыть: причина «другое», текст ${codeCp('Решено по телефону: '+o.title)}. Не помогло — пройти дерево снова и оформить заявку.</span>`);
+  if(spec.urgent) h+=row('Тег',codeCp('срочно'));
+  return h;
+}
+function shortAns(p){
+  const a=p.a, words=a.split(/\s+/).length;
+  if((/^(Да|Нет|Не )/.test(a) && a.length<32) || words<=3){
+    const q=p.q.replace(/[?.]\s*$/,'').split(/[.?]\s+/).pop().replace(/\s+—.*$/,'');
+    return q+' — '+a.charAt(0).toLowerCase()+a.slice(1);
+  }
+  return a;
+}
+function genDesc(o){
+  const parts=[];
+  const code=String(extras.code||'').trim();
+  if(code) parts.push('Код '+code.toUpperCase());
+  let head = state.app ? state.app.name : '';
+  const md = extras.model ? decodeModel(extras.model) : null;
+  if(md && md.model) head += (head?' ':'') + md.model;
+  else if(String(extras.model||'').trim()) head += (head?' ':'') + extras.model.trim().toUpperCase();
+  const facts = state.path.map(shortAns);
+  const symName = state.kind==='safe' ? 'ОПАСНО' : state.sym.name;
+  parts.push((head?head+'. ':'')+symName+(facts.length?': '+facts.join('; '):''));
+  parts.push('Вывод: '+o.title);
+  const spec=crmFor(o);
+  if(spec.urgent) parts.push('СРОЧНО');
+  return parts.join('. ').replace(/\.\s*\./g,'.').replace(/:\s*\./g,'.')+'.';
+}
+function noteText(o){
+  const spec=crmFor(o), s=SLA[o.p];
+  const now=new Date();
+  const L=[`[Darian·Assist] ${fmtD(now)} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`];
+  if(state.kind==='flow') L.push('Сценарий: '+state.sym.name);
+  else { L.push('Бренд: '+brand.n+(state.app?'. Техника: '+state.app.name:'')+(extras.model?' ('+extras.model.trim().toUpperCase()+')':''));
+         L.push('Со слов клиента: '+(state.kind==='safe'?o.title:state.sym.name)); }
+  if(state.path.length){ L.push('Уточнили:'); state.path.forEach((p,i)=>L.push(`  ${i+1}. ${p.q} — ${p.a}`)); }
+  if(extras.code) L.push('Код ошибки: '+extras.code.trim().toUpperCase());
+  L.push('Итог: '+o.title);
+  L.push('Решение: '+(BADGE[o.k]||'').toLowerCase()+(s?', '+s.n:'')+' · этап «'+spec.stage+'»');
+  const pd=parseDate(extras.pdate); if(pd && isService(o)){ const w=warrantyByDate(pd); L.push('Гарантия: '+w.head+'. '+w.text); }
+  if(spec.urgent) L.push('СРОЧНО: тег «срочно», эскалация');
+  if(spec.esc) L.push('Эскалация: передано супервайзеру');
+  return L.join('\n');
+}
+function serviceSayHTML(o){
+  const spec=crmFor(o);
+  if(spec.urgent) return `<div class="say"><span class="who">Подтвердить клиенту</span>Передаю заявку как срочную. Пока мастер не приедет, техникой не пользуйтесь.</div><div class="say uz"><span class="who">UZ</span>${esc(UZ.urgent)}</div>`;
+  const d=planDate();
+  return `<div class="say"><span class="who">Подтвердить клиенту</span>Заявку оформил. Она уйдёт в сервисный центр вашего региона, мастер сам позвонит и согласует время. Плановый срок ремонта — до ${d}.</div>
+    <div class="say uz"><span class="who">UZ</span>${esc(UZ.reg.replace('___',d))}</div>
+    <div class="gap"><b>Не обещайте</b> «мастер приедет завтра» или «через 2 часа»: реальный плановый срок в DCRM — ${PLAN_DAYS} дней, в среднем ремонт занимает около 4 дней.</div>`;
+}
+function extrasHTML(){
+  return `<h5>Данные с наклейки и чека</h5>
+    <div class="extras">
+      <label for="x-model">Модель с наклейки<input id="x-model" autocomplete="off" placeholder="7WM4S1070GCS1" value="${esc(extras.model)}"></label>
+      <label for="x-pdate">Дата покупки<input id="x-pdate" type="date" value="${esc(extras.pdate)}" max="${(()=>{const t=today();return t.getFullYear()+'-'+pad2(t.getMonth()+1)+'-'+pad2(t.getDate());})()}"></label>
+      <label for="x-code">Код ошибки, если есть<input id="x-code" autocomplete="off" placeholder="E21" value="${esc(extras.code)}"></label>
+    </div>
+    <div class="res-box" id="x-res">${resHTML()}</div>`;
+}
+function resHTML(){
+  const out=[];
+  if(String(extras.model||'').trim()) out.push(modelResHTML(extras.model, state.app));
+  const pd=parseDate(extras.pdate);
+  if(pd){ const w=warrantyByDate(pd);
+    out.push(`<div><span class="pill ${w.cls}">${esc(w.head)}</span> ${esc(w.text)}</div>`);
+    if(w.say) out.push(`<div class="say"><span class="who">Про гарантию — клиенту</span>${esc(w.say)}</div>`);
+    if(w.uz) out.push(`<div class="say uz"><span class="who">UZ</span>${esc(w.uz)}</div>`); }
+  return out.join('');
+}
+function warrantyDetails(){
+  const cat=APPCAT[state.app?state.app.id:'']||null; const info=catInfo(cat);
+  return `<details class="wcard"><summary><b>Гарантия ${esc(brand.n)}</b> · ${esc(info.t)}</summary>
+    ${info.exact?'':`<div class="gap" style="margin-top:10px">Отдельных условий по этой категории нет — указан общий срок бренда. Сверяйте с гарантийным талоном.</div>`}
+    ${brand.conflict?`<div class="conflict"><b>Расхождение в источниках.</b> Срок называть только по документу клиента.</div>`:''}
+    <div class="wrow" style="margin-top:10px">
+      <div><span class="yes">Покрывает</span><ul>${info.cov.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>
+      <div><span class="no">Не покрывает</span><ul>${info.exc.slice(0,9).map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>
+    </div>
+    <p style="font-size:13px;color:var(--ink-2);margin:10px 0 0">Оператор не выносит решение об отказе по телефону — гарантийный ли случай, решает сервисный центр после диагностики.</p>
+  </details>`;
+}
+function brandWarn(o){
+  if(brand.crm || state.kind==='flow') return '';
+  const z = brand.id==='ziffler' && state.app && ['ac','washer'].includes(state.app.id);
+  return `<div class="warn"><b>${esc(brand.n)} не обслуживается на этой линии.</b> В поле «Бренд» amoCRM только 7Tech и Everal. Перейдите в сценарий <button class="cp" type="button" data-go="flow:brand">«Другой бренд»</button>.${z?` Код ошибки можно расшифровать: <button class="cp" type="button" data-go="page:zcodes">«Коды ошибок Ziffler»</button>.`:''}</div>`;
+}
+function scClientText(s){
+  const a=s.addrs[0]; const p=s.people.find(x=>!x.blocked && !x.parts);
+  const named = p && !/^(Ургенч|Нукус|Колл-центр)$/.test(p.n);
+  return 'Сервисный центр 7TECH, '+s.reg+(a?': '+a.a+(a.m?', ориентир — '+a.m:''):'')+(p?'. Телефон: '+fmtTel(p.tel)+(named?' ('+p.n+')':''):'')+'.';
+}
+function scCardHTML(s){
+  return `<div class="sccard">
+    <div class="sch"><b>${esc(s.reg)}</b><span class="tag" title="Значение поля «Сервисный центр» в сделке">${esc(s.crm)}</span><small>инженер в CRM: ${esc(s.eng)}</small></div>
+    <ul class="scp">${s.people.map(p=>`<li><span>${esc(p.n)}</span>${p.blocked?`<s class="phone">${esc(fmtTel(p.tel))}</s> <span class="pill bad">номер заблокирован</span>`:`<span class="phone">${esc(fmtTel(p.tel))}</span> ${cp(fmtTel(p.tel))}`}</li>`).join('')}</ul>
+    ${s.addrs.length?`<ul class="sca">${s.addrs.map(a=>`<li><span>${esc(a.a)}</span>${a.m?`<span class="lm">ориентир: ${esc(a.m)}</span>`:''}${a.who?`<span class="lm">контакт по адресу: ${esc(a.who)}</span>`:''}${cp(a.a+(a.m?', ориентир — '+a.m:''),'копировать адрес')}</li>`).join('')}</ul>`:`<p style="margin:4px 0"><span class="gapmark">адреса нет в файле сервиса</span></p>`}
+    ${s.note?`<div class="gap" style="margin:8px 0 0">${esc(s.note)}</div>`:''}
+    ${s.addrs.length?`<div style="margin-top:8px">${cp(scClientText(s),'копировать для клиента')}</div>`:''}
+  </div>`;
+}
+function scLookupHTML(label){
+  const cur=extras.sc&&scById(extras.sc);
+  return `<div class="scpick"><label for="scsel">${esc(label||'Регион клиента или «Сервисный центр» из сделки')}</label>
+    <select id="scsel"><option value="">— выберите регион —</option>${SC.map(s=>`<option value="${s.id}"${extras.sc===s.id?' selected':''}>${esc(s.reg)} · ${esc(s.crm)}</option>`).join('')}</select>
+    <div id="scres">${cur?scCardHTML(cur):''}</div></div>`;
+}
+function contactHTML(key){
+  if(key==='parts' && !CONTACTS.parts) return `<div class="okbox"><b>Запчасти и аксессуары.</b> Направьте клиента в сервисный центр его региона — там подберут деталь по модели. В Хорезме за запчасти отвечает Абдуллох: <span class="phone">${esc(fmtTel('771081146'))}</span> ${cp(fmtTel('771081146'))}</div>${scLookupHTML('Регион клиента')}`;
+  const label={sales:'Отдел продаж',dealer:'Работа с дилерами',mobile7:'7 Mobile — смартфоны',parts:'Запчасти и аксессуары',supervisor:'Супервайзер смены',otherBrands:'Линии других брендов'}[key]||key;
+  const v=CONTACTS[key];
+  return v ? `<div class="okbox"><b>${esc(label)}:</b> <span class="phone">${esc(v)}</span> ${cp(v)}</div>`
+           : `<div class="gap"><b>${esc(label)}:</b> номер ещё не внесён в помощник — уточните у супервайзера.</div>`;
+}
+function ticketHTML(o){
+  const s=SLA[o.p]||null; const spec=crmFor(o); const svc=isService(o);
+  const pc = o.k==='safety' ? 'var(--p1)' : s ? s.c : (o.esc?'var(--p2)':'var(--accent)');
+  const meta=[];
+  if(s) meta.push(['Приоритет',s.n,s.c]);
+  meta.push(['Этап в amoCRM',spec.stage]);
+  if(svc) meta.push(['Сроки для клиента',spec.urgent?'Срочно, без обещания часа':'Плановый срок — до '+planDate()]);
+  else if(spec.obr && spec.obr!=='—') meta.push(['Тип обращения',spec.obr]);
+  const cnt = o.contact || (o.k==='parts' ? 'parts' : null);
+  return `<div class="ticket" style="--pc:${pc}">
+    <div class="tkhead"><span class="badge">${BADGE[o.k]||''}</span><h3>${esc(o.title)}</h3></div>
+    <div class="meta">${meta.map(m=>`<div><div class="k">${esc(m[0])}</div><div class="v"${m[2]?` style="color:${m[2]}"`:''}>${esc(m[1])}</div></div>`).join('')}</div>
+    <div class="tkbody">
+      ${o.warn?`<div class="warn"><b>Внимание.</b> ${esc(o.warn)}</div>`:''}
+      ${brandWarn(o)}
+      <h5>Что делает оператор</h5>
+      <ul class="do nums">${o.do.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>
+      ${o.say?`<div class="say"><span class="who">Сказать клиенту</span>${esc(o.say)}</div>`:''}
+      ${o.uz?`<div class="say uz"><span class="who">То же на узбекском</span>${esc(UZ[o.uz]||o.uz)}</div>`:''}
+      ${o.note?`<div class="gap">${esc(o.note)}</div>`:''}
+      ${o.show==='shops'?shopsTable():''}
+      ${o.show==='sc'?scLookupHTML():''}
+      ${cnt?contactHTML(cnt):''}
+      ${svc?extrasHTML():''}
+      ${svc?serviceSayHTML(o):''}
+      <div class="crm" id="crmbox">${crmHTML(o,spec)}</div>
+      ${svc?warrantyDetails():''}
+      ${svc?`<details class="wcard"><summary><b>Адрес и телефон СЦ</b> · если клиент хочет привезти технику сам</summary><div style="margin-top:10px">${scLookupHTML('Регион клиента')}</div></details>`:''}
+      <div class="acts">
+        <button class="pri" type="button" id="copynote">Копировать примечание</button>
+        <button class="sec" type="button" id="restart">Начать заново</button>
+        ${state.kind==='dev'?'<button class="sec" type="button" id="toapp">К симптомам</button>':''}
+        <button class="sec" type="button" id="tohome">Новый звонок</button>
+      </div>
+    </div></div>`;
+}
+function crmHTML(o,spec){
+  let h=`<div class="ch"><b>amoCRM</b><span class="stg">Этап: <code>${esc(spec.stage)}</code></span>${spec.urgent?'<span class="pill bad">тег «срочно»</span>':''}</div><div class="cb">`;
+  h+=`<div class="fl" id="crmf">${crmRows(o,spec)}</div>`;
+  if(spec.service){
+    h+=`<p class="lbl5">Описание неисправности <span style="color:var(--p1)">*</span> — проверьте, допишите словами клиента и скопируйте</p>
+      <textarea class="desc" id="desc" rows="3" aria-label="Описание неисправности для amoCRM">${esc(genDesc(o))}</textarea>
+      <div class="acts" style="margin:6px 0 14px"><button class="cp" type="button" id="copydesc">копировать описание</button><button class="cp" type="button" id="regen">собрать заново</button></div>
+      <p class="lbl5">Спросить у клиента и вписать в сделку</p>
+      <ul class="chk">${ASK.map((a,i)=>`<li><label for="ask${i}"><input type="checkbox" id="ask${i}" data-req="${a.req?1:0}"><span>${esc(a.n)}${a.req?' <b style="color:var(--p1)">*</b>':''}<span class="fmt">${esc(a.f)}</span></span></label></li>`).join('')}</ul>
+      <div class="gap" id="gate">Пять обязательных полей (*): ФИО, Адрес / Город, Описание неисправности, Тип устройство, Бренд. Без них amoCRM не даст перевести сделку в «Требуется сервис». После перевода сделка сама уйдёт в «Передано в DCRM».</div>`;
+  }
+  if(spec.main) h+=`<p class="lbl5">В основной сделке клиента</p><ul class="do">${spec.main.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+  if(spec.urgent) h+=`<div class="warn"><b>Срочно.</b> ${esc(ESC.urgent)}.</div>`;
+  if(spec.esc) h+=`<div class="warn"><b>Эскалация.</b> ${esc(ESC.complaint)}.</div>`;
+  return h+`</div>`;
+}
+function updateCRM(o){
+  const f=$('#crmf'); if(f) f.innerHTML=crmRows(o,crmFor(o));
+  const r=$('#x-res'); if(r) r.innerHTML=resHTML();
+  const d=$('#desc'); if(d && !descDirty) d.value=genDesc(o);
+}
+function wireTicket(o){
+  const on=(id,fn)=>{ const el=$('#'+id); if(el) el.onclick=fn; };
+  on('copynote',()=>copyText(noteText(o),'Примечание скопировано — вставьте в amoCRM: «Примечание» в сделке'));
+  on('restart',()=>{ if(state.kind==='flow') openFlow(state.sym.id); else if(state.kind==='safe') openSafe(state.safeKey,state.app); else openSym(state.app.id,state.sym.id); });
+  on('toapp',()=>openApp(state.app.id));
+  on('tohome',newCall);
+  on('copydesc',()=>{ const d=$('#desc'); if(d) copyText(d.value,'Описание скопировано — вставьте в «Описание неисправности»'); });
+  on('regen',()=>{ descDirty=false; const d=$('#desc'); if(d) d.value=genDesc(o); });
+  const d=$('#desc'); if(d) d.addEventListener('input',()=>{ descDirty=true; });
+  [['x-model','model'],['x-pdate','pdate'],['x-code','code']].forEach(([id,k])=>{ const el=$('#'+id); if(el){ const h=()=>{ extras[k]=el.value; updateCRM(o); }; el.addEventListener('input',h); el.addEventListener('change',h); } });
+  const boxes=[...main.querySelectorAll('.chk input')];
+  const gate=$('#gate');
+  boxes.forEach(b=>b.addEventListener('change',()=>{
+    const reqDone=boxes.filter(x=>x.dataset.req==='1').every(x=>x.checked);
+    const devOk=!!(state.app?state.app.crm:true) && !!brand.crm;
+    if(!gate) return;
+    if(reqDone && devOk){ gate.className='okbox'; gate.textContent='Готово: ФИО и адрес записаны, описание, тип устройства и бренд выше. Переводите сделку в «Требуется сервис».'; }
+    else { gate.className='gap'; gate.textContent='Пять обязательных полей (*): ФИО, Адрес / Город, Описание неисправности, Тип устройство, Бренд.'+(devOk?'':' Тип устройства или бренд для amoCRM не определён — см. выше.'); }
+  }));
+}
+
+/* ---------- копирование ---------- */
+function fallbackCopy(t){
+  const ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly','');
+  ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select();
+  let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); return ok;
+}
+function copyText(t,msg){
+  const done=()=>toast(msg||'Скопировано');
+  const fail=()=>toast('Не удалось скопировать — выделите текст вручную');
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(()=>{ fallbackCopy(t)?done():fail(); }); }
+    else { fallbackCopy(t)?done():fail(); }
+  }catch(e){ fallbackCopy(t)?done():fail(); }
+}
+let tt;
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('on'),2800); }
+
+/* ---------- поиск: русский + узбекский (латиница и кириллица) + модель ---------- */
+function canon(s){
+  s=String(s||'').toLowerCase();
+  const m={'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'j','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'s','ч':'ch','ш':'sh','щ':'sh','ъ':'','ы':'i','ь':'','э':'e','ю':'yu','я':'ya','ў':'o','қ':'k','ғ':'g','ҳ':'h'};
+  s=s.replace(/[а-яёўқғҳ]/g,c=>m[c]!==undefined?m[c]:c);
+  s=s.replace(/[ʻʼ'‘’`´]/g,'');
+  s=s.replace(/q/g,'k').replace(/x/g,'h').replace(/w/g,'v').replace(/ts/g,'s').replace(/c(?!h)/g,'k');
+  s=s.replace(/[^a-z0-9]+/g,' ').replace(/([a-z])\1+/g,'$1');
+  return s.trim();
+}
+const STOP=new Set(['ne','va','i','u','bilan','juda','yahshi','yahsi','ham','emas','bu','da','dan','ga','ni','ning','kak','chto','eto','na','v','s','ya','mne','klient','govorit','kilib','boldi','koldi','umuman','yok','bor','ili','ochen','ploho','sovsem','vopshe','voobshe','tozhe','yoki','pochemu','u','menda','meni','bizda','kerak','iltimos','pomogite','nado']);
+function pref(a,b){ let i=0; const n=Math.min(a.length,b.length); while(i<n&&a[i]===b[i]) i++; return i; }
+function wordMatch(t,w){
+  if(t===w) return true;
+  if(t.length>=3 && w.startsWith(t)) return true;
+  if(w.length>=3 && t.startsWith(w) && t.length-w.length<=4) return true;
+  const p=pref(t,w);
+  return p>=5 || (p>=4 && t.length>=6 && w.length>=6);
+}
+let INDEX=null;
+const SAFE_TAGS={
+  gas:'запах газа утечка газа пахнет газом gaz hidi gaz hidi kelyapti gaz chiqyapti utechka gaz sizib chiqyapti',
+  smoke:'дым гарь горит искрит искры запах гари задымился tutun tutayapti tutab ketdi kuygan hid kuyib ketdi uchqun yonib ketdi olov',
+  shock:'бьёт током током бьёт ударило током пощипывает tok uryapti tok urdi tok uradi tok urvotti elektr toki',
+  water:'вода у розетки вода на розетке лужа у розетки вода попала в розетку rozetka suv rozetkaga suv'
+};
+function buildIndex(){
+  INDEX=[];
+  DATA.forEach(app=>{
+    const dev=canon(app.name+' '+(app.uz||'')+' '+(app.crm||''));
+    INDEX.push({type:'app',app,dev,txt:''});
+    app.symptoms.forEach(s=>INDEX.push({type:'sym',app,s,dev,txt:canon(s.name+' '+(s.tags||'')+' '+(s.uz||''))}));
+  });
+  FLOWS.forEach(f=>INDEX.push({type:'flow',f,dev:'',txt:canon(f.name+' '+(f.h||'')+' '+(f.tags||'')+' '+(f.uz||''))}));
+  Object.keys(SAFE).forEach(k=>INDEX.push({type:'safe',key:k,dev:'',txt:canon(SAFE[k].title+' '+SAFE_TAGS[k])}));
+  SC.forEach(s=>INDEX.push({type:'sc',sc:s,dev:'',txt:canon(s.reg+' '+s.uz+' '+s.crm+' '+s.eng+' '+s.people.map(p=>p.n).join(' ')+' '+s.addrs.map(a=>a.who||'').join(' ')+' сервисный центр сц servis markazi servis manzili servis raqami')}));
+  Object.entries(PAGES).forEach(([id,p])=>INDEX.push({type:'page',id,p,dev:'',txt:canon(p.idx||(p.n+' '+p.tags))}));
+  INDEX.forEach(e=>{ e.tw=e.txt?e.txt.split(' '):[]; e.dw=e.dev?e.dev.split(' '):[]; });
+}
+function scoreEntry(e,toks){
+  let s=0,ht=0,hd=0;
+  toks.forEach(t=>{ if(e.tw.some(w=>wordMatch(t,w))){ s+=e.tw.includes(t)?2.3:2; ht++; } else if(e.dw.some(w=>wordMatch(t,w))){ s+=1; hd++; } });
+  return {s,ht,hd};
+}
+function doSearch(raw){
+  if(!INDEX) buildIndex();
+  const toks=canon(raw).split(' ').filter(t=>t && !STOP.has(t));
+  const md = /^\s*7\s*[a-zA-Z]/.test(raw) ? decodeModel(raw) : null;
+  const ph = raw.replace(/\D/g,'').length>=7 && !md ? scByPhone(raw) : null;
+  const hits=[];
+  if(toks.length){
+    const devApps=new Set();
+    INDEX.forEach(e=>{ if(e.type==='app' && scoreEntry(e,toks).hd) devApps.add(e.app.id); });
+    INDEX.forEach(e=>{
+      const r=scoreEntry(e,toks);
+      if(e.type==='app'){ if(r.hd && r.hd===toks.length) hits.push({e,s:r.s+0.5}); return; }
+      if(e.type==='sym'){ if(r.ht) hits.push({e,s:r.s+(devApps.has(e.app.id)?2.5:0)+(e.s.red?0.3:0)}); return; }
+      if(e.type==='safe'){ if(r.ht) hits.push({e,s:r.s+1}); return; }
+      if(r.ht) hits.push({e,s:r.s});
+    });
+  }
+  hits.sort((a,b)=>b.s-a.s);
+  const zh=zSearchHits(raw,toks);
+  const top=hits.filter(h=>!(zh.length && h.e.type==='page' && h.e.id==='zcodes')).slice(0,16);
+  state={view:'search'}; markNav(null);
+  main.innerHTML=`<p class="crumbs">Поиск</p>
+    <h1>${top.length||md||ph||zh.length?'Найдено: '+(top.length+zh.length+(md&&md.prefix?1:0)+(ph?1:0)):'Ничего не найдено'}</h1>
+    <p class="sub">${top.length||md||ph||zh.length?'Выберите подходящее — откроется дерево или сценарий.':'Попробуйте другое слово: «течёт», «не включается», «suv oqyapti», «yonmayapti», «статус», «магазин». Или откройте «Сломалась техника» и выберите технику.'}</p>
+    ${md?`<div class="res-box" style="max-width:760px">${modelResHTML(raw,null)}</div>`:''}
+    ${ph?`<div class="okbox"><b>Это номер сотрудника сервисного центра:</b> ${esc(ph.p.n)}${ph.s?' — '+esc(ph.s.reg):' — '+esc(ph.p.note)}. Если это пропущенный звонок — перезвоните как коллеге, а сделку закройте с причиной «Звонок сотрудника СЦ».</div>${ph.s?scCardHTML(ph.s):''}`:''}
+    <div class="res">${zh.join('')}${top.map(({e})=>{
+      if(e.type==='app') return `<button class="r" type="button" data-go="app:${e.app.id}">${esc(e.app.name)}<small>раздел техники · ${e.app.crm?'CRM: '+esc(e.app.crm):'нет значения в CRM'}</small></button>`;
+      if(e.type==='sym') return `<button class="r ${e.s.red?'red':''}" type="button" data-go="${e.app.id}:${e.s.id}">${esc(e.s.name)}<small>${esc(e.app.name)}${e.s.uz?' · '+esc(uzHint(e.s.uz)):''}</small></button>`;
+      if(e.type==='sc') return `<button class="r" type="button" data-go="sc:${e.sc.id}">Сервисный центр: ${esc(e.sc.reg)}<small>${esc(e.sc.people.filter(p=>!p.blocked).map(p=>p.n+' '+fmtTel(p.tel)).join(' · ')||'контакт уточнить у супервайзера')}</small></button>`;
+      if(e.type==='safe') return `<button class="r red" type="button" data-go="safe:${e.key}">${esc(SAFE[e.key].title)}<small>экран безопасности · P1</small></button>`;
+      if(e.type==='flow') return `<button class="r" type="button" data-go="flow:${e.f.id}">${esc(e.f.name)}<small>сценарий звонка · ${esc(e.f.h)}</small></button>`;
+      return `<button class="r" type="button" data-go="page:${e.id}">${esc(e.p.n)}<small>справочник</small></button>`;
+    }).join('')}</div>`;
+}
+qin.addEventListener('input',()=>{ const v=qin.value.trim(); if(!v){ if(state.view==='search') home(); return; } doSearch(v); });
+qin.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const f=main.querySelector('.res .r, .res-box [data-go]'); if(f){ e.preventDefault(); f.click(); qin.blur(); } } if(e.key==='Escape'){ qin.value=''; qin.blur(); home(); } });
+
+/* ---------- клавиатура и общий обработчик кликов ---------- */
+document.addEventListener('keydown',e=>{
+  const tag=(document.activeElement&&document.activeElement.tagName)||'';
+  if(e.key==='/' && tag!=='INPUT' && tag!=='TEXTAREA'){ e.preventDefault(); qin.focus(); qin.select(); return; }
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  if(e.key==='Escape'){ if(state.view==='tree') back(); return; }
+  const n=parseInt(e.key,10);
+  if(n>=1 && n<=9 && state.view==='tree'){ const b=main.querySelectorAll('.opt')[n-1]; if(b) b.click(); }
+});
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-copy]');
+  if(c){ e.preventDefault(); copyText(c.dataset.copy,'Скопировано: '+c.dataset.copy.slice(0,60)); return; }
+  const g=e.target.closest('[data-go]');
+  if(g && main.contains(g)){ e.preventDefault(); goTo(g.dataset.go, state.app); }
+});
+
+document.addEventListener('change',e=>{
+  if(e.target && e.target.id==='scsel'){ extras.sc=e.target.value; const r=$('#scres'); if(r){ const s=scById(extras.sc); r.innerHTML=s?scCardHTML(s):''; } }
+});
+
+/* ---------- бренд ---------- */
+function buildBrand(){
+  const line=BRANDS.filter(b=>b.line), other=BRANDS.filter(b=>!b.line);
+  bsel.innerHTML=`<optgroup label="Линия 7TECH">${line.map(b=>`<option value="${b.id}">${b.n}</option>`).join('')}</optgroup><optgroup label="Другие бренды — справочно">${other.map(b=>`<option value="${b.id}">${b.n}</option>`).join('')}</optgroup>`;
+  bsel.value=brand.id;
+  bsel.onchange=()=>{
+    brand=BRANDS.find(b=>b.id===bsel.value)||BRANDS[0];
+    toast(brand.crm?'Бренд: '+brand.n:brand.n+' не обслуживается на этой линии — см. «Другой бренд»');
+    if(state.view==='tree') render(); else if(state.view==='page') openPage(state.page);
+  };
+}
+$('#logo').onclick=newCall;
+$('#newcall').onclick=newCall;
+
+/* ==========================================================================
+   КОДЫ ОШИБОК ZIFFLER — модель или серия → код → значение, совет клиенту, закрытие сделки
+   ========================================================================== */
+const ZKIND = {
+  info:  {n:'Не поломка',            cls:'good'},
+  wait:  {n:'Защита, подождать',     cls:'good'},
+  self:  {n:'Клиент может сам',      cls:'mid'},
+  reset: {n:'Перезапуск',            cls:'mid'},
+  master:{n:'Нужен мастер',          cls:'bad'},
+  urgent:{n:'Срочно: вода',          cls:'bad'}
+};
+const ZTYPE = {ac:'Кондиционеры', wm:'Стиральные машины'};
+let zst = {t:'', m:'', c:''};          // выбранная таблица, модель с наклейки, код — до нового звонка
+const ZCYR = {'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','Х':'X',
+              'а':'A','в':'B','е':'E','к':'K','м':'M','н':'H','о':'O','р':'P','с':'C','т':'T','х':'X'};
+/* код: латиница в верхнем регистре, без пробелов; буква O = цифра 0 (на дисплее не отличить) */
+function zNorm(s){ return String(s||'').replace(/[А-Яа-я]/g,ch=>ZCYR[ch]||ch).toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/O/g,'0'); }
+function zNear(z){ return z.replace(/^([A-Z]+)0+(?=\d)/,'$1'); }   // E09 ≈ E9, EL01 ≈ EL1
+function zKey(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+const zById = id => ZTAB.find(t=>t.id===id);
+const ZALL = new Set(); ZTAB.forEach(t=>t.codes.forEach(e=>[e.c].concat(e.alt||[]).forEach(c=>ZALL.add(zNorm(c)))));
+const ZCOUNT = ZTAB.reduce((a,t)=>a+t.codes.length,0);
+const lc1 = s => s ? s.charAt(0).toLowerCase()+s.slice(1) : s;
+
+/* таблицы по модели с наклейки или названию серии */
+function zDetect(raw){
+  const out=new Set();
+  const toks=String(raw||'').split(/[\s,;]+/).filter(Boolean);
+  const keys=[]; toks.forEach((t,i)=>{ keys.push(zKey(t)); if(i<toks.length-1) keys.push(zKey(t+toks[i+1])); });
+  keys.forEach(k=>{ if(k.length<3 || /^7/.test(k)) return;
+    ZTAB.forEach(t=>{ if(t.pre.some(p=>k.startsWith(p)) || (k.length>=5 && t.models.some(m=>zKey(m).startsWith(k)))) out.add(t.id); }); });
+  const words=canon(raw).split(' ').filter(w=>w.length>=3);
+  if(words.length) ZTAB.forEach(t=>{
+    const names=t.series.map(x=>canon(x).split(' ')[0]).concat(t.alt.map(a=>canon(a)));
+    if(words.some(w=>names.some(n=>n===w || (w.length>=4 && n.startsWith(w))))) out.add(t.id);
+  });
+  return [...out];
+}
+function zFind(tids, raw){
+  const z=zNorm(raw), exact=[], near=[];
+  if(!z) return {exact,near};
+  const zn=zNear(z);
+  (tids&&tids.length?tids.map(zById):ZTAB).forEach(t=>t.codes.forEach(e=>{
+    const keys=[e.c].concat(e.alt||[]).map(zNorm);
+    if(keys.includes(z)) exact.push({t,e});
+    else if(keys.some(k=>zNear(k)===zn)) near.push({t,e});
+  }));
+  return {exact,near};
+}
+/* коды в строке поиска: с цифрой (E6, d3, EH0A) или из одних заглавных букв (EE, CL, FF) */
+function zCodeTokens(raw){
+  const toks=String(raw||'').split(/[\s,;]+/).filter(Boolean), out=[];
+  toks.forEach((t,i)=>{
+    const z=zNorm(t);
+    if(z && z.length<=5 && /\d/.test(z) && ZALL.has(z)) out.push(z);
+    else if(/^[A-ZА-Я]{2,3}$/.test(t) && ZALL.has(z)) out.push(z);
+    if(/^[A-Za-zА-Яа-я]{2}$/.test(t) && /^\d{2}$/.test(toks[i+1]||'')){ const j=zNorm(t+toks[i+1]); if(ZALL.has(j)) out.push(j); }
+  });
+  return [...new Set(out)];
+}
+function zPl(n){ const a=n%10, b=n%100; return a===1&&b!==11?'код':(a>=2&&a<=4&&(b<12||b>14)?'кода':'кодов'); }
+function zRaz(n){ n=parseInt(n,10); const a=n%10, b=n%100; return (a>=2&&a<=4&&!(b>=12&&b<=14))?'раза':'раз'; }
+function zMig(n){ n=parseInt(n,10); const a=n%10, b=n%100; return a===1&&b!==11?'мигание':(a>=2&&a<=4&&(b<12||b>14)?'мигания':'миганий'); }
+/* лампы работы и таймера — на внутреннем блоке, их видит клиент; индикатор наружного блока — на плате, его смотрит только мастер */
+function zBlink(e){
+  if(!e.b) return '';
+  if(e.b.includes('|')){ const [n,tm]=e.b.split('|'); return `лампа работы мигает ${n} ${zRaz(n)}, лампа таймера ${tm}`; }
+  const ns=e.b.split(/,\s*/); return `плата наружного блока: ${ns.join(' или ')} ${zMig(ns[ns.length-1])}, смотрит мастер`;
+}
+function zWho(t){ const m=zst.m.trim(); return m && !/^\s*7/.test(m) && zDetect(m).includes(t.id) ? m.toUpperCase() : t.short; }
+
+function zOutHTML(title,c,txt){
+  return `<div class="zout"><b>${esc(title)}</b><div class="fl">${row('Тип обращения',codeCp(c.obr))}${row('Причина (список при закрытии)',codeCp(c.lr))}${row('Поле «причина отказа»',codeCp(txt),true)}</div></div>`;
+}
+function zCardHTML(t,e,compact){
+  const tip=ZTIPS[e.t], k=ZKIND[tip.k], code=e.show||e.c, bl=zBlink(e);
+  if(compact) return `<button class="zrow" type="button" data-zpick="${t.id}" data-zc="${esc(e.c)}"><span class="zcode">${esc(code)}</span><span class="zrn">${esc(e.n)}<small>${esc(t.short)}${bl?' · '+esc(bl):''}</small></span><span class="pill ${k.cls}">${esc(k.n)}</span></button>`;
+  const short=`Ziffler ${zWho(t)}, код ${code} — ${lc1(e.n)}`;
+  const easy = tip.k==='info'||tip.k==='wait';
+  const okC = closeBy(easy?'consult':'solved'), br=closeBy('brand');
+  const okB = zOutHTML(easy?'Мастер не нужен — консультация':'Помогло по телефону', okC, okC.txt.replace('…',short));
+  const msB = zOutHTML('Нужен мастер — линия Ziffler', br, br.txt.replace('…','Ziffler'));
+  const outs = (tip.k==='master'||tip.k==='urgent') ? msB+okB : okB+msB;
+  return `<article class="zcard z-${tip.k}">
+    <div class="zh"><span class="zbig">${esc(code)}</span>${bl?`<span class="zbl">${esc(bl)}</span>`:''}<span class="pill ${k.cls}">${esc(k.n)}</span></div>
+    <p class="zsrc">${esc(t.title)}${t.years?' · '+esc(t.years):''}</p>
+    <p class="zn">${esc(e.n)}</p>
+    ${e.h?`<div class="gap">${esc(e.h)}</div>`:''}${e.note?`<div class="gap">${esc(e.note)}</div>`:''}
+    ${tip.safe?`<div class="${tip.k==='urgent'?'warn':'gap'}"><b>${tip.k==='urgent'?'Сначала безопасность.':'Безопасность.'}</b> ${tip.safe==='water'?'Вода на полу рядом с розеткой':'Дым или запах гари'} — откройте экран <button class="cp" type="button" data-go="safe:${tip.safe}">«${esc(SAFE[tip.safe].title)}»</button>.</div>`:''}
+    <div class="say"><span class="who">Сказать клиенту</span>${esc(tip.ru)}</div>
+    <div class="say uz"><span class="who">То же на узбекском</span>${esc(tip.uz)}</div>
+    <div class="okbox"><b>Дальше.</b> ${esc(tip.next)}</div>
+    <p class="lbl5">Закрыть сделку в amoCRM — Ziffler на этой линии не ремонтируют</p>
+    <div class="zouts">${outs}</div>
+    ${contactHTML('otherBrands')}
+    <div class="acts"><button class="pri" type="button" data-znote="${t.id}|${t.codes.indexOf(e)}">Копировать примечание</button></div>
+    <details class="zmd"><summary>Для мастера — текст таблицы производителя, клиенту не диктовать</summary><div class="zm" lang="${t.lang}">${esc(e.m)}</div><p class="hint">Источник: ${esc(t.src)}.</p></details>
+  </article>`;
+}
+function zNoteText(t,e){
+  const tip=ZTIPS[e.t], now=new Date(), bl=zBlink(e), m=zst.m.trim();
+  return [`[Darian·Assist] ${fmtD(now)} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+    'Бренд: Ziffler'+(m&&!/^\s*7/.test(m)?'. Модель: '+m.toUpperCase():'')+'. Таблица кодов: '+t.title,
+    'Код ошибки: '+(e.show||e.c)+(bl?' ('+bl+')':''),
+    'Значение по таблице производителя: '+e.n,
+    'Совет клиенту: '+tip.ru,
+    'Дальше: '+tip.next].join('\n');
+}
+function zListHTML(tids){
+  return tids.map(id=>{ const t=zById(id);
+    return `<h2>${esc(t.title)}</h2><p class="hint">${esc(t.kind)}.${t.models.length?' Модели: '+esc(t.models.join(', '))+'.':''} Источник: ${esc(t.src)}.</p>${t.foot?`<div class="gap">${esc(t.foot)}</div>`:''}<div class="zlist">${t.codes.map(e=>zCardHTML(t,e,true)).join('')}</div>`; }).join('');
+}
+function zTids(){
+  if(zst.t){ const t=zById(zst.t); return t ? [t.id].concat(t.dual?[t.dual]:[]) : []; }
+  return zst.m.trim() ? zDetect(zst.m) : [];
+}
+function zRender(){
+  const info=$('#zinfo'), res=$('#zres'); if(!info||!res) return;
+  const m=zst.m.trim(), tids=zTids();
+  let ih='';
+  if(zst.t){ const t=zById(zst.t); if(t) ih=`<div><span class="pill good">выбрано</span> ${esc(t.title)} <button class="cp" type="button" data-zt="">сбросить</button></div>`; }
+  else if(m){
+    if(/^\s*7/.test(m)) ih=`<div><span class="pill bad">7TECH</span> Модель начинается с «7» — это 7TECH. Коды Ziffler к ней не подходят: откройте дерево техники, а код запишите в заявку.</div>`;
+    else if(tids.length) ih=`<div><span class="pill good">Ziffler</span> ${tids.map(id=>esc(zById(id).title)).join(' и ')}</div>`;
+    else ih=`<div><span class="pill mid">не найдено</span> Такой модели или серии нет в таблицах Ziffler. Проверьте наклейку или выберите серию ниже — искать можно и только по коду.</div>`;
+  }
+  if(tids.includes('wmT1A') && tids.includes('wmT')) ih+=`<div class="gap"><b>У T1-6100 в файле производителя два разных набора кодов:</b> A — E01…E24, E50, E51, ECF и B — E0…E16. Код с нулём впереди (E01, E02…) — из набора A. Коды E10–E16 есть в обоих наборах с разным значением: запишите код дословно, клиенту дайте общий совет, мастер уточнит.</div>`;
+  info.innerHTML=ih;
+  const c=zst.c.trim();
+  if(!c){ res.innerHTML = tids.length ? zListHTML(tids) : `<p class="hint">Впишите код — помощник покажет значение во всех таблицах Ziffler. С моделью или серией ответ будет точным.</p>`; return; }
+  const r=zFind(tids,c), C=esc(c.toUpperCase());
+  let h='';
+  if(r.exact.length){
+    if(!tids.length && r.exact.length>1) h+=`<div class="gap"><b>Код «${C}» есть в ${new Set(r.exact.map(x=>x.t.id)).size>1?'нескольких таблицах':'таблице несколько раз'}, значение разное.</b> Уточните модель на наклейке или выберите строку своей серии.</div><div class="zlist">${r.exact.map(x=>zCardHTML(x.t,x.e,true)).join('')}</div>`;
+    else {
+      if(r.exact.length>1 && new Set(r.exact.map(x=>x.t.id)).size===1) h+=`<div class="gap"><b>В этой таблице код «${C}» означает разное</b> — варианты отличаются миганием индикатора на плате наружного блока. Его смотрит только мастер, клиента не просить: дайте общий совет, запишите все варианты.</div>`;
+      h+=r.exact.map(x=>zCardHTML(x.t,x.e)).join('');
+    }
+  } else if(tids.length){
+    const all=zFind([],c);
+    h+=`<div class="gap"><b>В выбранной серии кода «${C}» нет.</b> Проверьте модель на наклейке и как читается код: 0 и O, 5 и S, 8 и B на дисплее похожи.</div>`;
+    if(all.exact.length) h+=`<p class="lbl5">Этот код есть в других таблицах Ziffler</p><div class="zlist">${all.exact.map(x=>zCardHTML(x.t,x.e,true)).join('')}</div>`;
+  } else h+=`<div class="gap"><b>Кода «${C}» нет в таблицах Ziffler.</b> Попросите продиктовать код по буквам: 0 и O, 5 и S, 8 и B на дисплее похожи.</div>`;
+  if(r.near.length) h+=`<p class="lbl5">Похожие коды</p><div class="zlist">${r.near.map(x=>zCardHTML(x.t,x.e,true)).join('')}</div>`;
+  res.innerHTML=h;
+}
+function zPageHTML(){
+  return `<p class="sub">Таблицы производителя Ziffler из чата от 29.09.2026: ${ZCOUNT} кодов в ${ZTAB.length} таблицах. Ziffler на этой линии не ремонтируют — расшифровка нужна, чтобы дать клиенту безопасный совет и правильно закрыть обращение.</p>
+    <div class="say uz"><span class="who">Спросить · UZ</span>Iltimos, ekranda qanday kod chiqyapti — harfma-harf ayting. Modelini yorliqdan o‘qib bering: konditsionerda ichki blokning yon tomonida, kir yuvish mashinasida orqa tomonida.</div>
+    <div class="extras zpick">
+      <label for="zm">Модель с наклейки или серия<input id="zm" autocomplete="off" placeholder="BAC-M12AW · Monoca · T80-P12INW" value="${esc(zst.m)}"></label>
+      <label for="zc">Код на дисплее<input id="zc" autocomplete="off" placeholder="E6 · P1 · d3 · CL" value="${esc(zst.c)}"></label>
+    </div>
+    <div id="zinfo" class="res-box"></div>
+    <details class="zser"${zst.t||zst.m.trim()?'':' open'}><summary>Серии и модели — выбрать вручную</summary>
+      ${['ac','wm'].map(g=>`<p class="lbl5">${ZTYPE[g]}</p><div class="zchips">${ZTAB.filter(t=>t.type===g).map(t=>`<button type="button" class="zchip${zst.t===t.id?' on':''}" data-zt="${t.id}"><b>${esc(t.short)}</b><small>${t.years?esc(t.years)+' · ':''}${t.codes.length} ${zPl(t.codes.length)}</small></button>`).join('')}</div>`).join('')}
+      <p class="hint">Нет цифрового дисплея (Monoca, Rosario, Alaska, Persia, Iceland) — спросите, сколько раз мигает лампа работы и горит ли лампа таймера: это есть в карточке кода.</p>
+    </details>
+    <div id="zres"></div>`;
+}
+function zMarkChips(){ main.querySelectorAll('.zchip').forEach(b=>b.classList.toggle('on',b.dataset.zt===zst.t)); }
+function wireZPage(){
+  const zm=$('#zm'), zc=$('#zc');
+  zm.addEventListener('input',()=>{ zst.m=zm.value; zst.t=''; zMarkChips(); zRender(); });
+  zc.addEventListener('input',()=>{ zst.c=zc.value; zRender(); });
+  zRender();
+}
+function zOpen(a){ const p=String(a||'').split(':'); zst.t=zById(p[0])?p[0]:''; zst.c=p[1]||''; if(p.length>2) zst.m=p.slice(2).join(':'); openPage('zcodes'); }
+document.addEventListener('click',e=>{
+  if(!main.contains(e.target)) return;
+  const zt=e.target.closest('[data-zt]');
+  if(zt){ e.preventDefault(); zst.t = zst.t===zt.dataset.zt ? '' : zt.dataset.zt; zMarkChips(); zRender(); return; }
+  const zp=e.target.closest('[data-zpick]');
+  if(zp){ e.preventDefault(); zst.t=zp.dataset.zpick; zst.c=zp.dataset.zc; const i=$('#zc'); if(i) i.value=zst.c; zMarkChips(); zRender(); const r=$('#zres'); if(r && r.scrollIntoView) r.scrollIntoView({block:'start'}); return; }
+  const zn=e.target.closest('[data-znote]');
+  if(zn){ e.preventDefault(); const [id,i]=zn.dataset.znote.split('|'); const t=zById(id), en=t&&t.codes[+i]; if(en) copyText(zNoteText(t,en),'Примечание скопировано — вставьте в «Примечание» сделки'); }
+});
+/* результаты в общем поиске: код + модель/серия или код при бренде Ziffler */
+function zSearchHits(raw,toks){
+  const typed=toks.some(t=>t.startsWith('zifl'));
+  const zb=typed || brand.id==='ziffler';
+  const zt=zDetect(raw), zc=zCodeTokens(raw);
+  const model=(String(raw).split(/[\s,;]+/).find(t=>/\d/.test(t) && zDetect(t).length && !ZALL.has(zNorm(t)))||'');
+  const out=[];
+  if(zc.length && (zb||zt.length)){
+    const seen=new Set();
+    zc.forEach(c=>zFind(zt,c).exact.forEach(x=>{ const key=x.t.id+':'+x.t.codes.indexOf(x.e); if(seen.has(key)) return; seen.add(key);
+      const k=ZKIND[ZTIPS[x.e.t].k];
+      out.push(`<button class="r" type="button" data-go="zc:${x.t.id}:${esc(x.e.c)}:${esc(model)}">Ziffler ${esc(x.e.show||x.e.c)} — ${esc(x.e.n)}<small>коды ошибок Ziffler · ${esc(x.t.short)} · ${esc(k.n)}</small></button>`); }));
+    if(!out.length) out.push(`<button class="r" type="button" data-go="zc:${zt.length===1?zt[0]:''}:${esc(zc[0])}:${esc(model)}">Код ${esc(zc[0])} — нет в таблицах Ziffler${zt.length?' для этой серии':''}<small>открыть справочник кодов Ziffler</small></button>`);
+  } else if(zt.length){
+    zt.forEach(id=>{ const t=zById(id); out.push(`<button class="r" type="button" data-go="zc:${id}::${esc(model)}">Коды ошибок Ziffler: ${esc(t.short)}<small>${esc(t.title)} · ${t.codes.length} ${zPl(t.codes.length)}</small></button>`); });
+  } else if(typed) out.push(`<button class="r" type="button" data-go="page:zcodes">Коды ошибок Ziffler<small>расшифровка по модели и коду · совет клиенту · как закрыть сделку</small></button>`);
+  return out.slice(0,6);
+}
+
+/* ==========================================================================
+   СПРАВОЧНИКИ И ОБУЧЕНИЕ
+   ========================================================================== */
+const PAGES = __ASSIST.PAGES;
+
+const QUIZ = __ASSIST.QUIZ;
+
+const ERRORS = __ASSIST.ERRORS;
+
+const DAY1 = __ASSIST.DAY1;
+
+function shopsTable(){
+  return `<div class="tbl"><table class="w"><thead><tr><th>Магазин</th><th>Город</th><th>Адрес</th></tr></thead><tbody>
+    ${SHOPS.map(s=>`<tr><td><b>${esc(s.n)}</b></td><td>${esc(s.city)}</td><td>${esc(s.addr)} ${cp(s.city+', '+s.addr)}</td></tr>`).join('')}
+  </tbody></table></div><p class="hint">Источник: seventech.uz/branches. Телефонов магазинов на сайте нет.</p>`;
+}
+function scTable(){
+  return `<div class="scgrid">${SC.map(scCardHTML).join('')}</div>
+    <p class="hint">Ещё в файле сервиса: ${SC_EXTRA.map(x=>`${esc(x.n)} — <span class="phone">${esc(fmtTel(x.tel))}</span> ${cp(fmtTel(x.tel))} (${esc(x.note)})`).join('; ')}.</p>
+    <p class="hint">Источник: файлы сервиса «7 Tech servis raqamlari» и «Adres», 02.10.2026. Сервисный центр в заявку ставит DCRM сам по адресу клиента.</p>`;
+}
+
+function openPage(id){
+  const p=PAGES[id]; if(!p){ home(); return; }
+  state={view:'page',page:id}; markNav('page:'+id); qin.value='';
+  let h=`<p class="crumbs">Справочник / ${esc(p.n)}</p><h1>${esc(p.n)}</h1>`;
+
+  if(id==='crm'){
+    h+=`<p class="sub">Воронка «Воронка» в amoCRM SevenTech. Часть этапов ставите вы, часть — автоматика и DCRM. Ваша задача — правильно довести сделку до «Требуется сервис» или закрыть её.</p>
+      <div class="stages">${CRM.stages.map((s,i)=>`<span class="s ${s.who==='op'?'op':'auto'} ${s.n.startsWith('Закрыто')?'end':''}">${esc(s.n)}</span>${i<CRM.stages.length-1?'<span class="a" aria-hidden="true">→</span>':''}`).join('')}</div>
+      <div class="legend"><span><i class="op"></i>ставит оператор</span><span><i class="auto"></i>ставит телефония, робот или DCRM</span></div>
+      <div class="tbl"><table class="w"><thead><tr><th>Этап</th><th>Кто ставит</th><th>Что это значит и что делать</th></tr></thead><tbody>
+        ${CRM.stages.map(s=>`<tr><td><b>${esc(s.n)}</b></td><td>${s.who==='op'?'оператор':'автоматически'}</td><td>${esc(s.d)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <h2>Автозадачи — их создаёт amoCRM сам</h2>
+      <ul class="do"><li>${esc(CRM.auto.missed)}</li><li>${esc(CRM.auto.follow)} — в переводе: «перезвонить клиенту и узнать, решён ли вопрос»</li><li>${esc(CRM.auto.hc)}</li></ul>
+      <h2>Пять правил</h2>
+      <ul class="do nums">
+        <li>Одна сделка — одна техника. Сломались две — вторую сделку создайте в карточке контакта.</li>
+        <li>Звонок по уже открытой заявке — это не новая заявка: примечание в основной сделке, а новую закрыть («статус заявки» или «дубль» + тег «дубль»).</li>
+        <li>Ремонт не держим в «Первичная консультация»: заполнили 5 обязательных полей — сразу «Требуется сервис».</li>
+        <li>Результат каждой задачи — словами: «Дозвонился, работает», «Не ответил, попытка 2 из 3».</li>
+        <li>Поля «Сервисный центр», «Инженер», «DCRM ID», «D-crm link», «Плановая дата окончания» и SLA заполняет DCRM — не трогайте их.</li>
+      </ul>`;
+  }
+
+  if(id==='fields'){
+    const F=[
+      ['Тип обращения','Первичная консультация','Одно значение. Ремонт — «Диагностика»; решили советом — «вопрос решён по телефону»; жалоба — «Жалоба».','Диагностика'],
+      ['ФИО','Требуется сервис','Имя и фамилия, как назвался клиент.','Ergasheva Nafisa'],
+      ['Адрес / Город','Требуется сервис','С области: город/область → район → махалля → улица → дом, кв. → ориентир. По адресу DCRM выбирает сервисный центр.','Toshkent sh., Yashnobod t., Gozal 35-uy, 6-xonadon'],
+      ['Описание неисправности','Требуется сервис','Что не работает, что выяснили, код ошибки. Помощник собирает текст на карточке заявки.','Код E21. Стиральная машина 7WM4S1070GCS1. Не сливает воду: …'],
+      ['Тип устройство','Требуется сервис','Только одно значение. Не уверены — расшифровка модели.','Стиральная машина'],
+      ['Бренд','Требуется сервис','7Tech. Everal — по согласованию с супервайзером.','7Tech'],
+      ['Модель','—','С наклейки, латиницей без пробелов.','7AC4G12WS2'],
+      ['Серийный номер','—','С той же наклейки. Мастеру он нужен.','—'],
+      ['Дата покупки','—','По чеку или электронному талону в приложении 7TECH.','15.09.2026'],
+      ['Магазин покупки','—','Название и город.','Abu Sahiy, Toshkent'],
+      ['Статус гарантии','—','По дате покупки: помощник считает на карточке заявки.','Да'],
+      ['Дата окончания гарантии','—','Дата покупки + 12 месяцев.','15.09.2027'],
+      ['Канал обращения','—','«Телефон»; «Телеграм бот» — если заявка из бота.','Телефон'],
+      ['Источник','—','«Звонок» для звонков.','Звонок'],
+      ['Комментарий','—','То, чего нет в описании: удобное время, ориентир, согласие на платный ремонт.','Звонить после 14:00'],
+      ['Дата регистрации','—','Сегодняшняя дата.',fmtD(today())],
+      ['причина отказа','Закрыто и не реализовано','Текст из таблицы «Причины закрытия».','Недозвон: 3 попытки без ответа'],
+      ['Сервисный центр, Инженер, DCRM ID, D-crm link, Плановая дата окончания, SLA','—','Заполняет DCRM автоматически. Не трогать.','—'],
+      ['Happy Call, Устройство получено, Неисправность устранена, Оценки, Комментарий клиента, Требуется повторное обращение','—','Только при Happy Call — сценарий «Happy Call».','—']
+    ];
+    h+=`<p class="sub">Звёздочка в amoCRM появится сама, когда вы попробуете перевести сделку на этап, где поле обязательно. Ниже — где какое поле обязательно и как его заполнять.</p>
+      <div class="tbl"><table class="w"><thead><tr><th>Поле</th><th>Обязательно на этапе</th><th>Как заполнять</th><th>Пример</th></tr></thead><tbody>
+        ${F.map(r=>`<tr><td><b>${esc(r[0])}</b></td><td>${r[1]==='—'?'—':`<span class="tag">${esc(r[1])}</span>`}</td><td>${esc(r[2])}</td><td>${r[3]==='—'?'—':`<code>${esc(r[3])}</code>`}</td></tr>`).join('')}
+      </tbody></table></div>
+      <h2>Значения списков — дословно как в amoCRM</h2>
+      <div class="cols2">
+        <div><p class="lbl5">Тип обращения</p><ul class="do">${CRM.obr.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></div>
+        <div><p class="lbl5">Тип устройство</p><ul class="do">${CRM.dev.map(v=>`<li>${esc(v)}</li>`).join('')}</ul></div>
+      </div>`;
+  }
+
+  if(id==='close'){
+    h+=`<p class="sub">Закрывая сделку как «Закрыто и не реализовано», amoCRM попросит две вещи: причину из списка и текст в обязательном поле «причина отказа». Берите обе отсюда — кнопкой «копировать».</p>
+      <div class="tbl"><table class="w"><thead><tr><th>Когда</th><th>Причина в списке</th><th>Текст в «причина отказа»</th><th>Тип обращения</th></tr></thead><tbody>
+        ${CLOSE.map(c=>`<tr><td>${esc(c.when)}</td><td>${codeCp(c.lr)}</td><td>${codeCp(c.txt)}</td><td>${c.obr==='—'?'—':`<span class="tag">${esc(c.obr)}</span>`}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="warn"><b>Не пишите</b> «0», «.», «-», «test», «nedozvon» и то же самое разными словами — по этим полям строятся отчёты для руководства.</div>
+      <div class="okbox">«Закрыто (успешно)» — только после ремонта и Happy Call. Всё остальное — «Закрыто и не реализовано».</div>`;
+  }
+
+  if(id==='model'){
+    h+=`<p class="sub">Модель — на наклейке: у стиральной машины за дверцей люка или сзади, у холодильника внутри камеры, у кондиционера сбоку на внутреннем блоке. Впишите её — помощник скажет, что выбрать в «Тип устройство».</p>
+      <div class="extras" style="max-width:520px"><label for="pm-model">Модель<input id="pm-model" autocomplete="off" placeholder="7GH4G60EBES2" value="${esc(extras.model)}"></label></div>
+      <div id="pm-res" class="res-box"></div>
+      <div class="tbl"><table class="w"><thead><tr><th>Начало модели</th><th>«Тип устройство» в amoCRM</th><th>Что это</th></tr></thead><tbody>
+        ${[...MODELS].sort((a,b)=>a[0].localeCompare(b[0])).map(m=>{ const app=DATA.find(d=>d.id===m[2]); return `<tr><td><code>${esc(m[0])}…</code></td><td>${m[1]?`<span class="tag">${esc(m[1])}</span>`:'<span class="gapmark">нет в CRM</span>'}</td><td>${esc(app?app.name:'')}${m[3]?' — '+esc(m[3]):''}</td></tr>`; }).join('')}
+      </tbody></table></div>`;
+  }
+
+  if(id==='warranty'){
+    const cats=Object.keys(brand.cats||{});
+    if(brand.official){
+      h+=`<p class="sub">${esc(brand.note)}</p>
+        <div class="wcard"><div class="top"><span class="bn">7TECH</span><span class="term">1 год + 2 года сервиса</span></div>
+          <div class="say" style="margin-bottom:8px"><span class="who">С сайта seventech.uz/warranty-terms</span>«Гарантийный срок 1 год — мы берем на себя все расходы: работу и запчасти». «Бесплатное сервисное обслуживание 2 года — мы покрываем работу специалиста».</div>
+          <ul class="do" style="margin:0"><li>До ${W7.full} месяцев с покупки — ремонт бесплатный: работа и запчасти. «Статус гарантии» — Да.</li>
+          <li>С ${W7.full} до ${W7.labor} месяцев — работа мастера бесплатно, запчасти платно, стоимость мастер называет до ремонта. «Статус гарантии» — ${W7.yesMax>W7.full?'Да':'Нет'}.</li>
+          <li>Больше ${W7.labor} месяцев — ремонт платный.</li></ul></div>
+        <h2>Посчитать по дате покупки</h2>
+        <div class="extras" style="max-width:520px"><label for="pw-date">Дата покупки<input id="pw-date" type="date" value="${esc(extras.pdate)}"></label></div>
+        <div id="pw-res" class="res-box"></div>
+        <h2>Не покрывает</h2><ul class="do">${EXC_7TECH.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
+        <h2>Документы</h2><ul class="do">${DOCS.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`;
+    } else {
+      h+=`<p class="sub">${esc(brand.note||'')}</p>
+        ${brand.crm?'':`<div class="warn"><b>${esc(brand.n)} не обслуживается на линии 7TECH.</b> Справка для других линий Darian. На этой линии — сценарий «Другой бренд».</div>`}
+        <div class="wcard"><div class="top"><span class="bn">Базовый срок</span><span class="term">${esc(brand.base)}</span></div></div>
+        ${brand.conflict?`<div class="conflict"><b>Источники расходятся.</b><ul>${brand.conflict.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>Срок называть только по гарантийному талону клиента.</div>`:''}
+        ${cats.length?`<div class="tbl"><table class="w"><thead><tr><th>Категория</th><th>Срок</th><th>Покрывает</th><th>Не покрывает</th></tr></thead><tbody>
+          ${cats.map(k=>{const c=brand.cats[k];return `<tr><td><b>${esc(CATNAMES[k])}</b></td><td><span class="tag">${esc(c.t)}</span></td><td>${(c.cov||[]).map(esc).join('<br>')||'Заводской брак'}</td><td>${(c.exc||[]).map(esc).join('<br>')||'—'}</td></tr>`;}).join('')}
+          </tbody></table></div>`:`<div class="gap">Разбивки по категориям нет — применяется базовый срок и общий список исключений.</div>`}
+        ${brand.internal?`<h2>Внутренние заметки</h2><ul class="do">${brand.internal.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:''}`;
+    }
+    h+=`<h2>Все бренды</h2><p class="hint">Бренд меняется в шапке. На этой линии — только 7TECH и Everal.</p>
+      <div class="tbl"><table class="w"><thead><tr><th>Бренд</th><th>Линия</th><th>Базовый срок</th><th>Особые условия</th></tr></thead><tbody>
+        ${BRANDS.map(b=>`<tr><td><b>${esc(b.n)}</b></td><td>${b.crm?'<span class="pill good">эта линия</span>':'другая'}</td><td><span class="tag">${esc(b.base)}</span></td><td>${esc(b.note||'')}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  if(id==='exc'){
+    h+=`<p class="sub">Оператор отмечает признаки, но не объявляет отказ по телефону — решение принимает сервисный центр после диагностики.</p>
+      <h2>7TECH — по условиям с сайта</h2><ul class="do">${EXC_7TECH.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
+      <h2>Общий список для всех брендов</h2><ul class="do">${UNIVERSAL_EXC.map(e=>`<li>${esc(e)}</li>`).join('')}</ul>
+      <h2>Красные флаги в разговоре</h2>
+      <ul class="do">
+        <li>Новая стиральная машина сильно вибрирует — не сняты транспортировочные болты</li>
+        <li>Трещина или скол на стекле плиты, варочной панели, экране — механическое повреждение, если был удар</li>
+        <li>Кондиционер не холодит после монтажа сторонней бригадой — вопрос к монтажу</li>
+        <li>Пульт, фильтры, шланги подачи воды, тарелка микроволновки — исключены из гарантии 7TECH</li>
+        <li>Поломка сразу после отключения или скачка света — повреждение от напряжения не покрывается, решает СЦ</li>
+        <li>Следы вскрытия, посторонние винты, сорванная пломба — самостоятельный ремонт</li>
+        <li>Битое стекло или вмятины в новой поставке — транспортное повреждение, через продавца</li>
+      </ul>`;
+  }
+
+  if(id==='check'){
+    h+=`<p class="sub">Порядок для заявки на ремонт. Проходить до перевода в «Требуется сервис», а не после.</p>
+      <ul class="do nums">
+        <li>Поздороваться и представиться — фраза на узбекском в «Фразы RU / UZ»</li>
+        <li>Безопасность: газ, дым, ток, вода у розетки?</li>
+        <li>Бренд: 7TECH? Модель начинается с «7»</li>
+        <li>Пройти дерево симптома — часть проблем решается по телефону</li>
+        <li>Модель и серийный номер с наклейки</li>
+        <li>Дата покупки и магазин — помощник посчитает гарантию</li>
+        <li>Не было ли ударов, заливов, вскрытия</li>
+        <li>ФИО и полный адрес с областью и ориентиром</li>
+        <li>Заполнить поля по карточке amoCRM, описание скопировать из помощника</li>
+        <li>Перевести в «Требуется сервис»</li>
+        <li>Подтвердить клиенту: мастер позвонит сам, плановый срок — 7 дней</li>
+        <li>Попрощаться</li>
+      </ul>
+      <h2>Документы</h2><ul class="do">${DOCS.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`;
+  }
+
+  if(id==='refusal'){
+    const R=[
+      ['Истёк срок гарантии 7TECH','Срок гарантии закончился, ремонт будет платным. Мастер назовёт стоимость до начала работ, и вы решите, продолжать ли.',UZ.paid],
+      ['Второй год: бесплатный сервис','Гарантийный год закончился, но работа мастера бесплатна. Платными будут только запчасти — их стоимость мастер назовёт до ремонта.',UZ.labor],
+      ['Механическое повреждение','Судя по описанию, было механическое повреждение. Такие случаи гарантия обычно не покрывает, но окончательное решение принимает сервисный центр после осмотра.',null],
+      ['Следы вскрытия','Если технику уже разбирали, сервисный центр проверит это при диагностике. Не буду обещать бесплатный ремонт заранее — мастер даст точный ответ.',null],
+      ['Нет чека','Подойдёт электронный гарантийный талон в приложении 7TECH или дубликат чека из магазина покупки.',null],
+      ['Монтаж сторонней бригадой','Кондиционер устанавливала не наша бригада, поэтому вопросы монтажа гарантия не покрывает. Диагностику мастер проведёт и покажет причину.',null],
+      ['Расходники и аксессуары','Пульт, фильтры и шланги не входят в гарантию — их меняют за счёт владельца. Подскажу, куда обратиться.',null]
+    ];
+    h+=`<p class="sub">Оператор не объявляет отказ как факт. Он объясняет условие, а решение — за сервисным центром после диагностики.</p>
+      ${R.map(r=>`<div class="say"><span class="who">${esc(r[0])}</span>${esc(r[1])}</div>${r[2]?`<div class="say uz"><span class="who">UZ</span>${esc(r[2])}</div>`:''}`).join('')}
+      <div class="warn"><b>Запрещено.</b> Говорить «вам откажут», «это не наш случай», «сами виноваты». Обещать бесплатный ремонт до диагностики. Вносить номер клиента в чёрный список. Любая эскалация — через супервайзера.</div>`;
+  }
+
+  if(id==='sc'){ h+=`<p class="sub">Менеджеры, телефоны и адреса сервисных центров по регионам. Заявку на ремонт оформляйте всегда — СЦ назначит DCRM сам по адресу. Номер и адрес СЦ даёте, если клиент хочет привезти технику сам или срок по заявке просрочен.</p>`+scLookupHTML()+`<h2>Все регионы</h2>`+scTable(); }
+
+  if(id==='shops'){
+    h+=`<p class="sub">Для вопросов «где купить» и «адрес магазина». Цены и наличие оператор не называет — это к отделу продаж.</p>`+shopsTable()+
+      `<h2>Сервис 7TECH</h2><div class="tbl"><table class="w" style="min-width:0"><tbody>
+        <tr><td>Горячая линия</td><td><span class="phone">${esc(CRM.hotline)}</span> ${cp(CRM.hotline)}</td></tr>
+        <tr><td>График</td><td>${esc(CRM.hours)}</td></tr>
+        <tr><td>Адрес сервиса</td><td>${esc(SUPPORT.addr)}</td></tr>
+        <tr><td>Почта</td><td>${esc(SUPPORT.mail)} ${cp(SUPPORT.mail)}</td></tr>
+        <tr><td>Сайт</td><td>${esc(SUPPORT.site)}</td></tr></tbody></table></div>`;
+  }
+
+  if(id==='scripts'){
+    const S=[
+      ['Приветствие','Здравствуйте! Сервис 7TECH, меня зовут ___. Чем могу помочь?',UZ.open],
+      ['Собрать данные','Подскажите, пожалуйста, имя и фамилию, адрес — область, район, махаллю, улицу, дом — и модель техники: она на наклейке.',UZ.ask],
+      ['Заявка оформлена','Заявку оформил. Она уйдёт в сервисный центр вашего региона, мастер сам позвонит и согласует время. Плановый срок ремонта — до '+planDate()+'.',UZ.reg.replace('___',planDate())],
+      ['Срочная заявка','Передаю заявку как срочную. Пока мастер не приедет, техникой не пользуйтесь.',UZ.urgent],
+      ['Запах газа','Сразу закройте газовый кран и откройте окна. Не включайте и не выключайте свет, не зажигайте огонь. Выйдите и позвоните в газовую службу 104.',UZ.gas],
+      ['Бьёт током','Не касайтесь техники и отключите её от розетки сухой рукой или выключите автомат.',UZ.shock],
+      ['Дым, гарь','Выключите прибор и выньте вилку из розетки. Если видите огонь — звоните 101.',UZ.smoke],
+      ['Вода у розетки','Сначала выключите автомат в щитке, потом перекройте кран воды.',UZ.water],
+      ['Статус: в работе','Ваша заявка в сервисном центре, плановый срок — до ___. Мастер с вами свяжется.',UZ.wait],
+      ['Статус: просрочено','Приношу извинения за задержку. Я передал заявку как срочную — с вами свяжутся сегодня.',UZ.late],
+      ['Другой бренд','Эта линия обслуживает технику 7TECH. По вашему бренду подскажу номер.',UZ.brand],
+      ['Перезвон по пропущенному','Здравствуйте! Это сервис 7TECH, вы нам звонили. Чем можем помочь?',UZ.missed],
+      ['Happy Call','Здравствуйте! Это сервис 7TECH. Недавно у вас ремонтировали технику — всё работает? Оцените, пожалуйста, работу мастера от 1 до 5. А работу оператора?',UZ.hc],
+      ['Прощание','Спасибо за обращение! Если появятся вопросы — звоните 71 230 70 00. Хорошего дня!',UZ.close]
+    ];
+    h+=`<p class="sub">Большинство клиентов говорит по-узбекски. Фразы — простые и вежливые, на «вы» (siz).</p>
+      <div class="tbl"><table class="w"><thead><tr><th>Момент</th><th>Русский</th><th>O‘zbekcha (lotin)</th></tr></thead><tbody>
+        ${S.map(r=>`<tr><td><b>${esc(r[0])}</b></td><td>${esc(r[1])}</td><td>${esc(r[2])} ${cp(r[2])}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  if(id==='day1'){
+    const done=LS.get('day1',[]);
+    h+=`<p class="sub">Двенадцать шагов, после которых можно принимать звонки самостоятельно. Отметки сохраняются только в этом браузере.</p>
+      <ul class="chk" id="day1">${DAY1.map((t,i)=>`<li><label for="d1-${i}"><input type="checkbox" id="d1-${i}" data-i="${i}" ${done.includes(i)?'checked':''}><span>${esc(t)}</span></label></li>`).join('')}</ul>
+      <p class="score" id="d1-score"></p>
+      <div class="okbox">Главное правило первого дня: сомневаетесь — идите по помощнику шаг за шагом и копируйте значения в amoCRM кнопками «копировать». Ничего не печатайте в поля списков по памяти.</div>`;
+  }
+
+  if(id==='errors'){
+    h+=`<p class="sub">Это не теория: всё ниже нашлось в amoCRM SevenTech среди 3 439 сделок с 14 августа по 2 октября 2026 года. Помощник закрывает каждую из этих ошибок.</p>
+      <div class="tbl"><table class="w"><thead><tr><th>Ошибка</th><th>Сколько</th><th>Как правильно</th></tr></thead><tbody>
+        ${ERRORS.map(r=>`<tr><td>${esc(r[0])}</td><td class="num">${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+
+  if(id==='quiz'){
+    h+=`<p class="sub">${QUIZ.length} ситуаций из реальных звонков. Выберите ответ — сразу увидите, почему так.</p><p class="score" id="qz-score">Верно: 0 из ${QUIZ.length}</p>
+      ${QUIZ.map((x,i)=>`<div class="qz" data-q="${i}"><div class="qn">СИТУАЦИЯ ${i+1}</div><div class="qt">${esc(x.q)}</div>
+        <div class="qo">${x.o.map((o,j)=>`<button type="button" data-j="${j}">${esc(o)}</button>`).join('')}</div><div class="fb" hidden></div></div>`).join('')}
+      <button class="sec" type="button" id="qz-reset">Пройти заново</button>`;
+  }
+
+  if(id==='zcodes') h+=zPageHTML();
+
+  if(id==='admin'){
+    const ck=Object.entries(CONTACTS);
+    h+=`<p class="sub">Что настроить в помощнике и что исправить в amoCRM. Помощник — один HTML-файл: блоки CRM, CONTACTS, W7, ESC и SC в начале скрипта.</p>
+      <h2>Сервисные центры</h2>
+      <p class="txt">Внесены 16 регионов: менеджеры, телефоны, адреса и ориентиры из файлов «7 Tech servis raqamlari» и «Adres» (02.10.2026). Требуют внимания: Кашкадарья — номер Боходира помечен как заблокированный и нет адреса; Наманган — в CRM инженер «Бахтиёр», в списке сервиса Адхам; номер Мухаммада (971118845) — без региона.</p>
+      <h2>Номера, которых нет на сайте и в CRM</h2>
+      <div class="tbl"><table class="w" style="min-width:0"><tbody>${ck.map(([k,v])=>`<tr><td><code>CONTACTS.${esc(k)}</code></td><td>${v?`<span class="pill good">внесён</span> ${esc(v)}`:'<span class="pill bad">не внесён</span>'}</td></tr>`).join('')}</tbody></table></div>
+      <h2>Правило гарантии 7TECH</h2>
+      <p class="txt">Утверждено 02.10.2026: полная гарантия ${W7.full} мес., работа мастера бесплатно до ${W7.labor} мес. от даты покупки, «Статус гарантии: Да» до ${W7.yesMax} мес. Правило меняется в одной строке <code>W7</code>.</p>
+      <h2>Коды ошибок Ziffler</h2>
+      <p class="txt">Внесено ${ZCOUNT} кодов из ${ZTAB.length} таблиц производителя (чат от 29.09.2026): ${ZTAB.map(t=>esc(t.short)).join('; ')}. Значения и советы клиенту — блоки <code>ZTAB</code> и <code>ZTIPS</code>. Ziffler сейчас идёт по правилу «Другой бренд»: оператор даёт безопасный совет по коду и номер линии Ziffler — номер ещё не внесён (<code>CONTACTS.otherBrands</code>).</p>
+      <ul class="do">
+        <li>T1-6100: в файле две разные таблицы кодов (E01…ECF и E0…E16), коды E10–E16 в них значат разное. Нужно уточнить у Ziffler, какая таблица верная.</li>
+        <li>Iceland: в таблице только 6 кодов; «EC S2» читаем как EC 52; у EC 51 и EC 52 одинаковое мигание (5 раз).</li>
+        <li>Lima, Elba, Bonn, Mars: у P6 повторён текст причины от P5.</li>
+        <li>В том же чате есть файлы Immer: руководство для мастеров (коды ошибок) и три скрипта колл-центра. В помощник они не внесены.</li>
+      </ul>
+      <h2>Что исправить в amoCRM</h2>
+      <ul class="do nums">
+        <li><span class="pill good">сделано 02.10.2026</span> В поле «Тип устройство» добавлены 8 значений: Сушильная машина, Духовой шкаф, Водонагреватель, Электрическая варочная панель, Очиститель воздуха, Монитор, Стайлер, Мелкая бытовая техника. Раньше их не было, и 127 сделок отмечены сразу несколькими типами.</li>
+        <li>«Тип устройство» — список с множественным выбором. Лучше сделать его списком с одним значением.</li>
+        <li>«причина отказа» — свободный текст. Лучше список из таблицы «Причины закрытия», тогда отчёты считаются без ручной чистки.</li>
+        <li>«Вид ремонта» из DCRM приходит как «TEST» во всех 830 сделках.</li>
+        <li>134 сделки в «Ожидание ремонта», у 65 из них плановая дата уже прошла, у 26 — больше чем на 7 дней.</li>
+        <li>Ремонтные обращения стоят в «Первичная консультация» до 34 дней.</li>
+      </ul>
+      <p class="footnote">Данные сверены с amoCRM seventech.amocrm.ru 02.10.2026: воронка, 12 этапов, обязательные поля, значения списков, причины закрытия, автозадачи, 3 439 сделок. Условия гарантии, сервисные центры и магазины — с seventech.uz.</p>`;
+  }
+
+  main.innerHTML=h;
+  wirePage(id);
+  top0();
+}
+
+function wirePage(id){
+  if(id==='zcodes') wireZPage();
+  if(id==='model'){
+    const i=$('#pm-model'), r=$('#pm-res');
+    const u=()=>{ extras.model=i.value; r.innerHTML=modelResHTML(i.value,null); };
+    i.addEventListener('input',u); if(extras.model) u();
+  }
+  if(id==='warranty' && brand.official){
+    const i=$('#pw-date'), r=$('#pw-res');
+    const u=()=>{ extras.pdate=i.value; const pd=parseDate(i.value); if(!pd){ r.innerHTML=''; return; } const w=warrantyByDate(pd);
+      r.innerHTML=`<div><span class="pill ${w.cls}">${esc(w.head)}</span> ${esc(w.text)}</div>${w.say?`<div class="say"><span class="who">Сказать клиенту</span>${esc(w.say)}</div>`:''}${w.uz?`<div class="say uz"><span class="who">UZ</span>${esc(w.uz)}</div>`:''}`; };
+    i.addEventListener('input',u); i.addEventListener('change',u); if(extras.pdate) u();
+  }
+  if(id==='day1'){
+    const boxes=[...main.querySelectorAll('#day1 input')], sc=$('#d1-score');
+    const u=()=>{ const d=boxes.filter(b=>b.checked).map(b=>+b.dataset.i); LS.set('day1',d); sc.textContent=d.length===DAY1.length?'Готово: можно принимать звонки самостоятельно':'Пройдено: '+d.length+' из '+DAY1.length; };
+    boxes.forEach(b=>b.addEventListener('change',u)); u();
+  }
+  if(id==='quiz'){
+    let right=0; const sc=$('#qz-score');
+    main.querySelectorAll('.qz').forEach(card=>{
+      const x=QUIZ[+card.dataset.q], fb=card.querySelector('.fb');
+      card.querySelectorAll('.qo button').forEach(b=>b.onclick=()=>{
+        if(card.dataset.done) return; card.dataset.done='1';
+        const j=+b.dataset.j, ok=j===x.a; if(ok) right++;
+        card.querySelectorAll('.qo button').forEach((bb,k)=>{ if(k===x.a) bb.classList.add('right'); else if(k===j) bb.classList.add('wrong'); bb.disabled=true; });
+        fb.hidden=false; fb.innerHTML=`<b style="color:${ok?'var(--accent)':'var(--p1)'}">${ok?'Верно.':'Не совсем.'}</b> ${esc(x.e)}`;
+        sc.textContent='Верно: '+right+' из '+QUIZ.length;
+      });
+    });
+    const rs=$('#qz-reset'); if(rs) rs.onclick=()=>openPage('quiz');
+  }
+}
+
+/* ---------- старт ---------- */
+buildBrand();
+buildNav();
+home();
+
+</script>
+
+</body>
+</html>

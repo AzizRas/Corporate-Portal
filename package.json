@@ -1,0 +1,22 @@
+{
+  "name": "qadam-portal",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "npm run start -w server",
+    "migrate": "npm run migrate -w server",
+    "seed": "npm run seed -w server",
+    "assist:import": "node scripts/import-assist.mjs",
+    "test": "npm test -w server"
+  },
+  "devDependencies": {
+    "acorn": "^8.18.0"
+  }
+}
