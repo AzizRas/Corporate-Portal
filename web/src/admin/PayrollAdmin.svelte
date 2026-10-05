@@ -72,7 +72,7 @@
 
 {#if rows}
   <Modal onclose={() => (rows = null)} wide>
-    <h2>Предпросмотр</h2>
+    <h2>Предпросмотр <span class="muted small">(суммы в сумах)</span></h2>
     <div class="scroll-x"><table class="table"><thead><tr><th>ФИО</th><th>Фикс</th><th>Сумма</th><th>Бонус</th><th>Штраф</th><th>Удерж.</th><th>Итого</th></tr></thead><tbody>
       {#each rows as r}<tr><td>{r.name}</td><td>{fmtMoney(r.data.fixed)}</td><td>{fmtMoney(r.data.earned)}</td><td>{fmtMoney(r.data.bonus)}</td><td>{fmtMoney(r.data.penalty)}</td><td>{fmtMoney(r.data.deductions)}</td><td><b>{fmtMoney(r.data.total)}</b></td></tr>{/each}
     </tbody></table></div>

@@ -2,7 +2,7 @@
   import { api } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
-  import { fmtMoney, monthLong, monthShort, nowMonth } from '../lib/format';
+  import { fmtMoney, fmtSum, fmtMln, monthLong, monthShort } from '../lib/format';
 
   let d: any = $state(null), sel = $state(''), why = $state(false), qtext = $state(''), qsent = $state(false), mine: any[] = $state([]);
   let pct = $state(90), what: number | null = $state(null);
@@ -40,7 +40,7 @@
             <g onclick={() => (sel = p.month)} onkeydown={(e) => e.key === 'Enter' && (sel = p.month)} role="button" tabindex="0" style="cursor:pointer">
               <rect x={i * 64 + 10} y={150 - h} width="44" height={h} rx="10" fill={p.month === sel ? 'url(#pg)' : 'var(--track)'} />
               <text x={i * 64 + 32} y="172" text-anchor="middle" font-size="12" fill="var(--muted)">{monthShort(p.month)}</text>
-              {#if p.month === sel}<text x={i * 64 + 32} y={142 - h} text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">{fmtMoney(p.data.total / 1000)}k</text>{/if}
+              {#if p.month === sel}<text x={i * 64 + 32} y={142 - h} text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">{fmtMln(p.data.total)}</text>{/if}
             </g>
           {/each}
           <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fc8" /><stop offset="1" stop-color="#8b5cf6" /></linearGradient></defs>
@@ -52,13 +52,13 @@
       <section class="card">
         <div class="card-head"><h3>{monthLong(cur.month)}</h3></div>
         <div class="muted small">{t('pay_net')}</div>
-        <div class="big-num" style="margin:6px 0 18px">{fmtMoney(cur.data.total)}</div>
+        <div class="big-num" style="margin:6px 0 18px;font-size:clamp(30px,3.4vw,46px)">{fmtSum(cur.data.total)}</div>
         <div class="list">
-          {#if cur.data.fixed != null}<div><span>{t('pay_fixed')}</span><b>{fmtMoney(cur.data.fixed)}</b></div>{/if}
-          {#if cur.data.earned != null}<div><span>{t('pay_earned')}</span><b>{fmtMoney(cur.data.earned)}</b></div>{/if}
-          <div><span>{t('pay_bonus')}</span><b class:pill-ok={cur.data.bonus > 0}>{cur.data.bonus > 0 ? '+ ' : ''}{fmtMoney(cur.data.bonus ?? 0)}</b></div>
-          {#if cur.data.penalty}<div><span>{t('pay_penalty')}</span><b class="pill-bad">− {fmtMoney(cur.data.penalty)}</b></div>{/if}
-          {#if cur.data.deductions}<div><span>{t('pay_deductions')}</span><b>− {fmtMoney(cur.data.deductions)}</b></div>{/if}
+          {#if cur.data.fixed != null}<div><span>{t('pay_fixed')}</span><b>{fmtSum(cur.data.fixed)}</b></div>{/if}
+          {#if cur.data.earned != null}<div><span>{t('pay_earned')}</span><b>{fmtSum(cur.data.earned)}</b></div>{/if}
+          <div><span>{t('pay_bonus')}</span><b class:pill-ok={cur.data.bonus > 0}>{cur.data.bonus > 0 ? '+ ' : ''}{fmtSum(cur.data.bonus ?? 0)}</b></div>
+          {#if cur.data.penalty}<div><span>{t('pay_penalty')}</span><b class="pill-bad">− {fmtSum(cur.data.penalty)}</b></div>{/if}
+          {#if cur.data.deductions}<div><span>{t('pay_deductions')}</span><b>− {fmtSum(cur.data.deductions)}</b></div>{/if}
         </div>
         {#if d.formula.text_ru}
           <button class="btn sm" style="margin-top:16px" onclick={() => (why = !why)}>{t('pay_why')} {why ? '▴' : '▾'}</button>
@@ -75,7 +75,7 @@
             <div class="top"><span>{k.name}</span><span>{p}%</span></div>
             <div class="bar" class:good={p >= 100}><i style="width:{Math.min(p, 100)}%"></i></div>
             <div class="muted xs" style="margin-top:6px">{t('pay_plan')} {fmtMoney(k.plan)} · {t('pay_fact')} {fmtMoney(k.fact)}
-              {#if k.per_unit && k.fact < k.plan} · {t('pay_boost')} {fmtMoney(k.plan - k.fact)} → <b class="pill-ok">+{fmtMoney((k.plan - k.fact) * k.per_unit)}</b>{/if}</div>
+              {#if k.per_unit && k.fact < k.plan} · {t('pay_boost')} {fmtMoney(k.plan - k.fact)} → <b class="pill-ok">+{fmtSum((k.plan - k.fact) * k.per_unit)}</b>{/if}</div>
           </div>
         {/each}
       </section>
@@ -87,7 +87,7 @@
         <div class="card-head"><h3>{t('pay_whatif')}</h3></div>
         <p class="muted small" style="margin-bottom:12px">{t('pay_whatif_hint')}</p>
         <label class="f">KPI, % — <b style="color:var(--text)">{pct}</b><input type="range" min="50" max="120" bind:value={pct} oninput={calc} onchange={calc} style="padding:0;accent-color:var(--accent)" /></label>
-        {#if what != null}<p class="muted small">{t('pay_expected')}</p><div class="big-num" style="font-size:36px">{fmtMoney(what)}</div>{/if}
+        {#if what != null}<p class="muted small">{t('pay_expected')}</p><div class="big-num" style="font-size:36px">{fmtSum(what)}</div>{/if}
       </section>
     {/if}
 

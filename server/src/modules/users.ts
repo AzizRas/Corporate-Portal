@@ -1,7 +1,47 @@
 import type { FastifyInstance } from 'fastify';
 import { q, tx } from '../db.js';
 import { ALL_ROLES, audit, requireRole } from '../auth.js';
-import { hashPassword, randomPassword } from '../security.js';
+import crypto from 'node:crypto';
+import ExcelJS from 'exceljs';
+import { hashPassword } from '../security.js';
+import { NAME_HEADERS, cellVal, findCol, findHeader, norm, normName } from './payroll.js';
+
+const TR: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o',
+  п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'x', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o', қ: 'q', ғ: 'g', ҳ: 'h' };
+// «Косимжонов Даврон» → kosimjonov.davron
+const loginFrom = (name: string) =>
+  normName(name).split(' ').filter(Boolean).slice(0, 2).map((w) => [...w].map((c) => TR[c] ?? c).join('').replace(/[^a-z0-9]/g, '')).filter(Boolean).join('.') || 'user';
+const simplePassword = () => String(crypto.randomInt(100000, 1000000));   // 6 цифр; при первом входе сотрудник задаёт свой
+const POSITION: Record<string, { code: string; roles: string[] }> = {
+  'оператор': { code: 'op', roles: ['employee'] }, 'старший оператор': { code: 'sr', roles: ['employee'] },
+  'супервайзер': { code: 'sv', roles: ['employee', 'manager'] }, 'кладовщик': { code: 'wh', roles: ['employee'] }, 'мастер': { code: 'ex', roles: ['employee'] },
+};
+const positionInfo = (pos: string) => {
+  const p = normName(pos);
+  if (POSITION[p]) return POSITION[p];
+  if (p.startsWith('руководитель')) return { code: 'hd', roles: ['employee', 'manager'] };
+  return { code: 'op', roles: ['employee'] };
+};
+
+async function parseEmployees(buf: Buffer) {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf as any);
+  const out: { row: number; name: string; position: string; hired: string | null }[] = [];
+  for (const ws of wb.worksheets) {
+    const hd = findHeader(ws, [NAME_HEADERS]);
+    if (!hd) continue;
+    const nc = findCol(hd.map, NAME_HEADERS), pc = findCol(hd.map, ['должность']), dc = findCol(hd.map, ['дата приёма', 'дата приема', 'принят']);
+    ws.eachRow((row, n) => {
+      if (n <= hd.row) return;
+      const name = String(cellVal(row.getCell(nc).value) ?? '').trim().replace(/\s+/g, ' ');
+      if (!name) return;
+      const d = dc ? cellVal(row.getCell(dc).value) : null;
+      const hired = d instanceof Date ? d.toISOString().slice(0, 10) : typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : null;
+      out.push({ row: n, name, position: pc ? String(cellVal(row.getCell(pc).value) ?? '').trim() : '', hired });
+    });
+  }
+  return out;
+}
 
 const rolesOf = (b: any): string[] =>
   Array.isArray(b.roles) ? b.roles.filter((r: string) => (ALL_ROLES as string[]).includes(r)) : ['employee'];
@@ -23,7 +63,7 @@ export async function usersRoutes(app: FastifyInstance) {
     const b = (req.body ?? {}) as any;
     const login = String(b.login || b.tab_number || '').trim().toLowerCase();
     if (!/^[a-z0-9_.-]{3,32}$/.test(login) || !b.name) return reply.code(400).send({ error: 'invalid' });
-    const password = b.password ? String(b.password) : randomPassword();
+    const password = b.password ? String(b.password) : simplePassword();
     try {
       const id = await tx(async (c) => {
         const r = await c.query(
@@ -69,9 +109,47 @@ export async function usersRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // Импорт сотрудников из Excel (ФИО, Должность, Дата приёма): предпросмотр (commit=0) и создание (commit=1)
+  app.post('/api/admin/users/import', pre, async (req, reply) => {
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: 'no_file' });
+    const f = file.fields as any;
+    const commit = f.commit?.value === '1';
+    const deptId = f.dept_id?.value ? Number(f.dept_id.value) : null;
+    const people = await parseEmployees(await file.toBuffer());
+    if (!people.length) return reply.code(422).send({ error: 'no_rows' });
+    const existing = (await q('SELECT name,login FROM users')).rows;
+    const names = new Set(existing.map((u) => normName(u.name)));
+    const logins = new Set(existing.map((u) => String(u.login)));
+    const seen = new Set<string>();
+    const rows = people.map((p) => {
+      const key = normName(p.name);
+      if (names.has(key) || seen.has(key)) return { ...p, status: 'exists' as const };
+      seen.add(key);
+      let login = loginFrom(p.name), i = 1;
+      while (logins.has(login)) login = `${loginFrom(p.name)}${++i}`;
+      logins.add(login);
+      const info = positionInfo(p.position);
+      return { ...p, status: 'new' as const, login, code: info.code, roles: info.roles, password: commit ? simplePassword() : undefined };
+    });
+    if (commit) {
+      await tx(async (c) => {
+        for (const r of rows) {
+          if (r.status !== 'new') continue;
+          const id = (await c.query(
+            `INSERT INTO users(login,pass_hash,name,position,position_code,dept_id,hired_at,must_change_password) VALUES($1,$2,$3,$4,$5,$6,$7,true) RETURNING id`,
+            [r.login, hashPassword(r.password!), r.name, r.position, r.code, deptId, r.hired])).rows[0].id;
+          for (const role of r.roles!) await c.query('INSERT INTO user_roles VALUES($1,$2)', [id, role]);
+        }
+      });
+      await audit(req, 'users_import', null as any, { created: rows.filter((r) => r.status === 'new').length });
+    }
+    return { committed: commit, rows };
+  });
+
   app.post('/api/admin/users/:id/reset-password', pre, async (req) => {
     const id = Number((req.params as any).id);
-    const password = randomPassword();
+    const password = simplePassword();
     await q('UPDATE users SET pass_hash=$2, must_change_password=true, failed_attempts=0, locked_until=NULL WHERE id=$1', [id, hashPassword(password)]);
     await q('DELETE FROM sessions WHERE user_id=$1', [id]);
     await audit(req, 'password_reset', String(id));

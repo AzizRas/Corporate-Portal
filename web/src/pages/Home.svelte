@@ -2,7 +2,7 @@
   import { api } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
-  import { fmtMoney, monthLong, fmtTime } from '../lib/format';
+  import { fmtSum, monthLong, fmtTime } from '../lib/format';
   import Ring from '../components/Ring.svelte';
 
   let pay: any = $state(null), path: any = $state(null), att: any = $state(null), q = $state('');
@@ -31,7 +31,7 @@
   <section class="card">
     <div class="card-head"><h3>{t('home_pay')}</h3>{#if last}<span class="aside">{monthLong(last.month)}</span>{/if}</div>
     {#if last}
-      <div class="big-num">{fmtMoney(last.data.total)}</div><p class="muted small" style="margin-top:6px">{t('pay_net')}</p>
+      <div class="big-num" style="font-size:clamp(28px,3vw,44px)">{fmtSum(last.data.total)}</div><p class="muted small" style="margin-top:6px">{t('pay_net')}</p>
       <a href="#/pay" style="display:inline-block;margin-top:14px;font-weight:700">{t('nav_pay')} →</a>
     {:else}<p class="muted">{t('pay_none')}</p>{/if}
   </section>

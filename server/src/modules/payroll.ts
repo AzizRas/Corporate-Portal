@@ -13,8 +13,8 @@ const MONEY = [
   { key: 'deductions', label: 'Удержания', headers: ['удержания', 'удержание', 'ushlanma'], required: false },
   { key: 'total', label: 'Итого ЗП', headers: ['итого зп', 'итого', 'на руки', 'итого на руки', 'jami'], required: true },
 ] as const;
-const NAME_HEADERS = ['фио', 'ф.и.о.', 'ф.и.о', 'сотрудник', 'fio'];
-const TAB_HEADERS = ['табельный', 'табельный номер', 'таб. номер', 'таб.номер', 'tab', 'tabel'];
+export const NAME_HEADERS = ['фио', 'ф.и.о.', 'ф.и.о', 'сотрудник', 'fio'];
+export const TAB_HEADERS = ['табельный', 'табельный номер', 'таб. номер', 'таб.номер', 'tab', 'tabel'];
 const KPI_HEADERS = {
   name: ['kpi', 'показатель', 'метрика'],
   plan: ['план', 'plan'],
@@ -22,10 +22,10 @@ const KPI_HEADERS = {
   per_unit: ['бонус за единицу', 'бонус за ед.', 'за единицу'],
 };
 
-const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+export const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 // ФИО: без регистра, ё=е, без апострофов и лишних пробелов
 export const normName = (v: unknown) => norm(v).replace(/ё/g, 'е').replace(/[’'`ʼ‘.]/g, '').replace(/\s+/g, ' ');
-const cellVal = (v: ExcelJS.CellValue): unknown => {
+export const cellVal = (v: ExcelJS.CellValue): unknown => {
   if (v && typeof v === 'object') {
     if ('result' in v) return (v as any).result;
     if ('text' in v) return (v as any).text;
@@ -35,7 +35,7 @@ const cellVal = (v: ExcelJS.CellValue): unknown => {
 };
 
 // Строка заголовков не обязана быть первой: над таблицей может быть название («СОТРУДНИКИ КОЛЛ-ЦЕНТРА»).
-function findHeader(ws: ExcelJS.Worksheet, must: readonly (readonly string[])[]) {
+export function findHeader(ws: ExcelJS.Worksheet, must: readonly (readonly string[])[]) {
   for (let r = 1; r <= Math.min(ws.rowCount, 30); r++) {
     const m = new Map<string, number>();
     ws.getRow(r).eachCell((c, i) => { const k = norm(cellVal(c.value)); if (k && !m.has(k)) m.set(k, i); });
@@ -43,7 +43,7 @@ function findHeader(ws: ExcelJS.Worksheet, must: readonly (readonly string[])[])
   }
   return null;
 }
-const findCol = (m: Map<string, number>, names: readonly string[]) => {
+export const findCol = (m: Map<string, number>, names: readonly string[]) => {
   for (const n of names) if (m.has(n)) return m.get(n)!;
   return 0;
 };

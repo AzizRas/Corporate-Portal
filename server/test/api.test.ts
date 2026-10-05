@@ -231,3 +231,36 @@ test('Админ: пользователи, роли, сброс пароля; �
   assert.equal((await send(adm, 'PATCH', `/api/admin/users/${me.id}`, { active: false })).statusCode, 400);
   assert.equal((await get(nb, '/api/admin/users')).statusCode, 403);
 });
+
+test('Импорт сотрудников из Excel: логины, простые пароли, пропуск существующих, вход', async () => {
+  const hr = await login('hr');
+  const wb = new ExcelJS.Workbook();
+  const a = wb.addWorksheet('Лист1');
+  a.addRow(['СОТРУДНИКИ']); a.addRow([]);
+  a.addRow(['№', 'ФИО', 'Должность', 'Дата приёма']);
+  a.addRow([1, 'Косимжонов Даврон', 'Супервайзер', new Date('2026-09-01')]);
+  a.addRow([2, 'Саидалиев Саидокил', 'Оператор', new Date('2026-09-06')]);
+  a.addRow([3, 'Косимжонов  Даврон', 'Оператор', null]);   // дубль в файле
+  a.addRow([4, 'Дилноза К.', 'Оператор', null]);            // уже есть в портале
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  const post = (commit: string) => {
+    const b = '----i';
+    const body = Buffer.concat([Buffer.from(`--${b}\r\nContent-Disposition: form-data; name="commit"\r\n\r\n${commit}\r\n--${b}\r\nContent-Disposition: form-data; name="dept_id"\r\n\r\n1\r\n--${b}\r\nContent-Disposition: form-data; name="file"; filename="e.xlsx"\r\nContent-Type: application/octet-stream\r\n\r\n`), buf, Buffer.from(`\r\n--${b}--\r\n`)]);
+    return app.inject({ method: 'POST', url: '/api/admin/users/import', body, headers: { 'content-type': `multipart/form-data; boundary=${b}` }, ...hr });
+  };
+  const prev = (await post('0')).json();
+  assert.deepEqual(prev.rows.map((r: any) => r.status), ['new', 'new', 'exists', 'exists']);
+  assert.equal(prev.rows[0].login, 'kosimjonov.davron');
+  assert.equal(prev.rows[0].password, undefined);          // пароли до подтверждения не создаются
+  const done = (await post('1')).json();
+  const sv = done.rows[0];
+  assert.match(sv.password, /^\d{6}$/);
+  const u = (await pool.query(`SELECT must_change_password, position_code, hired_at FROM users WHERE login='kosimjonov.davron'`)).rows[0];
+  assert.deepEqual([u.must_change_password, u.position_code, u.hired_at], [true, 'sv', '2026-09-01']);
+  assert.ok((await pool.query(`SELECT 1 FROM user_roles ur JOIN users u ON u.id=ur.user_id WHERE u.login='kosimjonov.davron' AND role='manager'`)).rows.length);
+  await login('kosimjonov.davron', sv.password);
+  // повторный импорт ничего не создаёт
+  assert.ok((await post('1')).json().rows.every((r: any) => r.status === 'exists'));
+  const emp = await login('op2');
+  assert.equal((await send(emp, 'POST', '/api/admin/users/import', {})).statusCode, 403);
+});

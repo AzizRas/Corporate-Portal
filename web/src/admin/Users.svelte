@@ -1,9 +1,22 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import Modal from '../components/Modal.svelte';
+  import { fmtDate } from '../lib/format';
 
   const ROLES = [['employee', 'Сотрудник'], ['newbie', 'Новичок'], ['mentor', 'Наставник'], ['manager', 'Руководитель'], ['hr', 'HR'], ['accountant', 'Бухгалтерия'], ['editor', 'Редактор базы'], ['admin', 'Админ']];
   let users: any[] = $state([]), depts: any[] = $state([]), edit: any = $state(null), isNew = $state(false), msg = $state(''), tempPw = $state(''), q = $state('');
+  let imp: any = $state(null);
+  async function runImport(commit: boolean) {
+    imp.busy = true;
+    const fd = new FormData(); fd.append('dept_id', imp.dept); fd.append('commit', commit ? '1' : '0'); fd.append('file', imp.file);
+    try { imp.res = await api.upload('/api/admin/users/import', fd); if (commit) await load(); }
+    catch { imp.err = 'Не удалось прочитать файл: нужна таблица с колонкой «ФИО»'; } finally { imp.busy = false; }
+  }
+  function downloadCreds() {
+    const rows = imp.res.rows.filter((r: any) => r.status === 'new');
+    const csv = '\ufeffФИО;Логин;Пароль;Должность\n' + rows.map((r: any) => [r.name, r.login, r.password, r.position].join(';')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'logins.csv'; a.click();
+  }
   const load = () => api.get('/api/admin/users').then((r) => (users = r.users));
   load(); api.get('/api/departments').then((r) => (depts = r.departments));
   const shown = $derived(users.filter((u) => !q || (u.name + u.login + (u.tab_number ?? '')).toLowerCase().includes(q.toLowerCase())));
@@ -25,7 +38,7 @@
   async function reset() { tempPw = (await api.post(`/api/admin/users/${edit.id}/reset-password`)).password; }
 </script>
 
-<div class="row" style="margin-bottom:16px"><input type="search" placeholder="Поиск" bind:value={q} style="max-width:320px" /><span class="sp"></span><button class="btn grad" onclick={() => open(null)}>+ Сотрудник</button></div>
+<div class="row" style="margin-bottom:16px"><input type="search" placeholder="Поиск" bind:value={q} style="max-width:320px" /><span class="sp"></span><button class="btn" onclick={() => (imp = { dept: '', file: null, res: null, busy: false })}>Импорт из Excel</button><button class="btn grad" onclick={() => open(null)}>+ Сотрудник</button></div>
 <div class="card scroll-x" style="padding:12px 16px">
   <table class="table">
     <thead><tr><th>Таб.</th><th>ФИО</th><th>Должность</th><th>Отдел</th><th>Роли</th><th></th></tr></thead>
@@ -62,5 +75,33 @@
       {#if !isNew}<button class="btn" onclick={reset}>Сбросить пароль</button>{/if}
       <span class="sp"></span><button class="btn" onclick={() => (edit = null)}>Закрыть</button><button class="btn grad" onclick={save}>Сохранить</button>
     </div>
+  </Modal>
+{/if}
+
+{#if imp}
+  <Modal onclose={() => (imp = null)} wide>
+    <h2>Импорт сотрудников из Excel</h2>
+    {#if !imp.res?.committed}
+      <p class="muted small" style="margin-bottom:12px">Нужны колонки «ФИО», «Должность», «Дата приёма» (можно тот же файл с зарплатой). Каждому создаётся логин (латиницей, например <b>kosimjonov.davron</b>) и пароль из 6 цифр; при первом входе сотрудник задаёт свой. Уже существующие ФИО пропускаются.</p>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+        <label class="f">Отдел<select bind:value={imp.dept}><option value="">—</option>{#each depts as d}<option value={d.id}>{d.name_ru}</option>{/each}</select></label>
+        <label class="f">Файл .xlsx<input type="file" accept=".xlsx" onchange={(e) => { imp.file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null; imp.res = null; imp.err = ''; }} /></label>
+      </div>
+      {#if imp.err}<div class="alert">{imp.err}</div>{/if}
+      {#if imp.res}
+        <div class="scroll-x" style="max-height:340px;overflow:auto;margin:8px 0"><table class="table"><thead><tr><th>ФИО</th><th>Должность</th><th>Принят</th><th>Логин</th><th></th></tr></thead><tbody>
+          {#each imp.res.rows as r}<tr style:opacity={r.status === 'new' ? 1 : .5}><td>{r.name}</td><td>{r.position}</td><td>{r.hired ? fmtDate(r.hired) : ''}</td><td>{r.login ?? ''}</td><td class="xs">{r.status === 'new' ? 'будет создан' : 'уже есть'}</td></tr>{/each}
+        </tbody></table></div>
+      {/if}
+      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" onclick={() => (imp = null)}>Отмена</button>
+        {#if !imp.res}<button class="btn grad" disabled={!imp.file || imp.busy} onclick={() => runImport(false)}>Проверить</button>
+        {:else}<button class="btn grad" disabled={imp.busy || !imp.res.rows.some((r) => r.status === 'new')} onclick={() => runImport(true)}>Создать {imp.res.rows.filter((r) => r.status === 'new').length}</button>{/if}</div>
+    {:else}
+      <div class="alert ok" style="margin-bottom:12px">Создано: {imp.res.rows.filter((r) => r.status === 'new').length}. Пароли показаны один раз — сохраните список и передайте сотрудникам.</div>
+      <div class="scroll-x" style="max-height:340px;overflow:auto"><table class="table"><thead><tr><th>ФИО</th><th>Логин</th><th>Пароль</th></tr></thead><tbody>
+        {#each imp.res.rows.filter((r) => r.status === 'new') as r}<tr><td>{r.name}</td><td><b style="user-select:all">{r.login}</b></td><td><b style="user-select:all">{r.password}</b></td></tr>{/each}
+      </tbody></table></div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn grad" onclick={downloadCreds}>Скачать список (CSV для Excel)</button><button class="btn" onclick={() => (imp = null)}>Закрыть</button></div>
+    {/if}
   </Modal>
 {/if}

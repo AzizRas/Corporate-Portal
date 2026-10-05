@@ -2,6 +2,8 @@ import { app } from './state.svelte';
 
 export const fmtMoney = (n: number | null | undefined) =>
   n == null ? '—' : new Intl.NumberFormat('ru-RU').format(Math.round(n)).replace(/ /g, ' ');
+export const fmtSum = (n: number | null | undefined) => (n == null ? '—' : `${fmtMoney(n)} ${app.lang === 'uz' ? 'so‘m' : 'сум'}`);
+export const fmtMln = (n: number) => `${(n / 1e6).toFixed(1).replace('.', ',')} ${app.lang === 'uz' ? 'mln' : 'млн'}`;
 const MONTHS_RU = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const MONTHS_UZ = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
 const MONTHS_RU_FULL = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
