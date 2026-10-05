@@ -6,6 +6,7 @@ import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth
 import { getSetting, setSetting, tzDate, tzMonth } from '../settings.js';
 import { POSITIONS, type Comp } from '../model.js';
 import { pathFor } from './path.js';
+import { claude } from '../ai.js';
 
 /* ---------- беседы 1:1: вопросы шаблонов ---------- */
 export const TALK: Record<'month' | 'stay', { ru: string; uz: string }[]> = {
@@ -32,8 +33,11 @@ const getUser = async (id: number): Promise<Row | undefined> =>
 /** Руководить человеком может: админ; HR — любым, кроме себя; руководитель — своими подчинёнными и сотрудниками своего отдела. */
 export const canManage = (v: AuthUser, t: Row) =>
   hasRole(v, 'admin') ||
-  (t.id !== v.id && (hasRole(v, 'hr') || (v.roles.includes('manager') && (t.manager_id === v.id || (v.dept_id != null && t.dept_id === v.dept_id)))));
+  (t.id !== v.id && (hasRole(v, 'hr') || ((v.roles.includes('manager') || v.roles.includes('head')) && (t.manager_id === v.id || (v.dept_id != null && t.dept_id === v.dept_id)))));
 export const canSee = (v: AuthUser, t: Row) => v.id === t.id || canManage(v, t);
+/** Зоны роста видят: сам сотрудник, его супервайзер, руководитель отдела и администратор (не коллеги и не HR). */
+export const canSeeGrowth = (v: AuthUser, t: Row) =>
+  v.id === t.id || hasRole(v, 'admin') || ((v.roles.includes('manager') || v.roles.includes('head')) && canManage(v, t));
 
 const compsActive = async (): Promise<(Comp & { round: number | null; question_ru: string; question_uz: string })[]> =>
   (await q('SELECT id,grp,name_ru,name_uz,sort,round,question_ru,question_uz FROM competencies WHERE active ORDER BY sort')).rows;
@@ -67,18 +71,6 @@ async function tasksFor(r: AuthUser, period: string) {
 const levelOk = (v: unknown) => typeof v === 'number' && v >= 1 && v <= 4;
 
 /* ---------- ИИ ---------- */
-async function claude(model: string, system: string, messages: { role: 'user' | 'assistant'; content: string }[], maxTokens = 700) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
-  });
-  const j: any = await r.json();
-  if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
-  return (j.content || []).map((c: any) => c.text || '').join('').trim();
-}
 async function aiContext(t: Row) {
   const p = await pathFor(t.id, false, { badges: false });
   if (!p) return '';
@@ -164,12 +156,12 @@ export async function growthRoutes(app: FastifyInstance) {
     const rows = (await q(`SELECT t.id,t.kind,t.text,t.author_id,(SELECT count(*)::int FROM trait_votes v WHERE v.trait_id=t.id) AS votes,
                                   EXISTS(SELECT 1 FROM trait_votes v WHERE v.trait_id=t.id AND v.user_id=$2) AS voted
                              FROM traits t WHERE t.target_id=$1 ORDER BY t.id`, [t.id, me.id])).rows;
-    const full = canSee(me, t), sameDept = me.dept_id != null && me.dept_id === t.dept_id;
+    const full = canSee(me, t), seeGrowth = canSeeGrowth(me, t);
     const mk = (x: any, counts: boolean) => ({ id: x.id, kind: x.kind, text: x.text, votes: counts ? x.votes : null, voted: x.voted, mine: x.author_id === me.id });
     return {
       strengths: rows.filter((x) => x.kind === 'strength').map((x) => mk(x, true)),
-      growth: full ? rows.filter((x) => x.kind === 'growth').map((x) => mk(x, true)) : sameDept ? rows.filter((x) => x.kind === 'growth').map((x) => mk(x, false)) : [],
-      growth_counts_visible: full,
+      growth: seeGrowth ? rows.filter((x) => x.kind === 'growth').map((x) => mk(x, true)) : [],
+      growth_counts_visible: full, growth_visible: seeGrowth,
     };
   });
   app.post('/api/growth/traits/:id', auth, async (req, reply) => {
@@ -337,7 +329,7 @@ export async function growthRoutes(app: FastifyInstance) {
   });
 
   /* ----- кадровый резерв и карточка человека ----- */
-  app.get('/api/growth/reserve', { preHandler: requireRole('manager', 'hr') }, async (req) => {
+  app.get('/api/growth/reserve', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
     const me = req.user!;
     const users = (await q('SELECT id,name,position_code,target_position_code,dept_id,manager_id,active,lang FROM users WHERE active AND id<>$1', [me.id])).rows as Row[];
     const mine = users.filter((u) => canManage(me, u));
@@ -442,5 +434,32 @@ export async function growthRoutes(app: FastifyInstance) {
     }
     return { added: n };
   });
-}
 
+  /* ----- личная цель: видит только сам сотрудник и руководитель его отдела ----- */
+  const headOf = (v: AuthUser, t: Row) => v.roles.includes('head') && v.dept_id != null && v.dept_id === t.dept_id && v.id !== t.id;
+  app.get('/api/growth/personal', auth, async (req) => ({
+    items: (await q('SELECT id,text,done,created_at FROM personal_goals WHERE user_id=$1 ORDER BY done, id DESC', [req.user!.id])).rows,
+  }));
+  app.post('/api/growth/personal', auth, async (req, reply) => {
+    const text = String((req.body as any)?.text ?? '').trim().slice(0, 300);
+    if (!text) return reply.code(400).send({ error: 'empty' });
+    const id = (await q('INSERT INTO personal_goals(user_id,text) VALUES($1,$2) RETURNING id', [req.user!.id, text])).rows[0].id;
+    return { id };
+  });
+  app.patch('/api/growth/personal/:id', auth, async (req, reply) => {
+    const b = (req.body ?? {}) as { text?: string; done?: boolean };
+    const r = await q(`UPDATE personal_goals SET text=COALESCE($3,text), done=COALESCE($4,done) WHERE id=$1 AND user_id=$2`,
+      [Number((req.params as any).id), req.user!.id, b.text ? String(b.text).trim().slice(0, 300) : null, typeof b.done === 'boolean' ? b.done : null]);
+    return r.rowCount ? { ok: true } : reply.code(404).send({ error: 'not_found' });
+  });
+  app.delete('/api/growth/personal/:id', auth, async (req) => {
+    await q('DELETE FROM personal_goals WHERE id=$1 AND user_id=$2', [Number((req.params as any).id), req.user!.id]);
+    return { ok: true };
+  });
+  app.get('/api/growth/personal/user/:id', auth, async (req, reply) => {
+    const t = await getUser(Number((req.params as any).id));
+    if (!t) return reply.code(404).send({ error: 'not_found' });
+    if (!headOf(req.user!, t)) return reply.code(403).send({ error: 'forbidden' });
+    return { items: (await q('SELECT id,text,done,created_at FROM personal_goals WHERE user_id=$1 ORDER BY done, id DESC', [t.id])).rows };
+  });
+}

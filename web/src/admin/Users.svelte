@@ -3,7 +3,7 @@
   import Modal from '../components/Modal.svelte';
   import { fmtDate } from '../lib/format';
 
-  const ROLES = [['employee', 'Сотрудник'], ['newbie', 'Новичок'], ['mentor', 'Наставник'], ['manager', 'Руководитель'], ['hr', 'HR'], ['accountant', 'Бухгалтерия'], ['editor', 'Редактор базы'], ['admin', 'Админ']];
+  const ROLES = [['employee', 'Сотрудник'], ['newbie', 'Новичок'], ['mentor', 'Наставник'], ['senior', 'Старший оператор'], ['manager', 'Супервайзер'], ['head', 'Руководитель отдела'], ['hr', 'HR'], ['accountant', 'Бухгалтерия'], ['editor', 'Редактор базы'], ['admin', 'Админ']];
   let users: any[] = $state([]), depts: any[] = $state([]), edit: any = $state(null), isNew = $state(false), msg = $state(''), tempPw = $state(''), q = $state('');
   let imp: any = $state(null);
   async function runImport(commit: boolean) {

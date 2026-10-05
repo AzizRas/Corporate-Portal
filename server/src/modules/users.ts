@@ -13,13 +13,13 @@ const loginFrom = (name: string) =>
   normName(name).split(' ').filter(Boolean).slice(0, 2).map((w) => [...w].map((c) => TR[c] ?? c).join('').replace(/[^a-z0-9]/g, '')).filter(Boolean).join('.') || 'user';
 const simplePassword = () => String(crypto.randomInt(100000, 1000000));   // 6 цифр; при первом входе сотрудник задаёт свой
 const POSITION: Record<string, { code: string; roles: string[] }> = {
-  'оператор': { code: 'op', roles: ['employee'] }, 'старший оператор': { code: 'sr', roles: ['employee'] },
+  'оператор': { code: 'op', roles: ['employee'] }, 'старший оператор': { code: 'sr', roles: ['employee', 'senior'] },
   'супервайзер': { code: 'sv', roles: ['employee', 'manager'] }, 'кладовщик': { code: 'wh', roles: ['employee'] }, 'мастер': { code: 'ex', roles: ['employee'] },
 };
 const positionInfo = (pos: string) => {
   const p = normName(pos);
   if (POSITION[p]) return POSITION[p];
-  if (p.startsWith('руководитель')) return { code: 'hd', roles: ['employee', 'manager'] };
+  if (p.startsWith('руководитель')) return { code: 'hd', roles: ['employee', 'manager', 'head'] };
   return { code: 'op', roles: ['employee'] };
 };
 

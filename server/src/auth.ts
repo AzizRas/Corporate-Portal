@@ -3,8 +3,9 @@ import { q } from './db.js';
 import { config } from './config.js';
 import { randomToken, sha256 } from './security.js';
 
-export type Role = 'employee' | 'newbie' | 'mentor' | 'manager' | 'hr' | 'accountant' | 'editor' | 'admin';
-export const ALL_ROLES: Role[] = ['employee', 'newbie', 'mentor', 'manager', 'hr', 'accountant', 'editor', 'admin'];
+// Иерархия операторов: employee (оператор) → senior (старший оператор) → manager (супервайзер) → head (руководитель отдела)
+export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'accountant' | 'editor' | 'admin';
+export const ALL_ROLES: Role[] = ['employee', 'newbie', 'senior', 'mentor', 'manager', 'head', 'hr', 'accountant', 'editor', 'admin'];
 
 export interface AuthUser {
   id: number;
@@ -16,6 +17,14 @@ export interface AuthUser {
   target_position_code: string | null;
   dept_id: number | null;
   manager_id: number | null;
+  status: string;
+  birthday: string | null;
+  avatar_v: number;
+  days_off: number[];
+  shift_start: string;
+  shift_end: string;
+  wellness: boolean;
+  wellness_min: number;
   lang: 'ru' | 'uz';
   theme: 'system' | 'light' | 'dark';
   must_change_password: boolean;
@@ -43,7 +52,8 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
   if (!token) return null;
   const r = await q(
     `SELECT u.id,u.name,u.login,u.tab_number,u.position,u.position_code,u.target_position_code,u.dept_id,
-            u.manager_id,u.lang,u.theme,u.must_change_password,
+            u.manager_id,u.lang,u.theme,u.must_change_password,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
+            to_char(u.shift_start,'HH24:MI') AS shift_start,to_char(u.shift_end,'HH24:MI') AS shift_end,u.wellness,u.wellness_min,
             COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
        FROM sessions s JOIN users u ON u.id=s.user_id
       WHERE s.token_hash=$1 AND s.expires_at>now() AND u.active`,
@@ -52,6 +62,8 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
   return r.rows[0] ?? null;
 }
 
+/** Руководящая роль в иерархии: супервайзер или руководитель отдела. */
+export const isLead = (u: AuthUser | undefined) => hasRole(u, 'manager', 'head');
 export const hasRole = (u: AuthUser | undefined, ...roles: Role[]) =>
   !!u && (u.roles.includes('admin') || roles.some((r) => u.roles.includes(r)));
 
@@ -83,8 +95,8 @@ export async function audit(req: FastifyRequest | null, action: string, target?:
 /** Id всех подчинённых (прямых и по подразделению, если руководитель — глава отдела). */
 export async function teamIds(user: AuthUser): Promise<number[]> {
   const r = await q(
-    `SELECT id FROM users WHERE active AND (manager_id=$1 OR ($2::int IS NOT NULL AND dept_id=$2 AND $3))`,
-    [user.id, user.dept_id, hasRole(user, 'hr')],
+    `SELECT id FROM users WHERE active AND id<>$1 AND (manager_id=$1 OR ($2::int IS NOT NULL AND dept_id=$2 AND $3))`,
+    [user.id, user.dept_id, hasRole(user, 'hr') || user.roles.includes('head')],
   );
   return r.rows.map((x) => x.id);
 }

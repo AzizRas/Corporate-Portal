@@ -5,7 +5,7 @@ import { getSetting, tzMonth } from '../settings.js';
 import { LADDER, POSITIONS, etaMonths, gaps as calcGaps, levelsAt, prevPeriod, readiness, type Comp } from '../model.js';
 
 export async function pathFor(userId: number, viewerIsSelf: boolean, opts: { badges?: boolean } = {}) {
-  const u = (await q('SELECT id,name,position_code,target_position_code FROM users WHERE id=$1', [userId])).rows[0];
+  const u = (await q('SELECT id,name,avatar_v,position_code,target_position_code FROM users WHERE id=$1', [userId])).rows[0];
   if (!u) return null;
   const target = u.target_position_code || LADDER[Math.min(LADDER.indexOf(u.position_code) + 1, LADDER.length - 1)] || u.position_code;
   const comps: Comp[] = (await q('SELECT * FROM competencies WHERE active ORDER BY sort')).rows;
@@ -22,9 +22,11 @@ export async function pathFor(userId: number, viewerIsSelf: boolean, opts: { bad
   const levels = levelsAt(comps, ratings, now);
   const pct = readiness(comps, levels, reqs, softW);
   const prev = history[history.length - 2]?.pct;
+  const prevLevels = levelsAt(comps, ratings, prevPeriod(now));
   const competencies = comps.filter((c) => reqs[c.id]).map((c) => ({
     id: c.id, grp: c.grp, name_ru: c.name_ru, name_uz: c.name_uz,
     cur: Math.round((levels[c.id] ?? 0) * 10) / 10, req: reqs[c.id],
+    prev: prevLevels[c.id] != null ? Math.round(prevLevels[c.id] * 10) / 10 : null,
   }));
   const atLevel = competencies.filter((c) => Math.round(c.cur) >= c.req).length;
 
@@ -38,7 +40,7 @@ export async function pathFor(userId: number, viewerIsSelf: boolean, opts: { bad
   const events = (await q('SELECT title_ru,title_uz,at_text FROM events WHERE user_id=$1 ORDER BY at NULLS LAST,id', [userId])).rows;
 
   return {
-    user: { id: u.id, name: u.name },
+    user: { id: u.id, name: u.name, avatar_v: u.avatar_v },
     current: { code: u.position_code, ...POSITIONS[u.position_code] },
     target: { code: target, ...POSITIONS[target] },
     ladder: LADDER.map((c) => ({ code: c, ...POSITIONS[c] })),
@@ -94,11 +96,14 @@ export async function syncBadges(userId: number, history?: { period: string; pct
 export async function pathRoutes(app: FastifyInstance) {
   app.get('/api/path/me', { preHandler: requireAuth }, async (req) => pathFor(req.user!.id, true));
 
-  app.get('/api/path/user/:id', { preHandler: requireRole('manager', 'hr') }, async (req, reply) => {
+  app.get('/api/path/user/:id', { preHandler: requireRole('manager', 'head', 'hr') }, async (req, reply) => {
     const id = Number((req.params as any).id);
     if (!hasRole(req.user, 'hr') && !(await teamIds(req.user!)).includes(id)) return reply.code(403).send({ error: 'forbidden' });
     await audit(req, 'path_view', String(id));
-    return pathFor(id, false);
+    const p = await pathFor(id, false);
+    // зоны роста видят супервайзер, руководитель отдела и админ; HR — нет
+    if (p && !hasRole(req.user, 'admin', 'manager', 'head')) p.growth = [];
+    return p;
   });
 
   // оценка 360°: self — про себя; manager — руководитель; peer — любой коллега (анонимно для объекта)
@@ -126,14 +131,14 @@ export async function pathRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.post('/api/path/badges/award', { preHandler: requireRole('manager', 'hr') }, async (req) => {
+  app.post('/api/path/badges/award', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
     const { user_id, badge } = (req.body ?? {}) as { user_id: number; badge: string };
     await q('INSERT INTO user_badges(user_id,badge) VALUES($1,$2) ON CONFLICT DO NOTHING', [user_id, badge]);
     await audit(req, 'badge_award', String(user_id), { badge });
     return { ok: true };
   });
 
-  app.get('/api/path/team', { preHandler: requireRole('manager', 'hr') }, async (req) => {
+  app.get('/api/path/team', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
     const ids = hasRole(req.user, 'hr') ? (await q('SELECT id FROM users WHERE active')).rows.map((x) => x.id) : await teamIds(req.user!);
     const out = [];
     for (const id of ids) { const p = await pathFor(id, false, { badges: false }); if (p) out.push({ id, name: p.user.name, readiness: p.readiness, target: p.target.ru, delta: p.delta_month }); }

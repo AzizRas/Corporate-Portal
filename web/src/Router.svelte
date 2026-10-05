@@ -9,6 +9,12 @@
   import Profile from './pages/Profile.svelte';
   import More from './pages/More.svelte';
   import Team from './pages/Team.svelte';
+  import Chat from './chat/Chat.svelte';
+  import News from './news/News.svelte';
+  import Schedule from './pages/Schedule.svelte';
+  import Training from './training/Training.svelte';
+  import Tests from './tests/Tests.svelte';
+  import Library from './library/Library.svelte';
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
   const head = $derived(parts[0] ?? '');
@@ -18,7 +24,13 @@
 </script>
 
 {#key head}
-  {#if head === ''}<Home />
+  {#if head === '' || head === 'chat'}<Chat channel={head === 'chat' ? decodeURIComponent(parts[1] ?? 'general') : 'general'} />
+  {:else if head === 'home'}<Home />
+  {:else if head === 'news'}<News />
+  {:else if head === 'schedule'}<Schedule />
+  {:else if head === 'training'}<Training />
+  {:else if head === 'tests'}<Tests />
+  {:else if head === 'library'}<Library />
   {:else if head === 'path'}<Path />
   {:else if head === 'pay'}<Payroll />
   {:else if head === 'att'}<Attendance />

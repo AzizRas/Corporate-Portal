@@ -2,13 +2,14 @@
   import { api } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
-  import { fmtSum, monthLong, fmtTime } from '../lib/format';
+  import { fmtSum, monthLong } from '../lib/format';
+  import { st } from '../lib/s18n';
   import Ring from '../components/Ring.svelte';
 
-  let pay: any = $state(null), path: any = $state(null), att: any = $state(null), q = $state('');
+  let pay: any = $state(null), path: any = $state(null), sched: any = $state(null), q = $state('');
   api.get('/api/payroll/me').then((r) => (pay = r)).catch(() => {});
   api.get('/api/path/me').then((r) => (path = r)).catch(() => {});
-  api.get('/api/attendance/state').then((r) => (att = r)).catch(() => {});
+  api.get('/api/schedule/me').then((r) => (sched = r)).catch(() => {});
   const last = $derived(pay?.periods?.at(-1));
   const search = (e: Event) => { e.preventDefault(); go(`/kb?q=${encodeURIComponent(q)}`); };
 </script>
@@ -18,15 +19,14 @@
 </header>
 
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-  <section class="card hl">
-    <div class="card-head"><h3>{t('nav_att')}</h3><span class="aside">{t('att_today')}</span></div>
-    {#if att}
-      <div class="stack">
-        {#each att.today as m}<div class="row"><span class="pill-ok">●</span> {m.kind === 'in' ? t('att_in') : t('att_out')} <span class="sp"></span><b>{fmtTime(m.at)}</b></div>{/each}
-        <a class="btn grad block" href="#/att" style="text-decoration:none">{att.next === 'in' ? t('att_in') : t('att_out')}</a>
-      </div>
+  <a class="card hl" href="#/schedule" style="text-decoration:none;color:inherit">
+    <div class="card-head"><h3>{st('n_schedule')}</h3><span class="aside">{t('att_today')}</span></div>
+    {#if sched}
+      {@const td = sched.days.find((d: any) => d.day === sched.today)}
+      <div class="big-num" style="font-size:clamp(26px,3vw,40px)">{td?.kind === 'work' ? `${td.shift_start}–${td.shift_end}` : st('s_off')}</div>
+      <p style="margin-top:14px;color:var(--accent-ink);font-weight:700">{st('s_title')} →</p>
     {/if}
-  </section>
+  </a>
 
   <section class="card">
     <div class="card-head"><h3>{t('home_pay')}</h3>{#if last}<span class="aside">{monthLong(last.month)}</span>{/if}</div>

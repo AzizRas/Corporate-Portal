@@ -4,6 +4,9 @@
   import { t } from '../lib/i18n';
   import { pick, monthLong, nowMonth } from '../lib/format';
   import Ring from '../components/Ring.svelte';
+  import Radar from '../components/Radar.svelte';
+  import PersonalGoals from '../components/PersonalGoals.svelte';
+  import { st } from '../lib/s18n';
   import { gt } from '../growth/g18n';
   import '../growth/growth.css';
 
@@ -133,4 +136,11 @@
     </section>
   </div>
 
+  <div class="g-grid" style="margin-top:24px;align-items:start">
+    <section class="card">
+      <div class="card-head"><h3>{st('rd_title')}</h3></div>
+      <Radar items={d.competencies} />
+    </section>
+    <PersonalGoals />
+  </div>
 {/if}

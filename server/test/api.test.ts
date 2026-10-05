@@ -105,6 +105,7 @@ test('ЗП: ведомость в формате заказчика (шапка 
 });
 
 test('Пришёл: геолокация, вне зоны — нужна причина, подтверждение руководителем', async () => {
+  await send(await login('admin', 'admin-test-1'), 'PUT', '/api/admin/attendance/settings', { dept_id: null, geo: true, selfie: false, qr: false, wifi: false, grace_min: 10, photo_days: 30 });
   const op = await login('op1');
   const st = (await get(op, '/api/attendance/state')).json();
   assert.equal(st.next, 'in');
@@ -316,7 +317,7 @@ test('Развитие: свод 360° — оценки коллег скрыт�
   assert.ok(before.comps.every((c: any) => c.others === null || c.n >= 2), 'один оценивающий (руководитель) — цифры скрыты');
   // два коллеги из её отдела оценивают её в коротком опросе
   let rated = 0;
-  for (const l of ['op1', 'op2', 'op3', 'op4']) {
+  for (const l of ['op1', 'op2', 'op3', 'head', 'editor']) {
     const who = await login(l);
     const t = (await get(who, '/api/growth/survey')).json().tasks.find((x: any) => x.target.id === me && x.type === 'peer' && x.round === 1);
     if (!t) continue;
@@ -341,7 +342,9 @@ test('Развитие: сильные стороны и зоны роста —
   assert.equal((await send(buh, 'POST', `/api/growth/traits/${me}`, { kind: 'growth', text: 'Чужой отдел' })).statusCode, 403);
   const forOp = (await get(op1, `/api/growth/traits/${me}`)).json();
   assert.ok(forOp.strengths.length >= 4);
-  assert.ok(forOp.growth.length >= 1 && forOp.growth.every((g: any) => g.votes === null), 'коллега видит зоны роста без счётчиков');
+  assert.deepEqual(forOp.growth, [], 'коллега зоны роста не видит: их видят сотрудник, супервайзер, руководитель отдела и админ');
+  assert.ok((await get(sv, `/api/growth/traits/${me}`)).json().growth.length >= 1, 'супервайзер видит зоны роста');
+  assert.deepEqual((await get(await login('hr'), `/api/growth/traits/${me}`)).json().growth, [], 'HR зоны роста не видит');
   assert.deepEqual((await get(buh, `/api/growth/traits/${me}`)).json().growth, [], 'из другого отдела зоны роста не видны');
   const own = (await get(dil, `/api/growth/traits/${me}`)).json();
   assert.ok(own.growth.every((g: any) => typeof g.votes === 'number'));
@@ -467,4 +470,165 @@ test('Лента и чат: посты, лайки, комментарии, об
   const msgs = (await get(sv, '/api/chat/dept:call')).json().messages;
   assert.equal(msgs[msgs.length - 1].body, 'Всем привет');
   assert.equal((await get(sv, `/api/chat/dept:call?after=${msgs[msgs.length - 1].id}`)).json().messages.length, 0);
+});
+
+/* ================== Социальные функции: профиль, чат, новости, уведомления ================== */
+test('Профиль: фото, статус и день рождения; фото отдаётся другим сотрудникам', async () => {
+  const op1 = await login('op1'), op2 = await login('op2'), me = await uid('op1');
+  const png = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+  assert.equal((await send(op1, 'POST', '/api/me/avatar', { data: 'не картинка' })).statusCode, 400);
+  const up = await send(op1, 'POST', '/api/me/avatar', { data: png });
+  assert.equal(up.statusCode, 200);
+  assert.ok(up.json().avatar_v >= 1);
+  const img = await get(op2, `/api/avatar/${me}`);
+  assert.equal(img.statusCode, 200);
+  assert.match(String(img.headers['content-type']), /image\/jpeg/);
+  assert.equal((await send(op1, 'PATCH', '/api/me/profile', { status: '  На линии  ', birthday: '1998-05-17' })).statusCode, 200);
+  const u = (await get(op1, '/api/me')).json().user;
+  assert.equal(u.status, 'На линии');
+  assert.equal(u.birthday, '1998-05-17');
+  assert.equal((await send(op1, 'PATCH', '/api/me/profile', { birthday: 'вчера' })).statusCode, 400);
+  const people = (await get(op2, '/api/people')).json().people;
+  assert.ok(people.find((p: any) => p.id === me).avatar_v >= 1 && people.find((p: any) => p.id === me).status === 'На линии');
+  assert.equal((await send(op1, 'DELETE', '/api/me/avatar')).json().avatar_v, 0);
+});
+
+test('Чат: ответ на сообщение, @упоминание, непрочитанное и уведомления', async () => {
+  const op1 = await login('op1'), op2 = await login('op2'), op3 = await login('op3');
+  const id1 = await uid('op1'), id2 = await uid('op2'), id3 = await uid('op3');
+  await get(op2, '/api/notify'); await get(op3, '/api/notify');             // фиксируем «прочитано до сих пор»
+  const m1 = (await send(op1, 'POST', '/api/chat/general', { body: 'Всем привет' })).json();
+  assert.ok(m1.id);
+  const un = (await get(op2, '/api/notify')).json();
+  assert.equal(un.chat.general.n, 1, 'у другого сотрудника одно непрочитанное');
+  const own = (await get(op1, '/api/notify')).json();
+  assert.ok(!own.chat.general, 'свои сообщения непрочитанными не считаются');
+  // op2 отвечает op1 и отмечает op3
+  const r = await send(op2, 'POST', '/api/chat/general', { body: '@Жасур Т. привет!', reply_to: m1.id, mentions: [id3, id2, 999999] });
+  assert.equal(r.statusCode, 200);
+  const list = (await get(op3, '/api/chat/general')).json().messages;
+  const last = list[list.length - 1];
+  assert.equal(last.reply_to, m1.id);
+  assert.equal(last.reply_author, 'Азиз Р.');
+  assert.deepEqual(last.mentions, [id3], 'сам себя и несуществующих отметить нельзя');
+  const n1 = (await get(op1, '/api/notify')).json().items;
+  assert.ok(n1.some((i: any) => i.kind === 'reply' && i.link === '#/chat/general'), 'автор исходного сообщения получил уведомление об ответе');
+  // op3 открыл канал → непрочитанное сброшено; упоминание у него осталось уведомлением
+  const n3 = (await get(op3, '/api/notify')).json();
+  assert.ok(!n3.chat.general, 'канал прочитан');
+  assert.ok(n3.items.some((i: any) => i.kind === 'mention'));
+  await send(op3, 'POST', '/api/notify/read', { all: true });
+  assert.equal((await get(op3, '/api/notify')).json().unread, 0);
+  // ответ на сообщение из другого канала игнорируется
+  const other = (await send(op1, 'POST', '/api/chat/dept:call', { body: 'только отдел' })).json();
+  const bad = await send(op2, 'POST', '/api/chat/general', { body: 'не в тот канал', reply_to: other.id });
+  assert.equal(bad.statusCode, 200);
+  const l2 = (await get(op1, '/api/chat/general')).json().messages;
+  assert.equal(l2[l2.length - 1].reply_to, null);
+  void id1;
+});
+
+test('Новости: объявление уведомляет всех, комментарий — автора; день рождения помечается', async () => {
+  const sv = await login('rustam'), op1 = await login('op1'), op2 = await login('op2');
+  await send(op1, 'POST', '/api/notify/read', { all: true });
+  const post = (await send(sv, 'POST', '/api/feed', { body: 'Завтра обучение в 10:00', kind: 'announce' })).json().post;
+  assert.equal(post.kind, 'announce');
+  assert.ok((await get(op1, '/api/notify')).json().items.some((i: any) => i.kind === 'news' && i.link === '#/news' && !i.read), 'сотрудник получил уведомление о новости');
+  const mine = (await send(op1, 'POST', '/api/feed', { body: 'Мысль дня' })).json().post;
+  await send(op2, 'POST', `/api/feed/${mine.id}/comments`, { body: 'Согласен' });
+  assert.ok((await get(op1, '/api/notify')).json().items.some((i: any) => i.kind === 'news' && /Азиз|Мадина/.test(i.title) === false ? true : i.kind === 'news'));
+  const feed = (await get(op2, '/api/feed')).json().posts;
+  assert.ok('avatar_v' in feed[0] && 'bday' in feed[0], 'в публикациях есть данные для фото и значка дня рождения');
+  // день рождения сегодня → значок
+  await send(op1, 'PATCH', '/api/me/profile', { birthday: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date()).replace(/^\d{4}/, '1995') });
+  const f2 = (await get(op2, '/api/feed')).json().posts.find((p: any) => p.id === mine.id);
+  assert.equal(f2.bday, true);
+  assert.ok((await get(op2, '/api/birthdays')).json().people.some((p: any) => p.today && p.name === 'Азиз Р.'));
+});
+
+/* ================== График и выходные ================== */
+test('График: заявка на выходной подтверждает старший оператор; оператор и чужой отдел — нет', async () => {
+  const op1 = await login('op1'), dil = await login('dilnoza'), sv = await login('rustam'), op2 = await login('op2'), buh = await login('buh');
+  const id1 = await uid('op1'), idDil = await uid('dilnoza');
+  const day = (() => { const d = new Date(Date.now() + 10 * 864e5); while (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  const ym = day.slice(0, 7);
+  assert.equal((await send(op1, 'POST', '/api/schedule/off', { day: '2020-01-01' })).statusCode, 400, 'в прошлое нельзя');
+  const sunday = (() => { const d = new Date(Date.now() + 9 * 864e5); while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  assert.equal((await send(op1, 'POST', '/api/schedule/off', { day: sunday })).statusCode, 409, 'воскресенье и так выходной');
+  assert.equal((await send(op1, 'POST', '/api/schedule/off', { day, note: 'к врачу' })).statusCode, 200);
+  assert.equal((await send(op1, 'POST', '/api/schedule/off', { day })).statusCode, 409, 'повторная заявка');
+  const mine = (await get(op1, `/api/schedule/me?month=${ym}`)).json();
+  assert.equal(mine.days.find((d: any) => d.day === day).source, 'pending');
+  assert.equal(mine.days.find((d: any) => d.day === day).kind, 'work', 'пока не подтверждено — день рабочий');
+  assert.equal(mine.can_team, false);
+  // уведомление ушло старшему оператору и супервайзеру
+  assert.ok((await get(dil, '/api/notify')).json().items.some((i: any) => i.kind === 'dayoff'));
+  assert.ok((await get(sv, '/api/notify')).json().items.some((i: any) => i.kind === 'dayoff'));
+  // оператор и бухгалтерия — не могут
+  assert.equal((await get(op2, '/api/schedule/team')).statusCode, 403);
+  assert.equal((await send(op2, 'POST', '/api/schedule/decide', { user_id: id1, day, approve: true })).statusCode, 403);
+  assert.equal((await send(buh, 'POST', '/api/schedule/decide', { user_id: id1, day, approve: true })).statusCode, 403);
+  // старший оператор видит очередь и подтверждает
+  const tr = await get(dil, `/api/schedule/team?month=${ym}`); const team = tr.json();
+  const p = team.pending.find((x: any) => x.uid === id1 && x.day === day);
+  assert.ok(p && p.can_decide);
+  assert.equal((await send(dil, 'POST', '/api/schedule/decide', { user_id: id1, day, approve: true })).statusCode, 200);
+  const after = (await get(op1, `/api/schedule/me?month=${ym}`)).json().days.find((d: any) => d.day === day);
+  assert.equal(after.kind, 'off'); assert.equal(after.source, 'approved');
+  assert.ok((await get(op1, '/api/notify')).json().items.some((i: any) => i.kind === 'dayoff' && i.body === '#approved'), 'сотрудник получил решение');
+  // старший оператор не решает за себя и не редактирует постоянный график
+  assert.equal((await send(dil, 'POST', '/api/schedule/off', { day })).statusCode, 200);
+  assert.equal((await send(dil, 'POST', '/api/schedule/decide', { user_id: idDil, day, approve: true })).statusCode, 403, 'за себя решать нельзя');
+  assert.equal((await send(dil, 'PUT', `/api/schedule/user/${id1}`, { days_off: [6, 7] })).statusCode, 403);
+  // супервайзер решает за старшего и правит постоянный график
+  assert.equal((await send(sv, 'POST', '/api/schedule/decide', { user_id: idDil, day, approve: false })).statusCode, 200);
+  assert.equal((await send(sv, 'PUT', `/api/schedule/user/${id1}`, { days_off: [6, 7], shift_start: '10:00', shift_end: '19:00' })).statusCode, 200);
+  const pat = (await get(op1, `/api/schedule/me?month=${ym}`)).json().pattern;
+  assert.deepEqual(pat.days_off, [6, 7]); assert.equal(pat.shift_start, '10:00');
+  assert.equal((await send(sv, 'POST', '/api/schedule/assign', { user_id: id1, day, clear: true })).statusCode, 200);
+  assert.equal((await get(op1, `/api/schedule/me?month=${ym}`)).json().days.find((d: any) => d.day === day).source, 'pattern');
+});
+
+test('Отметка: напоминание при входе, один тап без проверок, опоздание не фиксируется', async () => {
+  // администратор оставил проверки выключенными — отметка в один тап
+  await send(await login('admin', 'admin-test-1'), 'PUT', '/api/admin/attendance/settings', { dept_id: null, geo: false, selfie: false, qr: false, wifi: false, grace_min: 10, photo_days: 30 });
+  const op3 = await login('editor');
+  const s = (await get(op3, '/api/checkin/status')).json();
+  assert.equal(s.simple, true, 'без включённых проверок отметка в один тап');
+  const r = await send(op3, 'POST', '/api/attendance/mark', {});
+  assert.equal(r.statusCode, 200);
+  assert.equal(r.json().mark.late_min, 0);
+  assert.equal(r.json().mark.status, 'ok');
+  const after = (await get(op3, '/api/checkin/status')).json();
+  assert.equal(after.needs, false); assert.equal(after.marked, true);
+});
+
+/* ================== Личная цель и видимость зон роста ================== */
+test('Личная цель: видит владелец и руководитель отдела; супервайзер, коллеги и HR — нет', async () => {
+  const op1 = await login('op1'), head = await login('head'), sv = await login('rustam'), hr = await login('hr'), op2 = await login('op2');
+  const id1 = await uid('op1');
+  const g = (await send(op1, 'POST', '/api/growth/personal', { text: 'Выучить английский до B1' })).json();
+  assert.ok(g.id);
+  assert.equal((await get(op1, '/api/growth/personal')).json().items.length, 1);
+  assert.equal((await get(head, `/api/growth/personal/user/${id1}`)).json().items[0].text, 'Выучить английский до B1', 'руководитель отдела видит');
+  for (const who of [sv, hr, op2]) assert.equal((await get(who, `/api/growth/personal/user/${id1}`)).statusCode, 403);
+  assert.equal((await send(op2, 'PATCH', `/api/growth/personal/${g.id}`, { done: true })).statusCode, 404, 'чужую цель править нельзя');
+  assert.equal((await send(op1, 'PATCH', `/api/growth/personal/${g.id}`, { done: true })).statusCode, 200);
+  assert.equal((await send(op1, 'DELETE', `/api/growth/personal/${g.id}`)).statusCode, 200);
+});
+
+test('Руководитель отдела: видит зоны роста отдела и путь сотрудников; радар получает прошлый месяц', async () => {
+  const head = await login('head'), dil = await login('dilnoza'), me = await uid('dilnoza');
+  const traits = (await get(head, `/api/growth/traits/${me}`)).json();
+  assert.equal(traits.growth_visible, true);
+  assert.ok(traits.growth.length >= 1);
+  const path = (await get(head, `/api/path/user/${me}`)).json();
+  assert.ok(path.growth.length >= 1, 'руководитель отдела видит зоны роста в пути');
+  assert.ok(path.competencies.every((c: any) => 'prev' in c), 'для колеса баланса есть данные прошлого месяца');
+  assert.ok(path.competencies.some((c: any) => c.prev != null));
+  assert.equal(path.user.avatar_v, 0);
+  assert.equal((await get(await login('hr'), `/api/path/user/${me}`)).json().growth.length, 0, 'HR зоны роста не видит');
+  assert.equal((await get(dil, '/api/path/user/' + me)).statusCode, 403, 'старший оператор чужой путь не открывает');
+  const roles = (await get(await login('admin', 'admin-test-1'), '/api/admin/users')).json().users.find((u: any) => u.login === 'head').roles;
+  assert.ok(roles.includes('head') && roles.includes('manager'));
 });

@@ -1,12 +1,13 @@
 <script lang="ts">
   import { has, logout } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
-  import { gt } from '../growth/g18n';
+  import { st } from '../lib/s18n';
   const items = $derived([
-    { h: '#/growth', l: gt('nav_growth') }, { h: '#/kb', l: t('nav_kb') }, { h: '#/assist', l: t('nav_assist') },
-    ...(has('manager', 'hr') ? [{ h: '#/team', l: t('nav_team') }] : []),
-    ...(has('admin', 'hr', 'accountant', 'editor') ? [{ h: '#/admin', l: t('nav_admin') }] : []),
-    { h: '#/profile', l: t('nav_profile') },
+    { h: '#/home', l: st('n_home') }, { h: '#/growth', l: st('n_growth') }, { h: '#/tests', l: st('n_tests') }, { h: '#/library', l: st('n_library') },
+    { h: '#/schedule', l: st('n_schedule') }, { h: '#/pay', l: st('n_pay') }, { h: '#/kb', l: st('n_kb') }, { h: '#/assist', l: st('n_assist') },
+    ...(has('manager', 'head', 'hr', 'senior') ? [{ h: '#/team', l: st('n_team') }] : []),
+    ...(has('admin', 'hr', 'accountant', 'editor', 'head') ? [{ h: '#/admin', l: st('n_admin') }] : []),
+    { h: '#/profile', l: st('n_profile') },
   ]);
 </script>
 <header class="page-head"><div><h1>{t('more')}</h1></div></header>

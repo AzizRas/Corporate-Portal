@@ -4,6 +4,10 @@
   import { t } from '../lib/i18n';
   import { gt } from './g18n';
   import Ring from '../components/Ring.svelte';
+  import Radar from '../components/Radar.svelte';
+  import PersonalGoals from '../components/PersonalGoals.svelte';
+  import Avatar from '../components/Avatar.svelte';
+  import { st } from '../lib/s18n';
 
   let { id }: { id: number } = $props();
   let p: any = $state(null), c360: any = $state(null), traits: any = $state(null), recs: any = $state(null), badges: any = $state(null), err = $state('');
@@ -39,13 +43,13 @@
   }
 </script>
 
-<a href={has('manager', 'hr') && id !== app.user!.id ? '#/growth/reserve' : '#/path'} class="small">← {t('back')}</a>
+<a href={has('manager', 'head', 'hr') && id !== app.user!.id ? '#/growth/reserve' : '#/path'} class="small">← {t('back')}</a>
 {#if err}<div class="card" style="margin-top:14px"><p>{err}</p></div>
 {:else if !p || !c360}<div style="padding:30px"><span class="spin"></span></div>
 {:else}
   <header class="page-head" style="margin-top:14px">
-    <div><h1 style="font-size:clamp(26px,3.4vw,40px)">{p.user.name}</h1>
-      <p class="sub">{posName(p.current)} → <span class="grad-text">{posName(p.target)}</span></p></div>
+    <div class="row" style="gap:16px"><Avatar u={{ id: p.user.id, name: p.user.name, avatar_v: p.user.avatar_v }} size={64} /><div><h1 style="font-size:clamp(26px,3.4vw,40px)">{p.user.name}</h1>
+      <p class="sub">{posName(p.current)} → <span class="grad-text">{posName(p.target)}</span></p></div></div>
     <div class="head-actions">
       <a class="btn" href="#/growth/talk/{id}">{gt('tab_talk')}</a>
       {#if recs.can_edit}<button class="btn primary" onclick={analyse} disabled={aiBusy}>{aiBusy ? '…' : gt('p_ai')}</button>{/if}
@@ -87,20 +91,28 @@
           {#if s.mine || recs.can_edit}<button class="g-act" aria-label={gt('delete')} onclick={() => delTrait(s)}>✕</button>{/if}</span></div>
         {:else}<p class="muted small">—</p>{/each}
       </div>
-      <div class="card-head" style="margin-top:18px"><h3>{t('path_growth')}</h3><span class="aside">{traits.growth_counts_visible ? gt('p_growth_vis') : gt('p_growth_colleague')}</span></div>
-      <div class="list">
-        {#each traits.growth as g}<div><span style="font-weight:600">{g.text}</span><span class="row">
-          {#if g.votes != null}<button class="amber" style="background:none;border:0;cursor:pointer" onclick={() => vote(g)}>{g.votes} {t('confirmed')}</button>
-          {:else}<button class="g-act" onclick={() => vote(g)}>{g.voted ? '✓' : '+1'}</button>{/if}
-          {#if g.mine || recs.can_edit}<button class="g-act" aria-label={gt('delete')} onclick={() => delTrait(g)}>✕</button>{/if}</span></div>
-        {:else}<p class="muted small">—</p>{/each}
-      </div>
+      {#if traits.growth_visible}
+        <div class="card-head" style="margin-top:18px"><h3>{st('gz_title')}</h3><span class="aside">{gt('p_growth_vis')}</span></div>
+        <div class="list">
+          {#each traits.growth as g}<div><span style="font-weight:600">{g.text}</span><span class="row">
+            {#if g.votes != null}<button class="amber" style="background:none;border:0;cursor:pointer" onclick={() => vote(g)}>{g.votes} {t('confirmed')}</button>
+            {:else}<button class="g-act" onclick={() => vote(g)}>{g.voted ? '✓' : '+1'}</button>{/if}
+            {#if g.mine || recs.can_edit}<button class="g-act" aria-label={gt('delete')} onclick={() => delTrait(g)}>✕</button>{/if}</span></div>
+          {:else}<p class="muted small">—</p>{/each}
+        </div>
+      {:else}<p class="muted xs" style="margin-top:14px">{st('gz_hidden')}</p>{/if}
       <div class="row" style="margin-top:14px">
         <select class="g-sel" bind:value={traitKind}><option value="strength">{gt('p_strength')}</option><option value="growth">{gt('p_growth_zone')}</option></select>
         <input placeholder={gt('p_trait_ph')} maxlength="140" bind:value={newTrait} onkeydown={(e) => e.key === 'Enter' && addTrait()} />
         <button class="btn sm grad" onclick={addTrait} disabled={!newTrait.trim()}>{gt('add')}</button>
       </div>
     </section>
+
+    <section class="card">
+      <div class="card-head"><h3>{st('rd_title')}</h3></div>
+      <Radar items={p.competencies} />
+    </section>
+    {#if id !== app.user!.id}<PersonalGoals userId={id} />{/if}
 
     <section class="card">
       <div class="card-head"><h3>{gt('p_recs')}</h3><span class="aside">{recs.can_edit ? gt('p_recs_mgr') : gt('p_recs_from')}</span></div>

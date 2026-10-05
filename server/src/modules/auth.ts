@@ -7,7 +7,8 @@ import { hashPassword, verifyPassword, sha256 } from '../security.js';
 export const publicUser = (u: AuthUser) => ({
   id: u.id, name: u.name, login: u.login, tab_number: u.tab_number, position: u.position,
   position_code: u.position_code, dept_id: u.dept_id, lang: u.lang, theme: u.theme,
-  must_change_password: u.must_change_password, roles: u.roles,
+  must_change_password: u.must_change_password, roles: u.roles, status: u.status, birthday: u.birthday, avatar_v: u.avatar_v,
+  days_off: u.days_off, shift_start: u.shift_start, shift_end: u.shift_end, wellness: u.wellness, wellness_min: u.wellness_min,
 });
 
 export async function authRoutes(app: FastifyInstance) {
@@ -76,13 +77,6 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/departments', { preHandler: requireAuth }, async () => ({
     departments: (await q('SELECT * FROM departments ORDER BY id')).rows,
   }));
-
-  app.get('/api/people', { preHandler: requireAuth }, async (req) => {
-    const r = await q(
-      `SELECT u.id,u.name,u.position,u.dept_id,u.phone,u.manager_id FROM users u WHERE u.active ORDER BY u.name`,
-    );
-    return { people: r.rows };
-  });
 
   app.get('/api/health-user', { preHandler: requireAuth }, async (req) => ({ admin: hasRole(req.user, 'admin') }));
 }

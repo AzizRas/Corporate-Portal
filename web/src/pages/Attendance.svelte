@@ -99,7 +99,6 @@
       <div class="list">
         {#each st.today as m}
           <div><span>{m.kind === 'in' ? t('att_in') : t('att_out')}
-            {#if m.late_min}<span class="pill-warn small"> · {t('att_late')} {m.late_min} {t('att_min')}</span>{/if}
             {#if m.status === 'pending'}<span class="pill-warn small"> · {t('att_pending')}</span>{/if}</span><b>{fmtTime(m.at)}</b></div>
         {:else}<p class="muted">{t('att_no_marks')}</p>{/each}
       </div>

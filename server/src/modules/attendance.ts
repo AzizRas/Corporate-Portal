@@ -47,7 +47,7 @@ export async function cleanupPhotos() {
 }
 
 export async function attendanceRoutes(app: FastifyInstance) {
-  const mgr = { preHandler: requireRole('manager', 'hr') };
+  const mgr = { preHandler: requireRole('manager', 'head', 'hr') };
   const adm = { preHandler: requireRole('admin') };
 
   // что нужно показать на кнопке «Пришёл»
@@ -118,8 +118,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       return reply.code(422).send({ error: 'verification_failed', problems, need_reason: true });
     }
 
-    const mins = tzMinutes(now);
-    const late = kind === 'in' ? Math.max(0, mins - toMin((await q('SELECT shift_start FROM users WHERE id=$1', [u.id])).rows[0].shift_start) - s.grace_min) : 0;
+    const late = 0;   // опоздание не фиксируется: отметка — просто факт прихода
     const r = await q(
       `INSERT INTO attendance_marks(user_id,kind,at,work_date,methods,lat,lng,point_id,late_min,photo_path,reason,status)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,kind,at,late_min,status`,
@@ -173,15 +172,15 @@ export async function attendanceRoutes(app: FastifyInstance) {
     const r = await q(
       `SELECT u.tab_number,u.name,m.work_date,
               min(m.at) FILTER (WHERE kind='in') AS t_in, max(m.at) FILTER (WHERE kind='out') AS t_out,
-              max(m.late_min) AS late
+              0 AS late
          FROM attendance_marks m JOIN users u ON u.id=m.user_id
         WHERE m.work_date BETWEEN $1 AND $2 AND m.status IN ('ok','approved','pending')
         GROUP BY u.tab_number,u.name,m.work_date ORDER BY m.work_date,u.name`, [from, to]);
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Табель');
-    ws.addRow(['Табельный', 'ФИО', 'Дата', 'Пришёл', 'Ушёл', 'Опоздание, мин']);
+    ws.addRow(['Табельный', 'ФИО', 'Дата', 'Пришёл', 'Ушёл']);
     const hm = (d: Date | null) => (d ? new Intl.DateTimeFormat('ru', { timeZone: config.tz, hour: '2-digit', minute: '2-digit' }).format(d) : '');
-    for (const x of r.rows) ws.addRow([x.tab_number, x.name, x.work_date, hm(x.t_in), hm(x.t_out), x.late]);
+    for (const x of r.rows) ws.addRow([x.tab_number, x.name, x.work_date, hm(x.t_in), hm(x.t_out)]);
     await audit(req, 'attendance_export', `${from}..${to}`);
     reply.header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     reply.header('content-disposition', 'attachment; filename="attendance.xlsx"');

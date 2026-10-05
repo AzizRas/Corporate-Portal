@@ -1,9 +1,10 @@
 import { api } from './api';
 
-export type Role = 'employee' | 'newbie' | 'mentor' | 'manager' | 'hr' | 'accountant' | 'editor' | 'admin';
+export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'accountant' | 'editor' | 'admin';
 export interface User {
   id: number; name: string; login: string; tab_number: string | null; position: string; position_code: string;
-  dept_id: number | null; lang: 'ru' | 'uz'; theme: 'system' | 'light' | 'dark'; must_change_password: boolean; roles: Role[];
+  dept_id: number | null; status: string; birthday: string | null; avatar_v: number; days_off: number[]; shift_start: string; shift_end: string;
+  wellness: boolean; wellness_min: number; lang: 'ru' | 'uz'; theme: 'system' | 'light' | 'dark'; must_change_password: boolean; roles: Role[];
 }
 
 export const app = $state({

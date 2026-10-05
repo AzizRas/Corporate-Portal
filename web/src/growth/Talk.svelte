@@ -28,7 +28,7 @@
     nextAt = c?.next_at ?? '';
   }
   $effect(() => { id; load(); });
-  $effect(() => { if (has('manager', 'hr')) api.get('/api/growth/reserve').then((r) => (people = r.rows)).catch(() => {}); });
+  $effect(() => { if (has('manager', 'head', 'hr')) api.get('/api/growth/reserve').then((r) => (people = r.rows)).catch(() => {}); });
 
   const cur = $derived(talks.find((x) => x.id === sel));
   const qs = $derived(cur ? tpl[cur.template] ?? [] : []);

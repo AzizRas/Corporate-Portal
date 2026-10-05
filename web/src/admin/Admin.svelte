@@ -6,6 +6,8 @@
   import KbAdmin from './KbAdmin.svelte';
   import AssistAdmin from './AssistAdmin.svelte';
   import GrowthAdmin from './GrowthAdmin.svelte';
+  import TrainingAdmin from './TrainingAdmin.svelte';
+  import WellnessAdmin from './WellnessAdmin.svelte';
   import '../growth/growth.css';
   import Requests from './Requests.svelte';
   import Audit from './Audit.svelte';
@@ -17,6 +19,8 @@
     has('admin') && { id: 'attendance', l: 'Приход' },
     has('editor', 'hr') && { id: 'kb', l: 'База знаний' },
     has('hr') && { id: 'growth', l: 'Модель роста' },
+    has('hr', 'editor', 'head') && { id: 'training', l: 'Обучение' },
+    has('hr') && { id: 'wellness', l: 'Напоминания' },
     has('editor') && { id: 'assist', l: 'Помощник оператора' },
     has('hr', 'accountant') && { id: 'requests', l: 'Заявки' },
     has('admin') && { id: 'audit', l: 'Журнал' },
@@ -32,6 +36,8 @@
 {:else if cur === 'attendance'}<AttendanceAdmin />
 {:else if cur === 'kb'}<KbAdmin />
 {:else if cur === 'growth'}<GrowthAdmin />
+{:else if cur === 'training'}<TrainingAdmin />
+{:else if cur === 'wellness'}<WellnessAdmin />
 {:else if cur === 'assist'}<AssistAdmin collection={parts[1] ?? null} />
 {:else if cur === 'requests'}<Requests />
 {:else if cur === 'audit'}<Audit />

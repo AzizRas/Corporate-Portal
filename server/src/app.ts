@@ -18,6 +18,12 @@ import { pathRoutes } from './modules/path.js';
 import { settingsRoutes } from './modules/settings.js';
 import { growthRoutes } from './modules/growth.js';
 import { communityRoutes } from './modules/community.js';
+import { socialRoutes } from './modules/social.js';
+import { scheduleRoutes } from './modules/schedule.js';
+import { trainingRoutes } from './modules/training.js';
+import { testsRoutes } from './modules/tests.js';
+import { libraryRoutes } from './modules/library.js';
+import { wellnessRoutes } from './modules/wellness.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: true, genReqId: () => Math.random().toString(36).slice(2, 10) });
@@ -49,6 +55,12 @@ export async function buildApp() {
   await app.register(settingsRoutes);
   await app.register(growthRoutes);
   await app.register(communityRoutes);
+  await app.register(socialRoutes);
+  await app.register(scheduleRoutes);
+  await app.register(trainingRoutes);
+  await app.register(testsRoutes);
+  await app.register(libraryRoutes);
+  await app.register(wellnessRoutes);
 
   app.setErrorHandler((err: any, req, reply) => {
     req.log.error(err);

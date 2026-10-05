@@ -2,6 +2,10 @@ import { q, pool } from './db.js';
 import { config } from './config.js';
 import { hashPassword, randomPassword } from './security.js';
 import { seedAssist } from './modules/assist.js';
+import { ensureTraining } from './modules/training.js';
+import { ensureTests } from './modules/tests.js';
+import { ensureLibrary } from './modules/library.js';
+import { ensureWellness } from './modules/wellness.js';
 import { prevPeriod } from './model.js';
 import { tzMonth } from './settings.js';
 import crypto from 'node:crypto';
@@ -23,7 +27,7 @@ const BADGES = [
   ['b3', '🔥', '3 месяца роста', '3 oy o‘sish', 'Три месяца подряд рост готовности'],
   ['b4', '⭐', 'Звезда отдела', 'Bo‘lim yulduzi', 'Лучший результат месяца в отделе'],
   ['b5', '🎧', 'Спокойный голос', 'Xotirjam ovoz', 'Отлично справился со сложным клиентом'],
-  ['b6', '⏱', 'Вовремя', 'O‘z vaqtida', '30 дней без опозданий'],
+  ['b6', '⏱', 'Стабильность', 'Barqarorlik', '30 дней с отметкой о приходе'],
   ['b7', '💡', 'Идея в работу', 'G‘oya ishda', 'Ваше предложение внедрили'],
   ['b8', '📈', 'Прорыв', 'Yutuq', '+10 п.п. готовности за 2 месяца'],
   ['b9', '🏆', 'Лидер смены', 'Smena yetakchisi', 'Проведено 5 планёрок смены'],
@@ -64,8 +68,9 @@ export async function ensureBase() {
     for (const [i, id] of EXTRA_IDS.entries()) await q('INSERT INTO role_reqs VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [pos, id, lv[i]]);
   for (const [id, goal] of Object.entries(BADGE_AUTO)) await q('UPDATE badges SET auto=true, goal=$2 WHERE id=$1', [id, goal]);
   await q(`UPDATE badges SET goal=5 WHERE id='b9'`);
+  await q(`UPDATE badges SET name_ru='Стабильность', name_uz='Barqarorlik', descr_ru='30 дней с отметкой о приходе' WHERE id='b6' AND name_ru='Вовремя'`);
   for (const [i, s] of KB.entries()) await q('INSERT INTO kb_sections(slug,title_ru,title_uz,sort) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [s[0], s[1], s[2], i]);
-  await q('INSERT INTO attendance_settings(dept_id,geo,selfie,qr,wifi) SELECT NULL,true,false,false,false WHERE NOT EXISTS (SELECT 1 FROM attendance_settings WHERE dept_id IS NULL)');
+  await q('INSERT INTO attendance_settings(dept_id,geo,selfie,qr,wifi) SELECT NULL,false,false,false,false WHERE NOT EXISTS (SELECT 1 FROM attendance_settings WHERE dept_id IS NULL)');
 
   // администратор: пароль из ADMIN_PASSWORD применяется при каждом запуске; иначе создаётся один раз со случайным
   const login = config.adminLogin;
@@ -80,6 +85,10 @@ export async function ensureBase() {
     console.log(`[portal] Создан администратор: ${login} / ${pw}  (смените пароль при входе)`);
   }
   if (await seedAssist()) console.log('[portal] контент помощника оператора загружен в базу');
+  await ensureTraining();
+  await ensureTests();
+  await ensureLibrary();
+  await ensureWellness();
 }
 
 interface NewUser {
@@ -100,8 +109,10 @@ export async function createUser(u: NewUser): Promise<number> {
 export async function seedDemo() {
   if ((await q(`SELECT 1 FROM users WHERE login='dilnoza'`)).rows.length) return console.log('[seed] демо уже загружено');
   const pw = 'demo12345';
-  const sv = await createUser({ login: 'rustam', name: 'Рустам А.', roles: ['employee', 'manager', 'mentor'], password: pw, tab: '1001', position: 'Супервайзер', code: 'sv', dept: 'call' });
-  const dil = await createUser({ login: 'dilnoza', name: 'Дилноза К.', roles: ['employee'], password: pw, tab: '1002', position: 'Старший оператор', code: 'sr', target: 'sv', dept: 'call', manager: sv, hired: '2025-03-01' });
+  const head = await createUser({ login: 'head', name: 'Бахтиёр Н.', roles: ['employee', 'manager', 'head'], password: pw, tab: '1000', position: 'Руководитель отдела', code: 'hd', dept: 'call' });
+  const sv = await createUser({ login: 'rustam', name: 'Рустам А.', roles: ['employee', 'manager', 'mentor'], password: pw, tab: '1001', position: 'Супервайзер', code: 'sv', dept: 'call', manager: head });
+  const dil = await createUser({ login: 'dilnoza', name: 'Дилноза К.', roles: ['employee', 'senior'], password: pw, tab: '1002', position: 'Старший оператор', code: 'sr', target: 'sv', dept: 'call', manager: sv, hired: '2025-03-01' });
+  await q(`UPDATE users SET status='На линии, помогу с CRM 💪', birthday=(CURRENT_DATE - interval '27 years') WHERE id=$1`, [dil]);
   const ops: number[] = [];
   for (const [i, n] of ['Азиз Р.', 'Мадина С.', 'Жасур Т.', 'Нилуфар Х.'].entries())
     ops.push(await createUser({ login: `op${i + 1}`, name: n, roles: ['employee', 'newbie'], password: pw, tab: `20${i + 1}0`, position: 'Оператор', code: 'op', dept: 'call', manager: sv, lang: i % 2 ? 'uz' : 'ru' }));
