@@ -62,7 +62,7 @@
 .tr-video-file { width: 100%; border-radius: 18px; background: #000; max-height: 70vh; }
 .tr-vid { padding: 14px; }
 .tr-qhead { margin-bottom: 8px; }
-.tr-q { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.35; margin: 10px 0 16px; }
+.tr .tr-q { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.35; margin: 10px 0 16px; }
 .tr-opts { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .tr-opt { display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); cursor: pointer; line-height: 1.4; transition: border-color .12s, background .12s; }
 .tr-opt:hover:not([disabled]) { border-color: var(--accent); }
@@ -207,7 +207,7 @@
   .tr .page-head h1 { font-size: 30px; }
   .tr-hero .big-num { font-size: 44px; }
   .tr-day { padding: 16px; }
-  .tr-q { font-size: 17px; }
+  .tr .tr-q { font-size: 17px; }
   .tr-opt { padding: 12px 14px; }
   .tr-bubble { font-size: 16px; }
   .tr-trow { grid-template-columns: 40px minmax(0, 1fr); padding: 14px 16px; }
