@@ -746,7 +746,8 @@ const S = (key: string, area: Area, lang: 'ru' | 'uz', title: [string, string], 
   options: [SeedScenario['options'][0]['rating'], string, string, string, string][], crit: [string, string, string[]][], forbid: [string, string, string[]][],
   model: [string, string], why: [string, string]): SeedScenario => ({
   key, area, lang, title_ru: title[0], title_uz: title[1], client_ru: client[0], client_uz: client[1], context_ru: ctx[0], context_uz: ctx[1],
-  options: options.map(([rating, t_ru, t_uz, why_ru, why_uz]) => ({ rating, t_ru, t_uz, why_ru, why_uz })),
+  // в узбекских сценариях варианты написаны «сначала по-узбекски, затем перевод» — раскладываем по полям
+  options: options.map(([rating, a, b, why_ru, why_uz]) => (lang === 'uz' ? { rating, t_ru: b, t_uz: a, why_ru, why_uz } : { rating, t_ru: a, t_uz: b, why_ru, why_uz })),
   criteria: crit.map(([ru, uz, kw]) => ({ ru, uz, kw })), forbid: forbid.map(([ru, uz, kw]) => ({ ru, uz, kw })),
   model_ru: model[0], model_uz: model[1], why_ru: why[0], why_uz: why[1],
 });
@@ -951,7 +952,7 @@ export const SCENARIOS: SeedScenario[] = [
         'Две сделки: DCRM ведёт ремонт каждой техники отдельно.', 'Ikkita bitim: DCRM har bir texnikani alohida yuritadi.'],
       ['ok', 'Avval bittasini rasmiylashtiraman, ikkinchisi haqida keyin qo‘ng‘iroq qiling.', 'Оформлю одну, о второй позвоните позже.', 'Верно, что по одной, но клиента не заставляем звонить снова: вторую сделку создаём сразу в карточке контакта.', 'Bittadan — to‘g‘ri, lekin mijozni qayta qo‘ng‘iroq qildirmaymiz: ikkinchi bitimni kontakt kartochkasida darhol yaratamiz.'],
       ['bad', 'Bitta arizaga ikkala texnikani yozaman.', 'Запишу обе техники в одну заявку.', 'Одна сделка — одна техника: в «Тип устройство» только одно значение.', 'Bitta bitim — bitta texnika: «Qurilma turi»da faqat bitta qiymat.']],
-    [['две отдельные заявки', 'ikkita alohida ariza', ['две заяв', 'две сделк', 'отдельн', 'каждую технику', 'ikkita', 'alohida', 'har bir']], ['одна сделка — одна техника', 'bitta bitim — bitta texnika', ['одна техник', 'каждой техник', 'bitta texnika', 'har bir texnika']]],
+    [['две отдельные заявки', 'ikkita alohida ariza', ['две заяв', 'две сделк', 'отдельн', 'каждую технику', 'ikkita', 'alohida', 'har bir']], ['одна сделка — одна техника', 'bitta bitim — bitta texnika', ['одна техник', 'каждой техник', 'каждую техник', 'bitta texnika', 'har bir texnika']]],
     [['записать обе в одну заявку', 'ikkalasini bitta arizaga', ['в одну заяв', 'одной заяв', 'bitta arizaga']]],
     ['Оформлю отдельную заявку на каждую технику: сначала холодильник, потом стиральную машину.', 'Har bir texnika uchun alohida ariza rasmiylashtiraman: avval muzlatgich, keyin kir yuvish mashinasi.'],
     ['Одна сделка — одна техника: DCRM ведёт ремонт каждой техники отдельно, а в «Тип устройство» ставится одно значение. Вторую сделку создаём в карточке контакта прямо во время звонка.',
