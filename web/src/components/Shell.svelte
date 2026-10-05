@@ -5,11 +5,13 @@
   import { initials } from '../lib/format';
   import Icon from './Icon.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
+  import { gt } from '../growth/g18n';
 
   let { children }: { children: Snippet } = $props();
   const head = $derived(app.route.split('?')[0].split('/').filter(Boolean)[0] ?? '');
   const links = $derived([
     { id: '', l: t('nav_home'), h: '#/' }, { id: 'path', l: t('nav_path'), h: '#/path' },
+    { id: 'growth', l: gt('nav_growth'), h: '#/growth' },
     { id: 'pay', l: t('nav_pay'), h: '#/pay' }, { id: 'att', l: t('nav_att'), h: '#/att' },
     { id: 'kb', l: t('nav_kb'), h: '#/kb' }, { id: 'assist', l: t('nav_assist'), h: '#/assist' },
   ]);
@@ -20,7 +22,7 @@
     { id: 'att', l: t('tab_att'), i: 'att', h: '#/att' }, { id: 'pay', l: t('tab_pay'), i: 'pay', h: '#/pay' },
     { id: 'more', l: t('more'), i: 'more', h: '#/more' },
   ]);
-  const moreIds = ['more', 'kb', 'assist', 'profile', 'team', 'admin'];
+  const moreIds = ['more', 'growth', 'kb', 'assist', 'profile', 'team', 'admin'];
 </script>
 
 <div class="shell">

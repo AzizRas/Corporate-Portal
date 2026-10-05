@@ -213,7 +213,7 @@ test('Мой путь: готовность считается, чужой пу�
   assert.equal(p.target.code, 'sv');
   assert.ok(p.readiness > 50 && p.readiness < 100, `готовность ${p.readiness}`);
   assert.equal(p.competencies.length, 6);
-  assert.equal(p.badges.filter((b: any) => b.have).length, 6);
+  assert.ok(p.badges.filter((b: any) => b.have).length >= 6, 'шесть значков из демо + автоматические по правилам');
   const other = (await pool.query(`SELECT id FROM users WHERE login='op1'`)).rows[0].id;
   assert.equal((await get(dil, `/api/path/user/${other}`)).statusCode, 403);
   const sv = await login('rustam');
@@ -285,4 +285,186 @@ test('Помощник оператора: данные выпуска для п
   assert.equal(rep.misses[0].query, 'морозилка пищит');
   assert.equal(rep.misses[0].n, 2);
   assert.ok(rep.top.some((t: any) => t.query === 'e6'));
+});
+
+/* ======================= Развитие сотрудников (логика Qadam) ======================= */
+const uid = async (l: string) => (await pool.query(`SELECT id FROM users WHERE login=$1`, [l])).rows[0].id as number;
+
+test('Развитие: опрос 360° — раунды, кого оценивать, дубли и ошибки', async () => {
+  const dil = await login('dilnoza');
+  const s = (await get(dil, '/api/growth/survey')).json();
+  assert.equal(s.competencies.length, 6);
+  const self = s.tasks.filter((t: any) => t.type === 'self');
+  assert.deepEqual(self.map((t: any) => t.round).sort(), [1, 2, 3]);
+  const sub = s.tasks.filter((t: any) => t.type === 'sub');
+  assert.ok(sub.length === 1 && sub[0].round === 3, 'руководителя оценивают только в полном опросе');
+  assert.ok(s.tasks.some((t: any) => t.type === 'peer'));
+  const me = await uid('dilnoza');
+  const r1 = self.find((t: any) => t.round === 1);
+  assert.deepEqual(r1.comps.sort(), ['comm', 'empathy']);
+  assert.equal((await send(dil, 'POST', '/api/growth/survey', { round: 1, target_id: me, answers: { comm: 3 } })).statusCode, 400, 'не все вопросы раунда');
+  assert.equal((await send(dil, 'POST', '/api/growth/survey', { round: 1, target_id: me, answers: { comm: 5, empathy: 3 } })).statusCode, 400, 'уровень вне 1–4');
+  assert.equal((await send(dil, 'POST', '/api/growth/survey', { round: 1, target_id: me, answers: { comm: 3, empathy: 2 } })).statusCode, 200);
+  assert.equal((await send(dil, 'POST', '/api/growth/survey', { round: 1, target_id: me, answers: { comm: 3, empathy: 2 } })).statusCode, 409);
+  assert.equal((await send(dil, 'POST', '/api/growth/survey', { round: 1, target_id: await uid('buh'), answers: { comm: 3, empathy: 2 } })).statusCode, 403, 'чужого из другого отдела оценить нельзя');
+  assert.equal((await get(dil, '/api/growth/survey')).json().tasks.find((t: any) => t.type === 'self' && t.round === 1).done, true);
+});
+
+test('Развитие: свод 360° — оценки коллег скрыты, пока ответили меньше двух', async () => {
+  const dil = await login('dilnoza'), me = await uid('dilnoza');
+  const before = (await get(dil, `/api/growth/360/${me}`)).json();
+  assert.ok(before.comps.every((c: any) => c.others === null || c.n >= 2), 'один оценивающий (руководитель) — цифры скрыты');
+  // два коллеги из её отдела оценивают её в коротком опросе
+  let rated = 0;
+  for (const l of ['op1', 'op2', 'op3', 'op4']) {
+    const who = await login(l);
+    const t = (await get(who, '/api/growth/survey')).json().tasks.find((x: any) => x.target.id === me && x.type === 'peer' && x.round === 1);
+    if (!t) continue;
+    assert.equal((await send(who, 'POST', '/api/growth/survey', { round: 1, target_id: me, answers: { comm: 4, empathy: 4 } })).statusCode, 200);
+    if (++rated === 2) break;
+  }
+  assert.equal(rated, 2, 'нашлось двое коллег, которым выпало оценить Дилнозу');
+  const after = (await get(dil, `/api/growth/360/${me}`)).json();
+  const comm = after.comps.find((c: any) => c.comp === 'comm');
+  assert.ok(comm.n >= 2 && comm.others != null, 'цифры коллег видны при двух и более ответивших');
+  assert.equal(comm.manager, null, 'сотрудник не видит оценку руководителя отдельно');
+  const sv = await login('rustam');
+  assert.ok((await get(sv, `/api/growth/360/${me}`)).json().comps.find((c: any) => c.comp === 'comm').manager != null, 'руководитель видит свою оценку');
+  assert.equal((await get(await login('op1'), `/api/growth/360/${me}`)).statusCode, 403);
+});
+
+test('Развитие: сильные стороны и зоны роста — кто что видит', async () => {
+  const dil = await login('dilnoza'), me = await uid('dilnoza');
+  const op1 = await login('op1'), buh = await login('buh'), sv = await login('rustam');
+  assert.equal((await send(op1, 'POST', `/api/growth/traits/${me}`, { kind: 'strength', text: 'Всегда поможет' })).statusCode, 200);
+  assert.equal((await send(op1, 'POST', `/api/growth/traits/${me}`, { kind: 'growth', text: 'Больше уверенности' })).statusCode, 200, 'коллега из отдела может предложить зону роста');
+  assert.equal((await send(buh, 'POST', `/api/growth/traits/${me}`, { kind: 'growth', text: 'Чужой отдел' })).statusCode, 403);
+  const forOp = (await get(op1, `/api/growth/traits/${me}`)).json();
+  assert.ok(forOp.strengths.length >= 4);
+  assert.ok(forOp.growth.length >= 1 && forOp.growth.every((g: any) => g.votes === null), 'коллега видит зоны роста без счётчиков');
+  assert.deepEqual((await get(buh, `/api/growth/traits/${me}`)).json().growth, [], 'из другого отдела зоны роста не видны');
+  const own = (await get(dil, `/api/growth/traits/${me}`)).json();
+  assert.ok(own.growth.every((g: any) => typeof g.votes === 'number'));
+  const mineId = forOp.strengths.find((x: any) => x.mine).id;
+  assert.equal((await send(op1, 'DELETE', `/api/growth/traits/item/${mineId}`)).statusCode, 200, 'автор удаляет своё');
+  const foreign = own.strengths[0].id;
+  assert.equal((await send(op1, 'DELETE', `/api/growth/traits/item/${foreign}`)).statusCode, 403);
+  assert.equal((await send(sv, 'DELETE', `/api/growth/traits/item/${foreign}`)).statusCode, 200, 'руководитель может удалить');
+});
+
+test('Развитие: рекомендации руководителя — создаёт только руководитель, правка снимает пометку ИИ', async () => {
+  const dil = await login('dilnoza'), me = await uid('dilnoza'), sv = await login('rustam'), op1 = await login('op1');
+  assert.equal((await send(dil, 'POST', `/api/growth/recs/${me}`, { text: 'Сам себе' })).statusCode, 403);
+  assert.equal((await send(sv, 'POST', `/api/growth/recs/${me}`, { text: 'Возьмите разбор звонков', comp: 'feedback' })).statusCode, 200);
+  assert.equal((await get(op1, `/api/growth/recs/${me}`)).statusCode, 403);
+  const list = (await get(dil, `/api/growth/recs/${me}`)).json();
+  assert.equal(list.can_edit, false);
+  const ai = list.recs.find((r: any) => r.ai);
+  assert.ok(ai, 'в демо есть черновик ИИ');
+  assert.equal((await send(sv, 'PATCH', `/api/growth/recs/item/${ai.id}`, { text: 'Уточнённая рекомендация' })).statusCode, 200);
+  assert.equal((await get(sv, `/api/growth/recs/${me}`)).json().recs.find((r: any) => r.id === ai.id).ai, false);
+  const path = (await get(dil, '/api/path/me')).json();
+  assert.ok(path.recs.length >= 2);
+});
+
+test('Развитие: беседа 1:1 — каждый пишет только свои ответы, следующая встреча попадает в «Ближайшее»', async () => {
+  const dil = await login('dilnoza'), me = await uid('dilnoza'), sv = await login('rustam'), op1 = await login('op1');
+  const talk = (await send(sv, 'POST', `/api/growth/talks/${me}`, { template: 'month' })).json().talk;
+  assert.equal(talk.template, 'month');
+  assert.equal((await get(op1, `/api/growth/talks/${me}`)).statusCode, 403);
+  await send(dil, 'PATCH', `/api/growth/talks/item/${talk.id}`, { answers: { 0: { emp: 'Радовали клиенты', mgr: 'подделка' }, 1: { emp: 'Аналитика' } }, next_at: '2099-01-01T10:00' });
+  await send(sv, 'PATCH', `/api/growth/talks/item/${talk.id}`, { answers: { 0: { mgr: 'Согласен', emp: 'подделка руководителем' } }, next_at: '2099-01-01T10:00' });
+  const t = (await get(dil, `/api/growth/talks/${me}`)).json().talks.find((x: any) => x.id === talk.id);
+  assert.deepEqual(t.answers['0'], { emp: 'Радовали клиенты', mgr: 'Согласен' });
+  assert.equal(t.answers['1'].emp, 'Аналитика');
+  assert.equal(t.next_at, '2099-01-01T10:00');
+  const ev = (await get(dil, '/api/path/me')).json().events;
+  assert.ok(ev.some((e: any) => e.at_text.startsWith('2099-01-01')));
+  assert.equal((await get(dil, `/api/growth/talks/${me}`)).json().can_manage, false);
+});
+
+test('Развитие: цели ИПР и значки', async () => {
+  const dil = await login('dilnoza'), me = await uid('dilnoza'), sv = await login('rustam'), op1 = await login('op1');
+  assert.equal((await send(dil, 'POST', `/api/growth/goals/${me}`, { title: 'Пройти курс по KPI', measure: '3 теста', due: '2099-12-01' })).statusCode, 200);
+  const gid = (await get(dil, `/api/growth/goals/${me}`)).json().goals.find((g: any) => g.title === 'Пройти курс по KPI').id;
+  await send(dil, 'PATCH', `/api/growth/goals/item/${gid}`, { progress: 100 });
+  assert.equal((await get(sv, `/api/growth/goals/${me}`)).json().goals.find((g: any) => g.id === gid).status, 'done');
+  assert.equal((await send(op1, 'POST', `/api/growth/goals/${me}`, { title: 'чужая цель' })).statusCode, 403);
+  const badges = (await get(dil, `/api/growth/badges/${me}`)).json();
+  assert.equal(badges.can_award, false);
+  const auto = badges.badges.find((b: any) => b.id === 'b13');
+  assert.ok(auto && auto.auto && auto.goal === 3, 'автоматический значок с прогрессом');
+  assert.equal((await send(sv, 'POST', `/api/growth/badges/${me}`, { badge: 'b8' })).statusCode, 400, 'автоматический значок вручную не выдаётся');
+  assert.equal((await send(sv, 'POST', `/api/growth/badges/${await uid('op1')}`, { badge: 'b5' })).statusCode, 200);
+  assert.equal((await send(dil, 'POST', `/api/growth/badges/${await uid('op1')}`, { badge: 'b7' })).statusCode, 403);
+  const op = (await get(op1, '/api/path/me')).json().badges.find((b: any) => b.id === 'b5');
+  assert.equal(op.have, true);
+});
+
+test('Развитие: кадровый резерв и выбор цели', async () => {
+  const sv = await login('rustam'), dil = await login('dilnoza'), op1 = await login('op1');
+  assert.equal((await get(dil, '/api/growth/reserve')).statusCode, 403);
+  const r = (await get(sv, '/api/growth/reserve')).json();
+  assert.ok(r.rows.length >= 5 && r.rows[0].pct >= r.rows[r.rows.length - 1].pct, 'отсортировано по готовности');
+  assert.ok(r.rows.every((x: any) => Array.isArray(x.gaps)));
+  assert.equal((await send(op1, 'PUT', '/api/growth/target', { position_code: 'sr' })).statusCode, 200);
+  assert.equal((await send(op1, 'PUT', '/api/growth/target', { position_code: 'zzz' })).statusCode, 400);
+  assert.equal((await get(op1, '/api/path/me')).json().target.code, 'sr');
+});
+
+test('Развитие: настройки модели — только HR, новая компетенция попадает в путь и опрос', async () => {
+  const hr = await login('hr'), dil = await login('dilnoza'), sv = await login('rustam');
+  assert.equal((await get(sv, '/api/growth/settings')).statusCode, 403);
+  const st = (await get(hr, '/api/growth/settings')).json();
+  assert.ok(st.competencies.length >= 14 && st.competencies.find((c: any) => c.id === 'resp').active === false);
+  assert.equal((await send(hr, 'PUT', '/api/growth/settings', { competencies: [{ id: 'Bad Id' }] })).statusCode, 400);
+  assert.equal((await send(hr, 'PUT', '/api/growth/settings', { threshold: 85, soft_weight: 60, style: 'коротко и тепло',
+    competencies: [{ id: 'resp', active: true, round: 1 }, { id: 'custom1', grp: 'soft', name_ru: 'Клиентоцентричность', name_uz: 'Mijozga yo‘nalganlik', question_ru: 'Решает вопрос клиента до конца', active: true }],
+    matrix: { sv: { resp: 3, custom1: 3 }, sr: { resp: 2 } } })).statusCode, 200);
+  const p = (await get(dil, '/api/path/me')).json();
+  assert.equal(p.threshold, 85);
+  assert.equal(p.weights.soft, 60);
+  assert.ok(p.competencies.some((c: any) => c.id === 'resp'), 'включённая компетенция появилась в «Моём пути»');
+  const survey = (await get(dil, '/api/growth/survey')).json();
+  assert.ok(survey.tasks.find((t: any) => t.round === 1 && t.type === 'self').comps.includes('resp'));
+  assert.ok(survey.tasks.find((t: any) => t.round === 3 && t.type === 'self').comps.includes('custom1'));
+  // вернуть как было, чтобы не влиять на остальные тесты
+  await send(hr, 'PUT', '/api/growth/settings', { threshold: 90, soft_weight: 70, competencies: [{ id: 'resp', active: false, round: 1 }, { id: 'custom1', active: false }] });
+  assert.equal((await get(dil, '/api/path/me')).json().competencies.length, 6);
+});
+
+test('Развитие: ИИ-наставник без ключа отвечает «не подключён», с историей и лимитом', async () => {
+  delete process.env.ANTHROPIC_API_KEY;
+  const dil = await login('dilnoza'), me = await uid('dilnoza'), sv = await login('rustam');
+  assert.equal((await send(dil, 'POST', '/api/growth/mentor', { message: 'Как расти?' })).statusCode, 503);
+  assert.equal((await get(dil, '/api/growth/mentor')).json().configured, false);
+  assert.equal((await send(sv, 'POST', `/api/growth/analysis/${me}`)).statusCode, 503);
+  assert.equal((await send(dil, 'POST', `/api/growth/analysis/${me}`)).statusCode, 403);
+});
+
+test('Лента и чат: посты, лайки, комментарии, объявления только руководителям, каналы по отделам', async () => {
+  const dil = await login('dilnoza'), sv = await login('rustam'), hr = await login('hr'), buh = await login('buh');
+  const post = (await send(dil, 'POST', '/api/feed', { body: 'Сегодня разобрала сложный звонок!', kind: 'win' })).json().post;
+  assert.equal(post.kind, 'win');
+  const ann = (await send(dil, 'POST', '/api/feed', { body: 'Объявление', kind: 'announce' })).json().post;
+  assert.equal(ann.kind, 'thought', 'сотрудник не может писать объявления');
+  assert.equal((await send(sv, 'POST', '/api/feed', { body: 'Планёрка в 10:00', kind: 'announce' })).json().post.kind, 'announce');
+  assert.equal((await send(sv, 'POST', `/api/feed/${post.id}/like`)).json().likes, 1);
+  assert.equal((await send(sv, 'POST', `/api/feed/${post.id}/like`)).json().likes, 0, 'повторный лайк снимает');
+  await send(sv, 'POST', `/api/feed/${post.id}/like`);
+  assert.equal((await send(sv, 'POST', `/api/feed/${post.id}/comments`, { body: 'Молодец!' })).statusCode, 200);
+  const feed = (await get(dil, '/api/feed')).json().posts.find((p: any) => p.id === post.id);
+  assert.deepEqual([feed.likes, feed.comments], [1, 1]);
+  assert.equal((await send(buh, 'DELETE', `/api/feed/${post.id}`)).statusCode, 403);
+  assert.equal((await send(sv, 'POST', `/api/feed/${post.id}/pin`)).json().pinned, true);
+  // чат
+  const ch = (await get(dil, '/api/chat/channels')).json().channels.map((c: any) => c.id);
+  assert.deepEqual(ch, ['general', 'dept:call']);
+  assert.ok((await get(hr, '/api/chat/channels')).json().channels.length >= 5, 'HR видит все отделы');
+  assert.equal((await send(dil, 'POST', '/api/chat/dept:call', { body: 'Всем привет' })).statusCode, 200);
+  assert.equal((await get(dil, '/api/chat/dept:service')).statusCode, 403);
+  assert.equal((await get(buh, '/api/chat/dept:call')).statusCode, 403);
+  const msgs = (await get(sv, '/api/chat/dept:call')).json().messages;
+  assert.equal(msgs[msgs.length - 1].body, 'Всем привет');
+  assert.equal((await get(sv, `/api/chat/dept:call?after=${msgs[msgs.length - 1].id}`)).json().messages.length, 0);
 });

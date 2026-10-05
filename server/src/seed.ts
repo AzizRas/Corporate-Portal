@@ -31,6 +31,20 @@ const BADGES = [
   ['b11', '💬', 'Голос команды', 'Jamoa ovozi', '10 подтверждений сильных сторон'],
   ['b12', '🧭', 'Любознательный', 'Qiziquvchan', '10 вопросов ИИ-наставнику'],
 ];
+
+// вопросы 360° и раунды коротких опросов для компетенций из дизайна; какие значки считаются автоматически (логика Qadam)
+const GROWTH_Q: Record<string, [number | null, string, string]> = {
+  comm: [1, 'Говорит ясно и спокойно, даже когда клиент или коллега раздражён.', 'Mijoz yoki hamkasb g‘azablangan paytda ham aniq va xotirjam gapiradi.'],
+  empathy: [1, 'Слышит собеседника, понимает его состояние и спокойно отвечает на возражения.', 'Suhbatdoshni eshitadi, holatini tushunadi va e’tirozlarga xotirjam javob beradi.'],
+  lead: [2, 'Берёт инициативу и ведёт за собой других. Смог бы вести смену.', 'Tashabbus ko‘rsatadi va boshqalarni ortidan ergashtiradi. Smenani boshqara oladi.'],
+  feedback: [2, 'Даёт коллегам честную и полезную обратную связь, принимает её сам.', 'Hamkasblarga halol va foydali fikr bildiradi, o‘zi ham qabul qiladi.'],
+  plan: [null, 'Распределяет нагрузку смены, не допускает провалов по очереди звонков.', 'Smena yuklamasini taqsimlaydi, qo‘ng‘iroqlar navbatida uzilishlarga yo‘l qo‘ymaydi.'],
+  kpi: [null, 'Разбирает цифры KPI и делает из них понятные выводы.', 'KPI raqamlarini tahlil qiladi va ulardan aniq xulosa chiqaradi.'],
+};
+const BADGE_AUTO: Record<string, number> = { b1: 1, b3: 3, b6: 30, b8: 10, b11: 10, b12: 10 };
+// требования новых компетенций (выключены по умолчанию, включаются в «Модель роста»)
+const REQS_EXTRA: Record<string, number[]> = { op: [2, 2, 1, 2, 0, 0, 1, 2], sr: [3, 2, 2, 3, 2, 1, 2, 3], sv: [3, 3, 3, 3, 3, 2, 3, 3] };
+const EXTRA_IDS = ['resp', 'learn', 'team', 'stress', 'mentor', 'ana', 'crm', 'std'];
 const KB = [
   ['salary', 'Зарплата и KPI', 'Ish haqi va KPI'], ['schedule', 'График и отпуска', 'Jadval va ta’tillar'],
   ['call', 'Колл-центр', 'Call-markaz'], ['warehouse', 'Склад', 'Ombor'],
@@ -44,6 +58,12 @@ export async function ensureBase() {
     for (const [i, c] of COMPS.entries()) await q('INSERT INTO role_reqs VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [pos, c[0], lv[i]]);
   for (const [i, b] of BADGES.entries())
     await q('INSERT INTO badges(id,icon,name_ru,name_uz,descr_ru,sort) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING', [b[0], b[1], b[2], b[3], b[4], i]);
+  for (const [id, [round, qr, qu]] of Object.entries(GROWTH_Q))
+    await q(`UPDATE competencies SET round=$2, question_ru=$3, question_uz=$4 WHERE id=$1 AND question_ru=''`, [id, round, qr, qu]);
+  for (const [pos, lv] of Object.entries(REQS_EXTRA))
+    for (const [i, id] of EXTRA_IDS.entries()) await q('INSERT INTO role_reqs VALUES($1,$2,$3) ON CONFLICT DO NOTHING', [pos, id, lv[i]]);
+  for (const [id, goal] of Object.entries(BADGE_AUTO)) await q('UPDATE badges SET auto=true, goal=$2 WHERE id=$1', [id, goal]);
+  await q(`UPDATE badges SET goal=5 WHERE id='b9'`);
   for (const [i, s] of KB.entries()) await q('INSERT INTO kb_sections(slug,title_ru,title_uz,sort) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [s[0], s[1], s[2], i]);
   await q('INSERT INTO attendance_settings(dept_id,geo,selfie,qr,wifi) SELECT NULL,true,false,false,false WHERE NOT EXISTS (SELECT 1 FROM attendance_settings WHERE dept_id IS NULL)');
 

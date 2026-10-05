@@ -14,6 +14,7 @@
   const head = $derived(parts[0] ?? '');
   const adminLoader = () => import('./admin/Admin.svelte');
   const assistLoader = () => import('./assist/Assist.svelte');
+  const growthLoader = () => import('./growth/Growth.svelte');
 </script>
 
 {#key head}
@@ -22,6 +23,12 @@
   {:else if head === 'pay'}<Payroll />
   {:else if head === 'att'}<Attendance />
   {:else if head === 'kb'}<Kb id={parts[1] ? Number(parts[1]) : null} />
+  {:else if head === 'growth'}
+    {#await growthLoader()}
+      <span class="spin"></span>
+    {:then m}
+      <m.default />
+    {/await}
   {:else if head === 'assist'}
     {#await assistLoader()}
       <span class="spin"></span>

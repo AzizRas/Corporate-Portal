@@ -2,13 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { audit, hasRole, requireAuth, requireRole, teamIds } from '../auth.js';
 import { getSetting, tzMonth } from '../settings.js';
-import { LADDER, POSITIONS, etaMonths, levelsAt, prevPeriod, readiness, type Comp } from '../model.js';
+import { LADDER, POSITIONS, etaMonths, gaps as calcGaps, levelsAt, prevPeriod, readiness, type Comp } from '../model.js';
 
-async function pathFor(userId: number, viewerIsSelf: boolean) {
+export async function pathFor(userId: number, viewerIsSelf: boolean, opts: { badges?: boolean } = {}) {
   const u = (await q('SELECT id,name,position_code,target_position_code FROM users WHERE id=$1', [userId])).rows[0];
   if (!u) return null;
   const target = u.target_position_code || LADDER[Math.min(LADDER.indexOf(u.position_code) + 1, LADDER.length - 1)] || u.position_code;
-  const comps: Comp[] = (await q('SELECT * FROM competencies ORDER BY sort')).rows;
+  const comps: Comp[] = (await q('SELECT * FROM competencies WHERE active ORDER BY sort')).rows;
   const reqs = Object.fromEntries((await q('SELECT comp,level FROM role_reqs WHERE position_code=$1', [target])).rows.map((r) => [r.comp, r.level]));
   const ratings = (await q('SELECT period,comp,rater_type,level FROM ratings WHERE target_id=$1', [userId])).rows;
   const threshold = await getSetting('path_threshold', 90);
@@ -34,9 +34,7 @@ async function pathFor(userId: number, viewerIsSelf: boolean) {
        FROM traits t WHERE t.target_id=$1 ORDER BY votes DESC`, [userId, userId])).rows;
   const goal = (await q(`SELECT title,measure,due,progress FROM goals WHERE user_id=$1 AND status='active' ORDER BY id LIMIT 1`, [userId])).rows[0] ?? null;
   const rec = (await q('SELECT text,ai FROM recs WHERE target_id=$1 ORDER BY id DESC LIMIT 1', [userId])).rows[0] ?? null;
-  const badges = (await q(
-    `SELECT b.id,b.icon,b.name_ru,b.name_uz,b.descr_ru,b.descr_uz,(ub.user_id IS NOT NULL) AS have
-       FROM badges b LEFT JOIN user_badges ub ON ub.badge=b.id AND ub.user_id=$1 ORDER BY b.sort`, [userId])).rows;
+  const badges = opts.badges === false ? [] : await syncBadges(userId, history);
   const events = (await q('SELECT title_ru,title_uz,at_text FROM events WHERE user_id=$1 ORDER BY at NULLS LAST,id', [userId])).rows;
 
   return {
@@ -50,7 +48,47 @@ async function pathFor(userId: number, viewerIsSelf: boolean) {
     // зоны роста видят только сам сотрудник и руководитель
     growth: traits.filter((t) => t.kind === 'growth'),
     goal, rec, badges, events,
+    gaps: calcGaps(competencies.map((c) => ({ ...c, sort: 0 })) as Comp[], Object.fromEntries(competencies.map((c) => [c.id, c.cur])), reqs),
+    recs: (await q(`SELECT r.id,r.comp,r.text,r.ai,r.created_at,u.name AS author FROM recs r LEFT JOIN users u ON u.id=r.author_id WHERE r.target_id=$1 ORDER BY r.id DESC LIMIT 5`, [userId])).rows,
+    target_code: u.target_position_code ?? null,
+    positions: (await q('SELECT DISTINCT position_code FROM role_reqs')).rows.filter((r) => POSITIONS[r.position_code]).map((r) => ({ code: r.position_code, ru: POSITIONS[r.position_code].ru, uz: POSITIONS[r.position_code].uz })),
   };
+}
+
+/** Значки: автоматические выдаются по правилам (прогресс считается на лету), остальные — вручную руководителем. */
+export async function syncBadges(userId: number, history?: { period: string; pct: number | null }[]) {
+  const u = (await q('SELECT id,target_position_code FROM users WHERE id=$1', [userId])).rows[0];
+  const ratedPeriods = new Set((await q('SELECT DISTINCT period FROM ratings WHERE rater_id=$1 AND rater_id<>target_id', [userId])).rows.map((r) => r.period));
+  const now = tzMonth();
+  let surveyStreak = 0, p = ratedPeriods.has(now) ? now : prevPeriod(now);
+  while (ratedPeriods.has(p)) { surveyStreak++; p = prevPeriod(p); }
+  const selfRated = (await q(`SELECT 1 FROM ratings WHERE target_id=$1 AND rater_id=$1 LIMIT 1`, [userId])).rows.length > 0;
+  const confirms = (await q(`SELECT count(*)::int AS n FROM trait_votes v JOIN traits t ON t.id=v.trait_id WHERE t.target_id=$1 AND t.kind='strength'`, [userId])).rows[0].n;
+  const comments = (await q('SELECT count(*)::int AS n FROM post_comments WHERE user_id=$1', [userId])).rows[0].n;
+  const asked = (await q(`SELECT count(*)::int AS n FROM mentor_messages WHERE user_id=$1 AND role='user'`, [userId])).rows[0].n;
+  const goalsDone = (await q(`SELECT count(*)::int AS n FROM goals WHERE user_id=$1 AND status='done'`, [userId])).rows[0].n;
+  // «Вовремя»: подряд дней с приходом без опоздания (до первого опоздания), считая назад от последней отметки
+  const marks = (await q(`SELECT work_date, max(late_min) AS late FROM attendance_marks WHERE user_id=$1 AND kind='in' AND status IN ('ok','approved') GROUP BY work_date ORDER BY work_date DESC LIMIT 60`, [userId])).rows;
+  let onTime = 0; for (const m of marks) { if (m.late > 0) break; onTime++; }
+  // рост готовности: 3 месяца подряд вверх; «Прорыв» — не меньше +10 п.п. за 2 месяца
+  const h = (history ?? []).map((x) => x.pct);
+  const last = h.length - 1;
+  let up = 0; for (let i = last; i > 0 && h[i] != null && h[i - 1] != null && (h[i] as number) > (h[i - 1] as number); i--) up++;
+  const gain = last >= 2 && h[last] != null && h[last - 2] != null ? (h[last] as number) - (h[last - 2] as number) : 0;
+  const prog: Record<string, number> = {
+    b1: u?.target_position_code && selfRated ? 1 : 0, b3: up, b6: onTime, b8: Math.max(0, gain), b11: confirms, b12: asked, b13: surveyStreak, b14: goalsDone, b15: comments,
+  };
+  const rows = (await q(
+    `SELECT b.id,b.icon,b.name_ru,b.name_uz,b.descr_ru,b.descr_uz,b.auto,b.goal,(ub.user_id IS NOT NULL) AS have
+       FROM badges b LEFT JOIN user_badges ub ON ub.badge=b.id AND ub.user_id=$1 ORDER BY b.sort`, [userId])).rows;
+  for (const b of rows) {
+    if (!b.have && b.auto && (prog[b.id] ?? 0) >= b.goal) {
+      await q('INSERT INTO user_badges(user_id,badge) VALUES($1,$2) ON CONFLICT DO NOTHING', [userId, b.id]);
+      b.have = true;
+    }
+    b.cur = b.have ? b.goal : Math.min(prog[b.id] ?? 0, b.goal);
+  }
+  return rows;
 }
 
 export async function pathRoutes(app: FastifyInstance) {
@@ -98,7 +136,7 @@ export async function pathRoutes(app: FastifyInstance) {
   app.get('/api/path/team', { preHandler: requireRole('manager', 'hr') }, async (req) => {
     const ids = hasRole(req.user, 'hr') ? (await q('SELECT id FROM users WHERE active')).rows.map((x) => x.id) : await teamIds(req.user!);
     const out = [];
-    for (const id of ids) { const p = await pathFor(id, false); if (p) out.push({ id, name: p.user.name, readiness: p.readiness, target: p.target.ru, delta: p.delta_month }); }
+    for (const id of ids) { const p = await pathFor(id, false, { badges: false }); if (p) out.push({ id, name: p.user.name, readiness: p.readiness, target: p.target.ru, delta: p.delta_month }); }
     return { items: out };
   });
 }

@@ -4,6 +4,7 @@
   import { t } from '../lib/i18n';
   import { fmtTime, fmtDate } from '../lib/format';
   import Ring from '../components/Ring.svelte';
+  import { gt } from '../growth/g18n';
 
   let path: any[] = $state([]), marks: any[] = $state([]);
   const load = () => api.get('/api/attendance/team').then((r) => (marks = r.items));
@@ -15,9 +16,9 @@
 <header class="page-head"><div><h1>{t('nav_team')}</h1></div></header>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))">
   <section class="card">
-    <div class="card-head"><h3>{t('path_ready')}</h3></div>
+    <div class="card-head"><h3>{t('path_ready')}</h3><a class="small" href="#/growth/reserve">{gt('tab_reserve')} →</a></div>
     <div class="list">
-      {#each path as p}<div><span style="font-weight:600">{p.name}<span class="muted xs"> → {p.target}</span></span>
+      {#each path as p}<div><a href="#/growth/person/{p.id}" style="font-weight:600;color:inherit">{p.name}<span class="muted xs"> → {p.target}</span></a>
         <span><b>{p.readiness}%</b>{#if p.delta != null} <span class="small {p.delta >= 0 ? 'pill-ok' : 'pill-bad'}">{p.delta >= 0 ? '+' : ''}{p.delta}</span>{/if}</span></div>{/each}
     </div>
   </section>

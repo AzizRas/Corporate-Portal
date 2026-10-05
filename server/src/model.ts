@@ -9,6 +9,8 @@ export const POSITIONS: Record<string, { ru: string; uz: string; short_ru: strin
   hd: { ru: 'Руководитель отдела', uz: 'Bo‘lim boshlig‘i', short_ru: 'Рук. отдела', short_uz: 'Bo‘lim boshlig‘i', dat_ru: 'руководителю отдела', dat_uz: 'bo‘lim boshlig‘iga' },
   wh: { ru: 'Кладовщик', uz: 'Omborchi', short_ru: 'Кладовщик', short_uz: 'Omborchi', dat_ru: 'кладовщику', dat_uz: 'omborchiga' },
   ex: { ru: 'Мастер сервиса', uz: 'Servis ustasi', short_ru: 'Мастер', short_uz: 'Usta', dat_ru: 'мастеру', dat_uz: 'ustaga' },
+  sm: { ru: 'Руководитель сервиса', uz: 'Servis rahbari', short_ru: 'Рук. сервиса', short_uz: 'Servis rahbari', dat_ru: 'руководителю сервиса', dat_uz: 'servis rahbariga' },
+  rm: { ru: 'Региональный менеджер', uz: 'Hududiy menejer', short_ru: 'Рег. менеджер', short_uz: 'Hududiy menejer', dat_ru: 'региональному менеджеру', dat_uz: 'hududiy menejerga' },
 };
 export const LADDER = ['op', 'sr', 'sv'];
 
@@ -68,3 +70,12 @@ export const prevPeriod = (p: string, n = 1) => {
   while (m < 1) { m += 12; y--; }
   return `${y}-${String(m).padStart(2, '0')}`;
 };
+
+/** Пробелы в компетенциях: где уровень ниже требуемого, по убыванию разрыва (мягкие навыки раньше жёстких). */
+export function gaps(comps: Comp[], levels: Record<string, number>, req: Record<string, number>) {
+  return comps
+    .map((c) => ({ comp: c.id, grp: c.grp, cur: levels[c.id] || 0, req: req[c.id] || 0 }))
+    .filter((x) => x.req > x.cur)
+    .map((x) => ({ ...x, gap: x.req - x.cur }))
+    .sort((a, b) => b.gap - a.gap || (a.grp === b.grp ? 0 : a.grp === 'soft' ? -1 : 1));
+}

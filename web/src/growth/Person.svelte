@@ -1,0 +1,142 @@
+<script lang="ts">
+  import { api } from '../lib/api';
+  import { app, has } from '../lib/state.svelte';
+  import { t } from '../lib/i18n';
+  import { gt } from './g18n';
+  import Ring from '../components/Ring.svelte';
+
+  let { id }: { id: number } = $props();
+  let p: any = $state(null), c360: any = $state(null), traits: any = $state(null), recs: any = $state(null), badges: any = $state(null), err = $state('');
+  let newRec = $state(''), recComp = $state(''), editing: number | null = $state(null), editText = $state(''), newTrait = $state(''), traitKind = $state('strength');
+  let aiBusy = $state(false), aiMsg = $state('');
+
+  async function load() {
+    try {
+      const path = id === app.user!.id ? await api.get('/api/path/me') : await api.get(`/api/path/user/${id}`);
+      [c360, traits, recs, badges] = await Promise.all([api.get(`/api/growth/360/${id}`), api.get(`/api/growth/traits/${id}`), api.get(`/api/growth/recs/${id}`), api.get(`/api/growth/badges/${id}`)]);
+      p = path; err = '';
+    } catch { err = gt('p_forbidden'); }
+  }
+  $effect(() => { id; load(); });
+
+  const nm = (o: any, k = 'name') => (app.lang === 'uz' ? o[`${k}_uz`] || o[`${k}_ru`] : o[`${k}_ru`]);
+  const compOf = (cid: string) => c360?.competencies.find((c: any) => c.id === cid);
+  const fx = (v: number | null) => (v == null ? '—' : v.toFixed(1));
+  const posName = (o: any) => (app.lang === 'uz' ? o.uz : o.ru);
+
+  async function addRec() { if (!newRec.trim()) return; await api.post(`/api/growth/recs/${id}`, { text: newRec, comp: recComp || undefined }); newRec = ''; recs = await api.get(`/api/growth/recs/${id}`); }
+  async function saveRec(r: any) { await api.patch(`/api/growth/recs/item/${r.id}`, { text: editText }); editing = null; recs = await api.get(`/api/growth/recs/${id}`); }
+  async function delRec(r: any) { if (confirm(gt('del_confirm'))) { await api.del(`/api/growth/recs/item/${r.id}`); recs = await api.get(`/api/growth/recs/${id}`); } }
+  async function addTrait() { if (!newTrait.trim()) return; await api.post(`/api/growth/traits/${id}`, { text: newTrait, kind: traitKind }); newTrait = ''; traits = await api.get(`/api/growth/traits/${id}`); }
+  async function vote(tr: any) { await api.post(`/api/path/traits/${tr.id}/vote`); traits = await api.get(`/api/growth/traits/${id}`); }
+  async function delTrait(tr: any) { await api.del(`/api/growth/traits/item/${tr.id}`); traits = await api.get(`/api/growth/traits/${id}`); }
+  async function award(b: any) { await api.post(`/api/growth/badges/${id}`, { badge: b.id }); badges = await api.get(`/api/growth/badges/${id}`); }
+  async function analyse() {
+    aiBusy = true; aiMsg = '';
+    try { const r = await api.post(`/api/growth/analysis/${id}`); aiMsg = gt('p_ai_added', { n: r.added }); recs = await api.get(`/api/growth/recs/${id}`); }
+    catch (e: any) { aiMsg = e?.code === 'ai_off' ? gt('ai_off_msg') : gt('ai_error_msg'); }
+    finally { aiBusy = false; }
+  }
+</script>
+
+<a href={has('manager', 'hr') && id !== app.user!.id ? '#/growth/reserve' : '#/path'} class="small">← {t('back')}</a>
+{#if err}<div class="card" style="margin-top:14px"><p>{err}</p></div>
+{:else if !p || !c360}<div style="padding:30px"><span class="spin"></span></div>
+{:else}
+  <header class="page-head" style="margin-top:14px">
+    <div><h1 style="font-size:clamp(26px,3.4vw,40px)">{p.user.name}</h1>
+      <p class="sub">{posName(p.current)} → <span class="grad-text">{posName(p.target)}</span></p></div>
+    <div class="head-actions">
+      <a class="btn" href="#/growth/talk/{id}">{gt('tab_talk')}</a>
+      {#if recs.can_edit}<button class="btn primary" onclick={analyse} disabled={aiBusy}>{aiBusy ? '…' : gt('p_ai')}</button>{/if}
+    </div>
+  </header>
+  {#if aiMsg}<div class="alert info" style="margin-bottom:16px">{aiMsg}</div>{/if}
+
+  <div class="g-grid">
+    <section class="card hl ready" style="height:auto">
+      <div class="card-head" style="width:100%"><h3>{t('path_ready')}</h3>{#if p.delta_month != null}<span class="pill-ok small" style="font-weight:600">{p.delta_month >= 0 ? '+' : ''}{p.delta_month}%</span>{/if}</div>
+      <Ring pct={p.readiness} label={`${t('path_threshold')} ${p.threshold}%`} />
+      <div class="stats3">
+        <div><b>{p.eta_months == null ? '—' : p.eta_months === 0 ? '✓' : `≈${p.eta_months} ${t('month_unit')}`}</b><span>{t('path_eta')}</span></div>
+        <div><b>{p.comps_at_level[0]} / {p.comps_at_level[1]}</b><span>{t('path_comps_level')}</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>{gt('p_360')}</h3><span class="aside">{gt('p_raters', { n: c360.raters_this_month })}</span></div>
+      <div class="g-cmp">
+        <span class="h">{gt('p_comp')}</span><span class="h">{gt('p_self')}</span><span class="h">{gt('p_others')}</span><span class="h">{gt('p_need')}</span>
+        {#each c360.comps as c}
+          {@const comp = compOf(c.comp)}
+          {@const req = p.competencies.find((x: any) => x.id === c.comp)?.req}
+          <span style="font-weight:600">{nm(comp)}</span>
+          <span class="num">{fx(c.self)}</span>
+          <span class="num" title={c.n < 2 && c.others == null ? gt('p_hidden') : ''}>{c.others == null ? (c.n ? gt('p_hidden_short') : '—') : fx(c.others)}{#if c.manager != null}<span class="muted xs"> · {gt('p_mgr')} {fx(c.manager)}</span>{/if}</span>
+          <span class="num" class:gap={req != null && (c.others ?? c.self ?? 0) < req}>{req ?? '—'}</span>
+        {/each}
+      </div>
+      <p class="muted xs" style="margin-top:12px">{gt('p_anon')}</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>{t('path_strengths')}</h3></div>
+      <div class="list">
+        {#each traits.strengths as s}<div><span style="font-weight:600">{s.text}</span><span class="row">
+          <button class="heart" style="background:none;border:0;cursor:pointer;opacity:{s.voted ? 1 : .6}" onclick={() => vote(s)}>♥ {s.votes}</button>
+          {#if s.mine || recs.can_edit}<button class="g-act" aria-label={gt('delete')} onclick={() => delTrait(s)}>✕</button>{/if}</span></div>
+        {:else}<p class="muted small">—</p>{/each}
+      </div>
+      <div class="card-head" style="margin-top:18px"><h3>{t('path_growth')}</h3><span class="aside">{traits.growth_counts_visible ? gt('p_growth_vis') : gt('p_growth_colleague')}</span></div>
+      <div class="list">
+        {#each traits.growth as g}<div><span style="font-weight:600">{g.text}</span><span class="row">
+          {#if g.votes != null}<button class="amber" style="background:none;border:0;cursor:pointer" onclick={() => vote(g)}>{g.votes} {t('confirmed')}</button>
+          {:else}<button class="g-act" onclick={() => vote(g)}>{g.voted ? '✓' : '+1'}</button>{/if}
+          {#if g.mine || recs.can_edit}<button class="g-act" aria-label={gt('delete')} onclick={() => delTrait(g)}>✕</button>{/if}</span></div>
+        {:else}<p class="muted small">—</p>{/each}
+      </div>
+      <div class="row" style="margin-top:14px">
+        <select class="g-sel" bind:value={traitKind}><option value="strength">{gt('p_strength')}</option><option value="growth">{gt('p_growth_zone')}</option></select>
+        <input placeholder={gt('p_trait_ph')} maxlength="140" bind:value={newTrait} onkeydown={(e) => e.key === 'Enter' && addTrait()} />
+        <button class="btn sm grad" onclick={addTrait} disabled={!newTrait.trim()}>{gt('add')}</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>{gt('p_recs')}</h3><span class="aside">{recs.can_edit ? gt('p_recs_mgr') : gt('p_recs_from')}</span></div>
+      {#each recs.recs as r}
+        <div style="border-top:1px solid var(--border);padding:12px 0">
+          {#if editing === r.id}
+            <textarea bind:value={editText} maxlength="800" style="min-height:70px"></textarea>
+            <div class="row" style="margin-top:8px"><button class="btn sm grad" onclick={() => saveRec(r)}>{gt('save')}</button><button class="btn sm" onclick={() => (editing = null)}>{t('cancel')}</button></div>
+          {:else}
+            <div>{r.text}</div>
+            <div class="row" style="margin-top:6px"><span class="muted xs">{r.author ?? ''}{r.comp && compOf(r.comp) ? ` · ${nm(compOf(r.comp))}` : ''}</span>
+              {#if r.ai}<span class="tag" style="padding:2px 8px">{gt('ai_label')}</span>{/if}<span class="sp"></span>
+              {#if recs.can_edit}<button class="g-act" onclick={() => { editing = r.id; editText = r.text; }}>{t('edit')}</button><button class="g-act" onclick={() => delRec(r)}>✕</button>{/if}</div>
+          {/if}
+        </div>
+      {:else}<p class="muted">{t('no_rec')}</p>{/each}
+      {#if recs.can_edit}
+        <div class="stack" style="margin-top:12px;gap:8px">
+          <textarea placeholder={gt('p_rec_ph')} maxlength="800" bind:value={newRec} style="min-height:70px"></textarea>
+          <div class="row"><select class="g-sel" bind:value={recComp}><option value="">{gt('p_rec_any')}</option>{#each c360.competencies as c}<option value={c.id}>{nm(c)}</option>{/each}</select>
+            <button class="btn grad" onclick={addRec} disabled={!newRec.trim()}>{gt('add')}</button></div>
+        </div>
+      {/if}
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>{t('badges')}</h3><span class="aside">{badges.badges.filter((b: any) => b.have).length}/{badges.badges.length}</span></div>
+      <div class="badges">
+        {#each badges.badges as b}
+          <div class="badge" class:off={!b.have} title={nm(b, 'descr')}>
+            <div class="ic">{b.icon}</div>{nm(b)}
+            {#if !b.have && b.auto}<div class="g-badge-prog"><i style="width:{(b.cur / b.goal) * 100}%"></i></div><div class="xs">{Math.round(b.cur)}/{b.goal}</div>{/if}
+            {#if !b.have && !b.auto && badges.can_award}<button class="btn sm" style="margin-top:6px;padding:3px 10px" onclick={() => award(b)}>{gt('p_award')}</button>{/if}
+          </div>
+        {/each}
+      </div>
+    </section>
+  </div>
+{/if}

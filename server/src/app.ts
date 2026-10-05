@@ -16,6 +16,8 @@ import { kbRoutes } from './modules/kb.js';
 import { assistRoutes } from './modules/assist.js';
 import { pathRoutes } from './modules/path.js';
 import { settingsRoutes } from './modules/settings.js';
+import { growthRoutes } from './modules/growth.js';
+import { communityRoutes } from './modules/community.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: true, genReqId: () => Math.random().toString(36).slice(2, 10) });
@@ -45,6 +47,8 @@ export async function buildApp() {
   await app.register(assistRoutes);
   await app.register(pathRoutes);
   await app.register(settingsRoutes);
+  await app.register(growthRoutes);
+  await app.register(communityRoutes);
 
   app.setErrorHandler((err: any, req, reply) => {
     req.log.error(err);

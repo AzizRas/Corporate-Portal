@@ -15,7 +15,7 @@ const ru = {
   // главная
   hello: 'Здравствуйте', home_sub: 'Всё важное на сегодня', home_pay: 'Моя зарплата', home_kb: 'Найти ответ', home_kb_ph: 'Например: когда аванс', home_assist: 'Помощник оператора', home_assist_sub: 'Скрипты, коды ошибок, карточки amoCRM', home_path: 'Готовность к должности', no_data: 'Пока нет данных',
   // мой путь
-  path_title: 'Мой путь к', path_sub: 'обновлено сегодня', path_ready: 'Готовность к должности', path_threshold: 'порог', path_month: 'за месяц', path_eta: 'до готовности', path_comps_level: 'компетенций на уровне', path_weights: 'вес навыков', soft: 'Соф', hard: 'Хард',
+  path_title: 'Мой путь к', path_sub: 'обновлено сегодня', path_ready: 'Готовность к должности', path_threshold: 'порог', path_month: 'за месяц', path_eta: 'до готовности', path_comps_level: 'компетенций на уровне', path_weights: 'вес навыков', soft: 'Soft', hard: 'Hard',
   path_comps: 'Компетенции: сейчас и нужно', path_levels: 'уровни 1–4', path_req_legend: 'белая риска — требование для должности', path_goal: 'Цель ИПР', path_mentor: 'ИИ-наставник', path_draft_ai: 'Черновик ИИ', path_strengths: 'Сильные стороны', public: 'публично',
   path_growth: 'Зоны роста', only_you: 'видите только вы', confirmed: 'подтвердили', badges: 'Значки', soon: 'Ближайшее', take_survey: 'Пройти опрос', month_unit: 'мес.', survey_title: 'Самооценка по компетенциям', survey_hint: 'Оцените себя от 1 (начинающий) до 4 (эксперт). Оценки коллег и руководителя анонимно учитываются в итоге.',
   lvl1: 'Начинающий', lvl2: 'С поддержкой', lvl3: 'Делает сам', lvl4: 'Учит других', no_rec: 'Рекомендаций пока нет',

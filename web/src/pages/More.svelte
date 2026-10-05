@@ -1,8 +1,9 @@
 <script lang="ts">
   import { has, logout } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
+  import { gt } from '../growth/g18n';
   const items = $derived([
-    { h: '#/kb', l: t('nav_kb') }, { h: '#/assist', l: t('nav_assist') },
+    { h: '#/growth', l: gt('nav_growth') }, { h: '#/kb', l: t('nav_kb') }, { h: '#/assist', l: t('nav_assist') },
     ...(has('manager', 'hr') ? [{ h: '#/team', l: t('nav_team') }] : []),
     ...(has('admin', 'hr', 'accountant', 'editor') ? [{ h: '#/admin', l: t('nav_admin') }] : []),
     { h: '#/profile', l: t('nav_profile') },

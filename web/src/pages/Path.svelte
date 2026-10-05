@@ -1,13 +1,14 @@
 <script lang="ts">
   import { api } from '../lib/api';
   import { app } from '../lib/state.svelte';
-  import { t, type Key } from '../lib/i18n';
+  import { t } from '../lib/i18n';
   import { pick, monthLong, nowMonth } from '../lib/format';
   import Ring from '../components/Ring.svelte';
-  import Modal from '../components/Modal.svelte';
+  import { gt } from '../growth/g18n';
+  import '../growth/growth.css';
 
   let d: any = $state(null);
-  let survey = $state(false), levels: Record<string, number> = $state({}), saving = $state(false);
+  let newStrength = $state(''), newGrowth = $state('');
 
   const load = () => api.get('/api/path/me').then((r) => (d = r));
   load();
@@ -15,15 +16,14 @@
   const name = (o: any, k = 'name') => pick(o, k);
   const pos = (o: any) => (app.lang === 'uz' ? o.uz : o.ru);
   const posShort = (o: any) => (app.lang === 'uz' ? o.short_uz : o.short_ru);
-  const lvlKeys: Key[] = ['lvl1', 'lvl2', 'lvl3', 'lvl4'];
 
-  function openSurvey() {
-    levels = Object.fromEntries(d.competencies.map((c: any) => [c.id, Math.max(1, Math.round(c.cur) || 2)]));
-    survey = true;
-  }
-  async function submitSurvey() {
-    saving = true;
-    try { await api.post('/api/path/rate', { ratings: levels }); survey = false; await load(); } finally { saving = false; }
+  async function changeTarget(e: Event) { await api.put('/api/growth/target', { position_code: (e.currentTarget as HTMLSelectElement).value }); await load(); }
+  async function addTrait(kind: 'strength' | 'growth') {
+    const text = (kind === 'strength' ? newStrength : newGrowth).trim();
+    if (!text) return;
+    await api.post(`/api/growth/traits/${app.user!.id}`, { kind, text });
+    if (kind === 'strength') newStrength = ''; else newGrowth = '';
+    await load();
   }
   async function vote(id: number) { await api.post(`/api/path/traits/${id}/vote`); await load(); }
   const pct4 = (v: number) => `${Math.min(v / 4, 1) * 100}%`;
@@ -39,7 +39,10 @@
     </div>
     <div class="head-actions">
       <span class="chip">{monthLong(nowMonth())}</span>
-      <button class="btn primary" onclick={openSurvey}>{t('take_survey')}</button>
+      <select class="g-sel" value={d.target_code ?? d.target.code} onchange={changeTarget} aria-label={gt('p_target')}>
+        {#each d.positions as p}<option value={p.code}>{gt('p_target')}: {app.lang === 'uz' ? p.uz : p.ru}</option>{/each}
+      </select>
+      <a class="btn primary" href="#/growth/survey">{t('take_survey')}</a>
     </div>
   </header>
 
@@ -82,7 +85,8 @@
     <section class="card a-mentor" style="background:linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card) 60%)">
       <span class="tag">{t('path_mentor')}</span>
       <p class="mentor-text">{d.rec ? d.rec.text : t('no_rec')}</p>
-      {#if d.rec?.ai}<a href="#/path" style="font-weight:700;font-size:14px">{t('path_draft_ai')}</a>{/if}
+      {#if d.rec?.ai}<span class="muted small">{t('path_draft_ai')}</span>{/if}
+      <div class="row wrap" style="margin-top:14px"><a class="btn sm" href="#/growth/person/{app.user?.id}">{gt('p_360')}</a><a class="btn sm" href="#/growth/talk">{gt('tab_talk')}</a><a class="btn sm" href="#/growth/mentor">{gt('tab_mentor')}</a></div>
     </section>
 
     <section class="card a-strengths">
@@ -93,6 +97,8 @@
             <button class="heart" style="background:none;border:0;cursor:pointer;opacity:{s.voted ? 1 : .75}" onclick={() => vote(s.id)}>♥ {s.votes}</button></div>
         {/each}
       </div>
+      <form class="row" style="margin-top:14px" onsubmit={(e) => { e.preventDefault(); addTrait('strength'); }}>
+        <input placeholder={gt('p_trait_ph')} maxlength="140" bind:value={newStrength} /><button class="btn sm grad" disabled={!newStrength.trim()}>{gt('add')}</button></form>
     </section>
 
     <section class="card a-growth">
@@ -102,14 +108,16 @@
           <div><span style="font-weight:600">{g.text}</span><span class="amber">{g.votes} {t('confirmed')}</span></div>
         {/each}
       </div>
+      <form class="row" style="margin-top:14px" onsubmit={(e) => { e.preventDefault(); addTrait('growth'); }}>
+        <input placeholder={gt('p_trait_ph')} maxlength="140" bind:value={newGrowth} /><button class="btn sm grad" disabled={!newGrowth.trim()}>{gt('add')}</button></form>
     </section>
 
     <section class="card a-badges">
       <div class="row wrap" style="gap:28px;align-items:flex-start">
         <div><h3 class="card-title">{t('badges')}</h3><div class="big-num" style="margin-top:16px">{d.badges.filter((b: any) => b.have).length}/{d.badges.length}</div></div>
         <div class="badges">
-          {#each d.badges.slice(0, 6) as b}
-            <div class="badge" class:off={!b.have}><div class="ic">{b.icon}</div>{name(b)}</div>
+          {#each d.badges as b}
+            <div class="badge" class:off={!b.have} title={pick(b, 'descr')}><div class="ic">{b.icon}</div>{name(b)}{#if !b.have && b.auto}<div class="g-badge-prog"><i style="width:{(b.cur / b.goal) * 100}%"></i></div>{/if}</div>
           {/each}
         </div>
       </div>
@@ -125,18 +133,4 @@
     </section>
   </div>
 
-  {#if survey}
-    <Modal onclose={() => (survey = false)}>
-      <h2>{t('survey_title')}</h2>
-      <p class="muted small" style="margin-bottom:16px">{t('survey_hint')}</p>
-      {#each d.competencies as c}
-        <label class="f">{name(c)} — <b style="color:var(--text)">{levels[c.id]}</b> · {t(lvlKeys[levels[c.id] - 1])}
-          <input type="range" min="1" max="4" step="1" bind:value={levels[c.id]} style="padding:0;accent-color:var(--accent)" /></label>
-      {/each}
-      <div class="row" style="justify-content:flex-end;margin-top:8px">
-        <button class="btn" onclick={() => (survey = false)}>{t('cancel')}</button>
-        <button class="btn grad" onclick={submitSurvey} disabled={saving}>{t('send')}</button>
-      </div>
-    </Modal>
-  {/if}
 {/if}
