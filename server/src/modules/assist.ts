@@ -4,7 +4,7 @@ import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { q, tx } from '../db.js';
 import { config } from '../config.js';
-import { COOKIE, audit, loadUser, requireRole } from '../auth.js';
+import { COOKIE, audit, loadUser, requireAuth, requireRole } from '../auth.js';
 
 type Kind = 'array' | 'map' | 'value';
 const MARK = '/*@@ASSIST_DATA@@*/{}';
@@ -111,6 +111,26 @@ export async function assistRoutes(app: FastifyInstance) {
     const html = await renderAssist();
     if (!html) return reply.code(503).type('text/plain').send('Контент помощника ещё не загружен');
     return reply.header('cache-control', 'private, no-cache').type('text/html; charset=utf-8').send(html);
+  });
+
+  // данные активного выпуска для интерфейса помощника в портале (ETag = номер выпуска)
+  app.get('/api/assist/data', { preHandler: requireAuth }, async (req, reply) => {
+    const rel = (await q('SELECT id,created_at,snapshot FROM assist_releases WHERE active')).rows[0];
+    if (!rel) return reply.code(503).send({ error: 'not_loaded' });
+    const etag = `"r${rel.id}"`;
+    reply.header('etag', etag).header('cache-control', 'private, no-cache');
+    if (req.headers['if-none-match'] === etag) return reply.code(304).send();
+    return { release: rel.id, at: rel.created_at, data: rel.snapshot };
+  });
+
+  // поисковый журнал: запрос, сколько нашлось, что выбрал оператор
+  app.post('/api/assist/search-log', { preHandler: requireAuth }, async (req) => {
+    const b = (req.body ?? {}) as { query?: string; hits?: number; picked?: string };
+    const query = String(b.query ?? '').trim().slice(0, 200);
+    if (query.length < 2) return { ok: true };
+    await q('INSERT INTO assist_search_log(user_id,query,hits,picked) VALUES($1,$2,$3,$4)',
+      [req.user!.id, query, Math.max(0, Math.min(999, Number(b.hits) || 0)), b.picked ? String(b.picked).slice(0, 120) : null]);
+    return { ok: true };
   });
 
   const ed = { preHandler: requireRole('editor') };
@@ -233,6 +253,18 @@ export async function assistRoutes(app: FastifyInstance) {
     await tx((cl) => writeCollection(cl, c, col.kind, col.id_field, value, req.user!.id));
     await audit(req, 'assist_import_xlsx', c, { rows: parsed.length });
     return { ok: true, rows: parsed.length };
+  });
+
+
+  // что операторы искали и не нашли — основа для пополнения содержимого
+  app.get('/api/admin/assist/search-report', ed, async () => {
+    const misses = (await q(`SELECT lower(query) AS query, count(*)::int AS n, max(created_at) AS last
+                               FROM assist_search_log WHERE hits=0 AND created_at > now() - interval '60 days'
+                              GROUP BY 1 ORDER BY n DESC, last DESC LIMIT 50`)).rows;
+    const top = (await q(`SELECT lower(query) AS query, count(*)::int AS n, mode() WITHIN GROUP (ORDER BY picked) AS picked
+                            FROM assist_search_log WHERE hits>0 AND created_at > now() - interval '60 days'
+                           GROUP BY 1 ORDER BY n DESC LIMIT 30`)).rows;
+    return { misses, top };
   });
 
   // ---- выпуски

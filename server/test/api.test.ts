@@ -180,7 +180,7 @@ test('Помощник оператора: страница собирается
   assert.ok(!page.body.includes('@@ASSIST_DATA@@'));
   const ed = await login('editor');
   const cols = (await get(ed, '/api/admin/assist/collections')).json();
-  assert.equal(cols.collections.length, 29);
+  assert.equal(cols.collections.length, 30);
   const shops = (await get(ed, '/api/admin/assist/SHOPS/items')).json();
   const first = shops.items[0];
   const edited = { ...first.data, name: 'ИЗМЕНЁННЫЙ-МАГАЗИН' };
@@ -263,4 +263,26 @@ test('Импорт сотрудников из Excel: логины, просты
   assert.ok((await post('1')).json().rows.every((r: any) => r.status === 'exists'));
   const emp = await login('op2');
   assert.equal((await send(emp, 'POST', '/api/admin/users/import', {})).statusCode, 403);
+});
+
+test('Помощник оператора: данные выпуска для портала (ETag), переводы исходов и журнал поиска', async () => {
+  assert.equal((await app.inject({ url: '/api/assist/data' })).statusCode, 401);
+  const op = await login('op1');
+  const r = await get(op, '/api/assist/data');
+  assert.equal(r.statusCode, 200);
+  const j = r.json();
+  assert.ok(j.release && j.data.DATA.length > 20 && j.data.ZTAB.length > 5);
+  assert.ok(Object.keys(j.data.SAY_UZ).length > 200, 'переводы исходов на узбекский загружены');
+  const again = await app.inject({ url: '/api/assist/data', headers: { 'if-none-match': r.headers.etag as string }, ...op });
+  assert.equal(again.statusCode, 304);
+  // журнал: что искали и не нашли — виден редактору, не виден оператору
+  await send(op, 'POST', '/api/assist/search-log', { query: 'морозилка пищит', hits: 0 });
+  await send(op, 'POST', '/api/assist/search-log', { query: 'морозилка пищит', hits: 0 });
+  await send(op, 'POST', '/api/assist/search-log', { query: 'E6', hits: 7, picked: 'code:acM:E6' });
+  assert.equal((await get(op, '/api/admin/assist/search-report')).statusCode, 403);
+  const ed = await login('editor');
+  const rep = (await get(ed, '/api/admin/assist/search-report')).json();
+  assert.equal(rep.misses[0].query, 'морозилка пищит');
+  assert.equal(rep.misses[0].n, 2);
+  assert.ok(rep.top.some((t: any) => t.query === 'e6'));
 });

@@ -83,6 +83,11 @@ META.forEach(([name, title, grp, descr], i) => {
   const idField = kind === 'array' && v.length && v.every((x) => x && typeof x === 'object' && typeof x.id === 'string') ? 'id' : null;
   seed.collections[name] = { kind, title, grp, descr, id_field: idField, sort: i, value: v };
 });
+// коллекции, которых нет в исходном HTML (например, SAY_UZ — переводы исходов), при повторном импорте сохраняются
+if (fs.existsSync('assist/seed.json')) {
+  const prev = JSON.parse(fs.readFileSync('assist/seed.json', 'utf8'));
+  for (const [k, c] of Object.entries(prev.collections || {})) if (!seed.collections[k]) seed.collections[k] = c;
+}
 fs.writeFileSync('assist/seed.json', JSON.stringify(seed));
 
 // 4) template.html: константы читаются из __ASSIST, мутации данных вырезаны

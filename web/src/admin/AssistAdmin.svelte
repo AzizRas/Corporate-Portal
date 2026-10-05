@@ -9,7 +9,9 @@
   let cols: any[] = $state([]), active: any = $state(null), releases: any[] = $state([]), note = $state(''), toast = $state('');
   const loadCols = async () => { const r = await api.get('/api/admin/assist/collections'); cols = r.collections; active = r.active; };
   const loadReleases = async () => (releases = (await api.get('/api/admin/assist/releases')).releases);
-  loadCols(); loadReleases();
+  let report: { misses: any[]; top: any[] } = $state({ misses: [], top: [] });
+  const loadReport = async () => { try { report = await api.get('/api/admin/assist/search-report'); } catch { /* нет доступа — блок скрыт */ } };
+  loadCols(); loadReleases(); loadReport();
 
   const groups = $derived.by(() => { const m = new Map<string, any[]>(); for (const c of cols) (m.get(c.grp) ?? m.set(c.grp, []).get(c.grp)!).push(c); return [...m]; });
   const changedTotal = $derived(cols.reduce((n, c) => n + c.changed, 0));
@@ -110,6 +112,14 @@
       {/each}
     </div>
   {/each}
+
+  <h3 class="card-title" style="margin:28px 0 10px">Что операторы искали и не нашли (60 дней)</h3>
+  <div class="card" style="padding:8px 20px">
+    {#if report.misses.length}
+      <div class="list">{#each report.misses as m}<div><span><b>{m.query}</b><div class="muted xs">последний раз {fmtDateTime(m.last)}</div></span><span class="chip">{m.n}×</span></div>{/each}</div>
+      <p class="muted xs" style="margin:6px 0 10px">Добавьте недостающие слова в «Деревья неисправностей» (поля tags и uz симптома) или новые сценарии — и опубликуйте выпуск.</p>
+    {:else}<p class="muted" style="padding:12px 0">Пока все запросы находили ответ.</p>{/if}
+  </div>
 
   <h3 class="card-title" style="margin:28px 0 10px">История выпусков</h3>
   <div class="card" style="padding:8px 20px"><div class="list">

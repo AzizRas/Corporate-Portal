@@ -6,7 +6,6 @@
   import Payroll from './pages/Payroll.svelte';
   import Attendance from './pages/Attendance.svelte';
   import Kb from './pages/Kb.svelte';
-  import Assist from './pages/Assist.svelte';
   import Profile from './pages/Profile.svelte';
   import More from './pages/More.svelte';
   import Team from './pages/Team.svelte';
@@ -14,6 +13,7 @@
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
   const head = $derived(parts[0] ?? '');
   const adminLoader = () => import('./admin/Admin.svelte');
+  const assistLoader = () => import('./assist/Assist.svelte');
 </script>
 
 {#key head}
@@ -22,7 +22,12 @@
   {:else if head === 'pay'}<Payroll />
   {:else if head === 'att'}<Attendance />
   {:else if head === 'kb'}<Kb id={parts[1] ? Number(parts[1]) : null} />
-  {:else if head === 'assist'}<Assist />
+  {:else if head === 'assist'}
+    {#await assistLoader()}
+      <span class="spin"></span>
+    {:then m}
+      <m.default />
+    {/await}
   {:else if head === 'profile'}<Profile />
   {:else if head === 'more'}<More />
   {:else if head === 'team'}<Team />
