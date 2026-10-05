@@ -54,11 +54,15 @@ npm test                        # 12 интеграционных тестов (
 
 ## Деплой на Railway
 
-1. Репозиторий → Railway → *Deploy from GitHub*; добавьте **PostgreSQL** и свяжите `DATABASE_URL`.
-2. Variables: `NODE_ENV=production`, `ADMIN_PASSWORD`, при желании `ADMIN_LOGIN`.
-3. Для фото «Пришёл» подключите **Volume** и укажите путь в `UPLOAD_DIR` (иначе фото пропадут при перезапуске; позже можно заменить на S3).
-4. `railway.json` уже настроен: сборка `npm ci && npm run build`, старт `npm run start`, healthcheck `/healthz`. Миграции применяются при старте.
-5. Включите ежедневные бэкапы базы в настройках PostgreSQL.
+Ветка для деплоя — **`main`**. Нужно всего три действия:
+
+1. Railway → *New Project* → *Deploy from GitHub repo* → `AzizRas/Corporate-Portal` (ветка `main`).
+2. В проекте *+ New → Database → Add PostgreSQL*, затем в сервисе портала *Variables → New Variable → Add Reference → Postgres → `DATABASE_URL`*.
+3. В *Variables* добавьте `ADMIN_PASSWORD` (ваш пароль администратора; логин `admin`). Затем *Settings → Networking → Generate Domain*.
+
+Сборка, миграции базы и загрузка контента помощника выполняются сами при первом запуске (`railway.json`, проверка `/healthz`). Если `ADMIN_PASSWORD` не задан, пароль администратора будет создан случайным и напечатан в логах первого запуска.
+
+Позже, по желанию: *Volume* и переменная `UPLOAD_DIR=/data/uploads` (нужны только если включите селфи в «Пришёл», иначе фото пропадут при перезапуске) и ежедневные бэкапы PostgreSQL.
 
 ## Безопасность
 

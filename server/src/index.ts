@@ -6,6 +6,10 @@ import { ensureBase } from './seed.js';
 import { cleanupPhotos } from './modules/attendance.js';
 
 async function main() {
+  if (config.isProd && !(process.env.DATABASE_URL || process.env.POSTGRES_URL)) {
+    console.error('[portal] Не задана DATABASE_URL.\nRailway: сервис портала → Variables → New Variable → Add Reference → Postgres → DATABASE_URL.\nЕсли PostgreSQL ещё нет: + New → Database → Add PostgreSQL.');
+    process.exit(1);
+  }
   await migrate();
   await ensureBase();
   const app = await buildApp();
