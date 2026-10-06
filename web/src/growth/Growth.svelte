@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { app, has } from '../lib/state.svelte';
   import { gt } from './g18n';
   import Survey from './Survey.svelte';
@@ -17,7 +18,7 @@
 </script>
 
 <header class="page-head">
-  <div><h1>{gt('title')}</h1><p class="sub">{gt('sub')}</p></div>
+  <div><h1>{gt('title')}<PageHelp topic="growth_survey" /></h1><p class="sub">{gt('sub')}</p></div>
 </header>
 {#if tab !== 'person'}
   <nav class="tabs">{#each tabs as tb}<a href="#/growth/{tb.id}" class:on={tab === tb.id}>{tb.l}</a>{/each}</nav>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { has } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
@@ -6,6 +7,7 @@
   import Ring from '../components/Ring.svelte';
   import { gt } from '../growth/g18n';
   import { st } from '../lib/s18n';
+  import Panel from '../team/Panel.svelte';
 
   let path: any[] = $state([]), marks: any[] = $state([]);
   const load = () => api.get('/api/attendance/team').then((r) => (marks = r.items));
@@ -14,7 +16,8 @@
   async function decide(id: number, approve: boolean) { await api.post(`/api/attendance/${id}/decide`, { approve }); await load(); }
 </script>
 
-<header class="page-head"><div><h1>{t('nav_team')}</h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a></div></header>
+<header class="page-head"><div><h1>{t('nav_team')}<PageHelp topic="panel_team" /></h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a></div></header>
+<Panel />
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))">
   <section class="card">
     <div class="card-head"><h3>{t('path_ready')}</h3><a class="small" href="#/growth/reserve">{gt('tab_reserve')} →</a></div>

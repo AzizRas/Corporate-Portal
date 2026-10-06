@@ -21,6 +21,14 @@ const ru: Record<string, string> = {
   hp_title: 'Как пользоваться порталом', hp_sub: 'Короткие инструкции по разделам',
   // отчёты
   rp_title: 'Отчёты', rp_sub: 'Сводки по вашей зоне',
+  // обучение пользованию порталом
+  tr_next: 'Далее', tr_back: 'Назад', tr_skip: 'Пропустить тур', tr_done: 'Готово', tr_got: 'Понятно', tr_step: 'Шаг {i} из {n}', tr_more_hint: 'На телефоне этот пункт — в разделе «Ещё».', tr_restart: 'Пройти тур по порталу заново', tr_restart_hint: 'Короткий тур покажет главные разделы именно для вашей роли.',
+  hp_how: 'Как это сделать', hp_show: 'Показать на экране', hp_all: 'Все инструкции', hp_ask_ph: 'Спросите: например, «как попросить выходной»', hp_ask: 'Найти', hp_none: 'Подходящей инструкции не нашлось. Попробуйте поиск Ctrl+K или задайте вопрос руководителю.', hp_ask_leader: 'Задать вопрос или предложить',
+  hp_topics: 'Инструкции по разделам', hp_search_ph: 'Найти инструкцию…', hp_ai_note: 'Ответ ИИ', hp_q_title: 'Спросить, как что-то сделать', hp_where: 'Где найти',
+  ck_title: 'Первые шаги', ck_hide: 'Скрыть', ck_done_all: 'Всё готово — вы освоились в портале!', ck_n: '{d} из {n}',
+  ck_profile: 'Добавьте фото или статус', ck_chat: 'Напишите в чат', ck_lesson: 'Пройдите первый урок', ck_test: 'Пройдите первый тест', ck_schedule: 'Посмотрите график', ck_search: 'Попробуйте поиск (Ctrl+K)', ck_kb: 'Загляните в ЧАВО',
+  ck_panel: 'Откройте панель команды', ck_task: 'Поставьте задачу сотруднику', ck_assistant: 'Пройдите сценарий помощника', ck_queue: 'Загляните в очередь вопросов', ck_structure: 'Откройте структуру компании', ck_admin: 'Загляните в админку', ck_editor: 'Попробуйте ИИ-редактор', ck_training: 'Откройте обучение',
+  ts_title: 'Обучение порталу: где застревают', ts_started: 'начали', ts_done: 'прошли', ts_skipped: 'пропустили', ts_restarts: 'повторов', ts_reached: 'дошли', ts_skip_here: 'пропустили здесь', ts_pages: 'Какие разделы открывают', ts_misses: 'Вопросы «как сделать», на которые нет инструкции', ts_none: 'Данных пока нет', ts_users: 'Сотрудников', ts_pending: 'ещё не проходили',
   // чат
   ch_company: 'Общие', ch_groups: 'Группы', ch_dms: 'Личные', ch_archive: 'Архив', ch_new: 'Новый чат', ch_new_dm: 'Личный', ch_new_group: 'Группа', ch_name: 'Название группы', ch_pick: 'Участники',
   ch_search_ppl: 'Найти человека…', ch_create: 'Создать', ch_members: 'Участники', ch_pins: 'Закреплённое', ch_search: 'Поиск по чату', ch_search_ph: 'Найти в этом чате…', ch_mute: 'Не уведомлять', ch_unmute: 'Включить уведомления',
@@ -64,6 +72,13 @@ const uz: Record<string, string> = {
   pz_hidden: 'Summalar yashirilgan. «Ko‘rsatish»ni bosing — har bir ko‘rish jurnalga yoziladi.', pz_show: 'Ko‘rsatish', pz_hide: 'Yashirish', pz_auto: '{n} soniyadan keyin yashiriladi', pz_load: 'Yuklanmoqda…',
   hp_title: 'Portaldan foydalanish', hp_sub: 'Bo‘limlar bo‘yicha qisqa yo‘riqnomalar',
   rp_title: 'Hisobotlar', rp_sub: 'Zonangiz bo‘yicha xulosalar',
+  tr_next: 'Keyingi', tr_back: 'Orqaga', tr_skip: 'Turni o‘tkazib yuborish', tr_done: 'Tayyor', tr_got: 'Tushunarli', tr_step: '{i}-qadam, jami {n}', tr_more_hint: 'Telefonda bu band «Yana» bo‘limida.', tr_restart: 'Portal turini qayta ko‘rish', tr_restart_hint: 'Qisqa tur aynan sizning rolingiz uchun asosiy bo‘limlarni ko‘rsatadi.',
+  hp_how: 'Buni qanday qilish kerak', hp_show: 'Ekranda ko‘rsatish', hp_all: 'Barcha yo‘riqnomalar', hp_ask_ph: 'So‘rang: masalan, «dam olishni qanday so‘rash»', hp_ask: 'Topish', hp_none: 'Mos yo‘riqnoma topilmadi. Ctrl+K qidiruvini sinab ko‘ring yoki rahbarga savol bering.', hp_ask_leader: 'Savol berish yoki taklif qilish',
+  hp_topics: 'Bo‘limlar bo‘yicha yo‘riqnomalar', hp_search_ph: 'Yo‘riqnoma topish…', hp_ai_note: 'AI javobi', hp_q_title: 'Nimanidir qanday qilishni so‘rash', hp_where: 'Qayerdan topish',
+  ck_title: 'Birinchi qadamlar', ck_hide: 'Yashirish', ck_done_all: 'Hammasi tayyor — siz portalga o‘rganib oldingiz!', ck_n: '{n} tadan {d}',
+  ck_profile: 'Rasm yoki holat qo‘shing', ck_chat: 'Chatga yozing', ck_lesson: 'Birinchi darsdan o‘ting', ck_test: 'Birinchi testdan o‘ting', ck_schedule: 'Jadvalni ko‘ring', ck_search: 'Qidiruvni sinab ko‘ring (Ctrl+K)', ck_kb: 'Savol-javobga qarang',
+  ck_panel: 'Jamoa panelini oching', ck_task: 'Xodimga vazifa qo‘ying', ck_assistant: 'Yordamchi stsenariysidan o‘ting', ck_queue: 'Savollar navbatiga qarang', ck_structure: 'Kompaniya tuzilmasini oching', ck_admin: 'Boshqaruv paneliga qarang', ck_editor: 'AI-muharrirni sinab ko‘ring', ck_training: 'O‘qitishni oching',
+  ts_title: 'Portalni o‘rgatish: qayerda to‘xtab qolishadi', ts_started: 'boshladi', ts_done: 'tugatdi', ts_skipped: 'o‘tkazib yubordi', ts_restarts: 'takrorlash', ts_reached: 'yetib keldi', ts_skip_here: 'shu yerda o‘tkazib yubordi', ts_pages: 'Qaysi bo‘limlarni ochishadi', ts_misses: 'Yo‘riqnomasi yo‘q «qanday qilish» savollari', ts_none: 'Hozircha ma’lumot yo‘q', ts_users: 'Xodimlar', ts_pending: 'hali o‘tmagan',
   ch_company: 'Umumiy', ch_groups: 'Guruhlar', ch_dms: 'Shaxsiy', ch_archive: 'Arxiv', ch_new: 'Yangi chat', ch_new_dm: 'Shaxsiy', ch_new_group: 'Guruh', ch_name: 'Guruh nomi', ch_pick: 'Qatnashchilar',
   ch_search_ppl: 'Odamni topish…', ch_create: 'Yaratish', ch_members: 'Qatnashchilar', ch_pins: 'Mahkamlanganlar', ch_search: 'Chatdan qidirish', ch_search_ph: 'Shu chatdan qidirish…', ch_mute: 'Bildirishnoma yubormaslik', ch_unmute: 'Bildirishnomani yoqish',
   ch_leave: 'Guruhdan chiqish', ch_archive_do: 'Arxivga', ch_unarchive: 'Arxivdan chiqarish', ch_rename: 'Nomini o‘zgartirish', ch_attach: 'Fayl biriktirish', ch_file_err: 'Fayl qabul qilinmadi (10 MB gacha; rasm, PDF, hujjat, arxiv).',

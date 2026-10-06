@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
   import { app, setLang, setTheme, logout, loadMe } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
@@ -8,6 +9,7 @@
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
   import Payroll from './Payroll.svelte';
   import NotifyPrefs from '../components/NotifyPrefs.svelte';
+  import { restartTour } from '../lib/tour.svelte';
 
   let { tab = 'me' }: { tab?: string } = $props();
 
@@ -40,7 +42,7 @@
   const roleName: Record<string, string> = { employee: 'Оператор', newbie: 'Новичок', senior: 'Старший оператор', mentor: 'Наставник', manager: 'Супервайзер', head: 'Руководитель отдела', hr: 'HR', accountant: 'Бухгалтерия', editor: 'Редактор базы', admin: 'Администратор' };
 </script>
 
-<header class="page-head"><div><h1>{t('profile_title')}</h1><p class="sub">{app.user?.name} · {app.user?.position}</p></div></header>
+<header class="page-head"><div><h1>{t('profile_title')}<PageHelp topic="profile_photo" /></h1><p class="sub">{app.user?.name} · {app.user?.position}</p></div></header>
 <nav class="tabs">
   <a href="#/profile" class:on={tab === 'me'}>{wt('i_mydata')}</a>
   <a href="#/profile/pay" class:on={tab === 'pay'}>{st('n_pay')}</a>
@@ -60,6 +62,7 @@
     <div><div class="muted small">{t('role')}</div><div class="row wrap" style="margin-top:8px">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
     <button class="btn danger" onclick={logout}>{t('nav_logout')}</button>
   </section>
+  <section class="card stack"><h3 class="card-title">{wt('tr_restart')}</h3><p class="muted small">{wt('tr_restart_hint')}</p><button class="btn grad" style="align-self:flex-start" onclick={restartTour}>{wt('tr_restart')}</button></section>
   <NotifyPrefs />
   <section class="card stack"><h3 class="card-title">{st('pf_wellness')}</h3><WellnessSettings /></section>
   <form class="card stack" onsubmit={change}>

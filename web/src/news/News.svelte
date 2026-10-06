@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
@@ -34,7 +35,7 @@
   const icon = (k: string) => ({ announce: '📢', kudos: '💜', win: '🏆', thought: '💭' } as any)[k];
 </script>
 
-<header class="page-head"><div><h1>{st('nw_title')}</h1><p class="sub">{st('nw_sub')}</p></div></header>
+<header class="page-head"><div><h1>{st('nw_title')}<PageHelp topic="news" /></h1><p class="sub">{st('nw_sub')}</p></div></header>
 
 <div class="nw">
   <div class="stack" style="min-width:0">

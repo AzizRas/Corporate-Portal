@@ -27,6 +27,7 @@ import { aiEditorRoutes } from './modules/ai-editor.js';
 import { taskRoutes } from './modules/tasks.js';
 import { aiAnalystRoutes } from './modules/ai-analyst.js';
 import { aiSupervisorRoutes } from './modules/ai-supervisor.js';
+import { onboardingRoutes } from './modules/onboarding.js';
 import { questionRoutes } from './modules/questions.js';
 import { scheduleRoutes } from './modules/schedule.js';
 import { trainingRoutes } from './modules/training.js';
@@ -73,6 +74,7 @@ export async function buildApp() {
   await app.register(taskRoutes);
   await app.register(aiAnalystRoutes);
   await app.register(aiSupervisorRoutes);
+  await app.register(onboardingRoutes);
   await app.register(questionRoutes);
   await app.register(scheduleRoutes);
   await app.register(trainingRoutes);

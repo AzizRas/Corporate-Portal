@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { app } from '../lib/state.svelte';
   import { tt } from './tr18n';
   import { T, loadMe } from './store.svelte';
@@ -25,7 +26,7 @@
 
 <div class="tr">
   <header class="page-head">
-    <div><h1>{tt('title')}</h1><p class="sub">{tt('sub')}</p></div>
+    <div><h1>{tt('title')}<PageHelp topic="training_plan" /></h1><p class="sub">{tt('sub')}</p></div>
   </header>
   <nav class="tabs" aria-label={tt('title')}>{#each tabs as tb}<a href={tb.h} class:on={tabOn(tb.id)}>{tb.l}</a>{/each}</nav>
 

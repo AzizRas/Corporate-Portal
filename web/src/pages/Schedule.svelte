@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
@@ -45,7 +46,7 @@
 </script>
 
 <header class="page-head">
-  <div><h1>{st('s_title')}</h1><p class="sub">{st('s_sub')}</p></div>
+  <div><h1>{st('s_title')}<PageHelp topic="dayoff_request" /></h1><p class="sub">{st('s_sub')}</p></div>
   <div class="head-actions">
     <button class="btn sm" onclick={() => shift(-1)} aria-label={st('s_month_prev')}>‹</button>
     <span class="chip">{monthLong(ym)}</span>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
   import { onDestroy } from 'svelte';
@@ -48,7 +49,7 @@
   async function calc() { what = (await api.post('/api/payroll/whatif', { kpi_pct: pct })).bonus; }
 </script>
 
-<header class="page-head"><div><h1>{t('pay_title')}</h1><p class="sub">{t('pay_sub')}</p></div>
+<header class="page-head"><div><h1>{t('pay_title')}<PageHelp topic="pay_show" /></h1><p class="sub">{t('pay_sub')}</p></div>
   {#if d?.periods.length}
     <div class="head-actions row" style="gap:10px">
       {#if visible}<span class="muted small">{wt('pz_auto', { n: left })}</span><button class="btn sm" onclick={hide}>{wt('pz_hide')}</button>

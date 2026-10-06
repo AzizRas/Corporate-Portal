@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { app, go, has } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
@@ -29,7 +30,7 @@
   {#if art}
     <article class="card" style="margin-top:14px;max-width:860px">
       <span class="chip" style="margin-bottom:12px">{secName(art.section_id)}</span>
-      <h1 style="font-size:32px;letter-spacing:-.02em">{pick(art, 'title')}</h1>
+      <h1 style="font-size:32px;letter-spacing:-.02em">{pick(art, 'title')}<PageHelp topic="kb_search" /></h1>
       <p class="muted small" style="margin:8px 0 18px">{t('kb_owner')}: {art.owner_name ?? '—'} · {t('kb_updated')}: {fmtDate(art.updated_at)}
         {#if art.overdue}<span class="pill-warn"> · {t('kb_overdue')}</span>{/if}
         {#if art.status !== 'published'}<span class="pill-warn"> · {art.status}</span>{/if}</p>

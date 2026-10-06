@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
@@ -132,7 +133,7 @@
 </script>
 
 <header class="page-head">
-  <div><h1>{wt('o_title')}</h1><p class="sub">{wt('o_sub')}</p></div>
+  <div><h1>{wt('o_title')}<PageHelp topic="structure" /></h1><p class="sub">{wt('o_sub')}</p></div>
   {#if canLife}
     <div class="head-actions row" style="gap:8px;flex-wrap:wrap">
       <a class="btn sm" href="/api/org/export.xlsx" download>{wt('o_export')}</a>

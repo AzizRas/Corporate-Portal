@@ -1,26 +1,91 @@
 <script lang="ts">
-  import { app } from '../lib/state.svelte';
+  import { api } from '../lib/api';
+  import { app, go } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
+  import { HELP } from '../lib/help-content';
+  import { pointAt } from '../lib/tour.svelte';
+  import { topics, loadTopics, type TopicMeta } from '../lib/help.svelte';
+  import AskLeader from '../team/AskLeader.svelte';
 
-  // короткие инструкции по разделам (RU/UZ); волна E расширяет их ролевыми шагами
-  const items = [
-    { id: 'chat', ru: ['Чат', 'Откройте «Люди → Чат». Выберите канал слева, пишите внизу. @имя — отметить коллегу, «Ответить» — ответ на сообщение. Новые сообщения видны цифрой на колокольчике.'], uz: ['Chat', '«Odamlar → Chat»ni oching. Kanalni chapdan tanlang, pastda yozing. @ism — hamkasbni belgilash, «Javob berish» — xabarga javob. Yangi xabarlar qo‘ng‘iroqchada raqam bilan ko‘rinadi.'] },
-    { id: 'news', ru: ['Новости', 'Здесь объявления компании, благодарности и победы. Можно лайкать и комментировать. Справа — ближайшие дни рождения.'], uz: ['Yangiliklar', 'Bu yerda kompaniya e’lonlari, minnatdorchiliklar va g‘alabalar. Layk bosish va izoh yozish mumkin. O‘ngda — yaqin tug‘ilgan kunlar.'] },
-    { id: 'training', ru: ['Обучение', 'Откройте «Обучение → План обучения»: уроки по дням. Тренажёр — разбор диалогов, «Готовность к линии» — короткое интервью перед допуском.'], uz: ['O‘qitish', '«O‘qitish → O‘qitish rejasi»ni oching: kunlar bo‘yicha darslar. Trenajyor — dialoglar tahlili, «Liniyaga tayyorlik» — ruxsatdan oldingi qisqa suhbat.'] },
-    { id: 'tests', ru: ['Тесты', '«Обучение → Тесты»: психологические и профессиональные, в том числе короткий PAEI. Результат виден вам и вашему руководителю.'], uz: ['Testlar', '«O‘qitish → Testlar»: psixologik va kasbiy testlar, jumladan qisqa PAEI. Natijani siz va rahbaringiz ko‘radi.'] },
-    { id: 'kb', ru: ['Знания', '«ЧАВО» и «Помощник оператора» — ответы на частые вопросы и подсказки по ошибкам. Не нашли? Нажмите значок лупы (Ctrl+K): поиск ответит по базе, а если ответа нет, передаст вопрос руководителю.'], uz: ['Bilimlar', '«Savol-javob» va «Operator yordamchisi» — tez-tez so‘raladigan savollar va xatolar bo‘yicha maslahatlar. Topolmadingizmi? Lupa belgisini (Ctrl+K) bosing: qidiruv baza bo‘yicha javob beradi, javob bo‘lmasa savolni rahbarga yuboradi.'] },
-    { id: 'schedule', ru: ['График и выходные', '«Люди → График»: ваши смены. Нажмите на рабочий день, чтобы попросить выходной — подтвердит старший оператор или супервайзер.'], uz: ['Jadval va dam olish', '«Odamlar → Jadval»: smenalaringiz. Dam olish so‘rash uchun ish kunini bosing — katta operator yoki supervayzer tasdiqlaydi.'] },
-    { id: 'pay', ru: ['ЗП и KPI', '«Профиль → ЗП и KPI». Суммы скрыты: нажмите «Показать» — они откроются на 30 секунд. Каждый просмотр записывается в журнал.'], uz: ['Maosh va KPI', '«Profil → Maosh va KPI». Summalar yashirilgan: «Ko‘rsatish»ni bosing — 30 soniyaga ochiladi. Har bir ko‘rish jurnalga yoziladi.'] },
-    { id: 'path', ru: ['Мой путь', 'Колесо компетенций, сильные стороны и зоны роста, личная цель. Пройдите опрос в «Развитии» — колесо заполнится.'], uz: ['Mening yo‘lim', 'Kompetensiyalar g‘ildiragi, kuchli tomonlar va o‘sish zonalari, shaxsiy maqsad. «Rivojlanish»da so‘rovnomadan o‘ting — g‘ildirak to‘ladi.'] },
-    { id: 'notify', ru: ['Уведомления', 'Колокольчик показывает новые сообщения, новости и решения по выходным. Галочка — отметить прочитанным, «Прочитать все» — всё сразу.'], uz: ['Bildirishnomalar', 'Qo‘ng‘iroqcha yangi xabarlar, yangiliklar va dam olish bo‘yicha qarorlarni ko‘rsatadi. Belgi — o‘qilgan deb belgilash, «Hammasini o‘qilgan qilish» — hammasini birdan.'] },
-  ];
-  const lang = $derived(app.lang);
+  loadTopics();
+  let q = $state(''), asking = $state(false), res: any = $state(null), openId = $state(''), asked = $state('');
+  const GROUPS = ['main', 'learn', 'know', 'people', 'profile', 'manage'];
+  const gname = (g: string) => wt(`g_${g}`);
+  const title = (t: TopicMeta) => t.title[app.lang];
+  const steps = (id: string) => HELP[id]?.[app.lang] ?? HELP[id]?.ru ?? [];
+  const filtered = $derived(topics.list.filter((t) => !q.trim() || `${t.title.ru} ${t.title.uz} ${steps(t.id).join(' ')}`.toLowerCase().includes(q.trim().toLowerCase())));
+  const groupOf = (g: string) => filtered.filter((t) => t.group === g);
+
+  // «спросить, как сделать»: тема подбирается по словам, а при работающем ИИ — моделью
+  async function ask(e: Event) {
+    e.preventDefault();
+    if (q.trim().length < 3) return;
+    asking = true; res = null; asked = q.trim();
+    try { res = await api.post('/api/help/ask', { query: asked }); if (res.topic) openId = res.topic.id; }
+    catch { res = { topic: null, alternatives: [] }; } finally { asking = false; }
+  }
+  /** Подсветить кнопку на экране: переходим на страницу и показываем, где нажать. */
+  function show(t: TopicMeta) {
+    const targets = t.target ? [t.target, 'tab-' + t.target.replace(/^nav-/, ''), 'tab-more'] : [];
+    go(t.route);
+    setTimeout(() => pointAt(targets, title(t), steps(t.id)[0] ?? '', t.group), 450);
+  }
+  const topicById = (id: string) => topics.list.find((t) => t.id === id);
 </script>
 
-<header class="page-head"><div><h1>{wt('hp_title')}</h1><p class="sub">{wt('hp_sub')}</p></div></header>
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
-  {#each items as i (i.id)}
-    {@const x = lang === 'uz' ? i.uz : i.ru}
-    <section class="card" id={i.id}><h3 class="card-title">{x[0]}</h3><p class="small" style="margin-top:8px">{x[1]}</p></section>
+<header class="page-head"><div><h1>{wt('hp_title')}</h1><p class="sub">{wt('hp_sub')}</p></div><div class="head-actions"><AskLeader /></div></header>
+
+<section class="card stack" style="margin-bottom:20px">
+  <h3 class="card-title">{wt('hp_q_title')}</h3>
+  <form class="row" style="gap:8px" onsubmit={ask}>
+    <input style="flex:1" bind:value={q} placeholder={wt('hp_ask_ph')} />
+    <button class="btn grad" disabled={asking || q.trim().length < 3}>{wt('hp_ask')}</button>
+  </form>
+  {#if asking}<span class="spin"></span>{/if}
+  {#if res}
+    {#if res.topic}
+      {@const t = topicById(res.topic.id)}
+      <div class="hp-res">
+        {#if res.answer}<p class="small">{res.ai ? '✨ ' : ''}{res.answer}</p>{/if}
+        <b>{title(res.topic)}</b>
+        <ol class="hp-steps">{#each steps(res.topic.id) as s}<li>{s}</li>{/each}</ol>
+        <div class="row wrap" style="gap:8px">{#if t}<button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button>{/if}<a class="btn sm" href={'#' + res.topic.route}>{wt('hp_where')}</a></div>
+        {#if res.alternatives?.length}<div class="muted xs">{#each res.alternatives as a}<button class="g-act" onclick={() => (openId = a.id)}>{title(a)}</button> {/each}</div>{/if}
+      </div>
+    {:else}<p class="muted small">{wt('hp_none')}</p>{/if}
+  {/if}
+</section>
+
+<div class="row" style="gap:10px;margin-bottom:12px"><h3 class="card-title" style="margin:0">{wt('hp_topics')}</h3><span class="sp"></span></div>
+<input placeholder={wt('hp_search_ph')} bind:value={q} style="margin-bottom:16px" />
+
+<div class="stack">
+  {#each GROUPS as g}
+    {#if groupOf(g).length}
+      <section class="card">
+        <h3 class="card-title" style="margin-bottom:8px">{gname(g)}</h3>
+        <div class="hp-list">
+          {#each groupOf(g) as t (t.id)}
+            <div class="hp-item" class:open={openId === t.id} id={t.id}>
+              <button class="hp-q" onclick={() => (openId = openId === t.id ? '' : t.id)} aria-expanded={openId === t.id}><span>{title(t)}</span><span class="hp-c">{openId === t.id ? '−' : '+'}</span></button>
+              {#if openId === t.id}
+                <ol class="hp-steps">{#each steps(t.id) as s}<li>{s}</li>{/each}</ol>
+                <div class="row wrap" style="gap:8px;margin:6px 0 10px"><button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button><a class="btn sm" href={'#' + t.route}>{wt('hp_where')}</a></div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/if}
   {/each}
 </div>
+
+<style>
+  .hp-res { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--card-2); }
+  .hp-steps { margin: 4px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; font-size: 14px; }
+  .hp-list { display: flex; flex-direction: column; }
+  .hp-item { border-bottom: 1px solid var(--border); padding: 2px 0; }
+  .hp-item:last-child { border-bottom: 0; }
+  .hp-q { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; padding: 12px 4px; cursor: pointer; text-align: left; gap: 12px; }
+  .hp-c { color: var(--muted); font-size: 20px; line-height: 1; }
+</style>

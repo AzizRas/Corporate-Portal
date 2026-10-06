@@ -6,10 +6,13 @@
   import { wt } from '../lib/w18n';
   import { portal } from '../lib/portal';
   import Icon from './Icon.svelte';
+  import { HELP } from '../lib/help-content';
+  import { pointAt } from '../lib/tour.svelte';
   import Avatar from './Avatar.svelte';
+  import AiFeedback from './AiFeedback.svelte';
 
   let open = $state(false), q = $state(''), sel = $state(0), res: any = $state(null), busy = $state(false);
-  let asking = $state(false), ans: any = $state(null), input: HTMLInputElement | undefined = $state();
+  let asking = $state(false), helpHit: any = $state(null), ans: any = $state(null), input: HTMLInputElement | undefined = $state();
   let seq = 0, timer: ReturnType<typeof setTimeout> | undefined;
   const lang = $derived(app.lang);
   const tr = (r: any, k: string) => (lang === 'uz' && r[`${k}_uz`]) || r[`${k}_ru`];
@@ -20,12 +23,16 @@
   // поиск с задержкой; устаревшие ответы отбрасываем
   $effect(() => {
     const text = q.trim();
-    ans = null; sel = 0; clearTimeout(timer);
+    ans = null; helpHit = null; sel = 0; clearTimeout(timer);
     if (text.length < 2) { res = null; busy = false; return; }
     busy = true;
     const my = ++seq;
     timer = setTimeout(async () => {
       try { const r = await api.get('/api/search?q=' + encodeURIComponent(text)); if (my === seq) res = r; } catch { if (my === seq) res = null; }
+      // вопрос вида «как …?» — сначала показываем инструкцию из справки с подсветкой нужной кнопки
+      if (my === seq && /^(как|где|что делать|куда|qanday|qayerda|nima qilish|qayerga)(?=\s|$)/i.test(text)) {
+        try { const h = await api.post('/api/help/ask', { query: text }); if (my === seq) helpHit = h.topic ? { help: h } : null; } catch { /* без подсказки */ }
+      }
       if (my === seq) busy = false;
     }, 220);
   });
@@ -52,11 +59,21 @@
     if (r.person) { personOpen = personOpen?.id === r.person.id ? null : r.person; return; }
     if (r.href) { hide(); go(r.href); }
   }
+  function showHelp(t: any) {
+    const targets = t.target ? [t.target, 'tab-' + t.target.replace(/^nav-/, ''), 'tab-more'] : [];
+    hide(); go(t.route);
+    setTimeout(() => pointAt(targets, t.title[app.lang], (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? [])[0] ?? '', t.group), 450);
+  }
   async function ask() {
     const text = q.trim();
     if (text.length < 3 || asking) return;
     asking = true; ans = null;
-    try { ans = await api.post('/api/search/ask', { query: text }); }
+    try {
+      // сначала «как это сделать в портале»: подсказка со шагами и подсветкой кнопки; если такой темы нет — ответ по базе знаний
+      const h = await api.post('/api/help/ask', { query: text });
+      if (h.topic) { ans = { help: h }; return; }
+      ans = await api.post('/api/search/ask', { query: text });
+    }
     catch (e) { ans = { found: false, error: e instanceof ApiError ? e.code : 'error' }; }
     finally { asking = false; }
   }
@@ -68,12 +85,24 @@
     else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(sel - 1, 0); }
     else if (e.key === 'Enter') { e.preventDefault(); if (rows[sel]) pick(rows[sel]); else if (!busy) ask(); }
   }
+  const qhash = (s: string) => { try { return btoa(unescape(encodeURIComponent(s.trim().toLowerCase()))).replace(/[^A-Za-z0-9]/g, '').slice(0, 24); } catch { return 'q'; } };
   const empty = $derived(q.trim().length >= 2 && !busy && res && rows.length === 0);
 </script>
 
 <svelte:window onkeydown={key} />
 
 <button class="srch-btn" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i></button>
+
+{#snippet helpCard(h: any)}
+  {@const t = h.topic}
+  {#if h.answer}<p class="small">{h.ai ? '✨ ' : ''}{h.answer}</p>{/if}
+  <b>{t.title[app.lang]}</b>
+  <ol style="margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px">{#each (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? []) as step}<li>{step}</li>{/each}</ol>
+  <div class="row wrap" style="gap:8px;margin-top:10px">
+    <button class="btn grad sm" onclick={() => showHelp(t)}>{wt('hp_show')}</button>
+    <a class="btn sm" href={'#' + t.route} onclick={hide}>{wt('hp_where')}</a>
+  </div>
+{/snippet}
 
 {#if open}
   <div use:portal class="sr-layer">
@@ -86,6 +115,7 @@
         <button class="sr-x" aria-label={st('c_cancel')} onclick={hide}><Icon name="close" /></button>
       </div>
       <div class="sr-list">
+        {#if helpHit}<div class="sr-ans" style="margin-top:0">{@render helpCard(helpHit.help)}</div>{/if}
         {#each rows as r, i (r.key)}
           {#if i === 0 || rows[i - 1].group !== r.group}<div class="sr-group">{r.group}</div>{/if}
           <button class="sr-row" class:on={i === sel} onmouseenter={() => (sel = i)} onclick={() => pick(r)}>
@@ -106,11 +136,14 @@
         {#if asking}<div class="sr-empty"><span class="spin"></span> <span class="muted small">{wt('sr_asking')}</span></div>{/if}
         {#if ans}
           <div class="sr-ans">
-            {#if ans.found}
+            {#if ans.help}
+              {@render helpCard(ans.help)}
+            {:else if ans.found}
               <div class="muted xs">{wt('sr_answer')}</div>
               <p style="white-space:pre-line">{ans.answer}</p>
               <div class="muted xs" style="margin-top:6px">{wt('sr_sources')}</div>
               <div class="row wrap" style="gap:6px;margin-top:4px">{#each ans.sources as s}<a class="chip" href="#/kb/{s.id}" onclick={hide}>{s.title}</a>{/each}</div>
+              <div style="margin-top:10px"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
             {:else}
               <p class="small">{ans.queued ? (ans.dup ? wt('sr_queued_dup') : wt('sr_queued')) : wt('sr_none')}</p>
               {#if ans.ai === false && !ans.error}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}

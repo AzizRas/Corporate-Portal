@@ -5,6 +5,9 @@
   import { fmtSum, monthLong } from '../lib/format';
   import { st } from '../lib/s18n';
   import Ring from '../components/Ring.svelte';
+  import MoodCard from '../components/MoodCard.svelte';
+  import Checklist from '../components/Checklist.svelte';
+  import PageHelp from '../components/PageHelp.svelte';
 
   let pay: any = $state(null), path: any = $state(null), sched: any = $state(null), q = $state('');
   api.get('/api/payroll/me').then((r) => (pay = r)).catch(() => {});
@@ -17,6 +20,9 @@
 <header class="page-head">
   <div><h1>{t('hello')}, <span class="grad-text">{app.user?.name.split(' ')[0]}</span></h1><p class="sub">{t('home_sub')}</p></div>
 </header>
+
+<Checklist />
+<MoodCard />
 
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
   <a class="card hl" href="#/schedule" style="text-decoration:none;color:inherit">

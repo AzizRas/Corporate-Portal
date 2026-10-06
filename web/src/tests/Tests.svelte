@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   // Страница #/tests: каталог, прохождение (#/tests/take/slug), результат (#/tests/result/id), история, команда.
   import { api } from '../lib/api';
   import { app } from '../lib/state.svelte';
@@ -35,7 +36,7 @@
   <TestResult id={Number(parts[1])} />
 {:else}
   <header class="page-head">
-    <div><h1>{tt('title')}</h1><p class="sub">{tt('sub')}</p></div>
+    <div><h1>{tt('title')}<PageHelp topic="tests" /></h1><p class="sub">{tt('sub')}</p></div>
   </header>
   <nav class="tabs">{#each tabs as tb}<a href={tb.id === 'catalog' ? '#/tests' : `#/tests/${tb.id}`} class:on={view === tb.id}>{tb.l}</a>{/each}</nav>
 

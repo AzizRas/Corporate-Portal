@@ -150,7 +150,7 @@
 
 <div class="ch">
   <nav class="card ch-side">
-    <div class="row" style="justify-content:space-between;margin:0 4px 6px"><h4 style="margin:0">{st('c_channels')}</h4><button class="ch-plus" onclick={() => (showNew = true)} title={wt('ch_new')} aria-label={wt('ch_new')}>＋</button></div>
+    <div class="row" style="justify-content:space-between;margin:0 4px 6px"><h4 style="margin:0">{st('c_channels')}</h4><button class="ch-plus" data-tour="chat-new" onclick={() => (showNew = true)} title={wt('ch_new')} aria-label={wt('ch_new')}>＋</button></div>
     {#snippet item(c: any)}
       <a class="ch-ch" class:on={c.id === channel} href="#/chat/{encodeURIComponent(c.id)}">
         {#if c.kind === 'dm'}<Avatar u={{ id: c.peer?.id ?? 0, name: c.peer?.name ?? '?', avatar_v: c.peer?.avatar_v, bday: false }} size={26} />{:else}<span class="ch-h">{c.kind === 'group' ? '👥' : '#'}</span>{/if}

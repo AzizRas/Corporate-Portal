@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { has } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
   import { st } from '../lib/s18n';
@@ -13,7 +14,7 @@
     ...(has('admin') ? [{ h: '#/admin/audit', l: 'Журнал', d: 'Журнал действий' }] : []),
   ]);
 </script>
-<header class="page-head"><div><h1>{wt('rp_title')}</h1><p class="sub">{wt('rp_sub')}</p></div></header>
+<header class="page-head"><div><h1>{wt('rp_title')}<PageHelp topic="reports" /></h1><p class="sub">{wt('rp_sub')}</p></div></header>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
   {#each cards as c}<a class="card" href={c.h} style="text-decoration:none;color:inherit"><h3 class="card-title">{c.l}</h3><p class="muted small">{c.d}</p></a>{/each}
 </div>

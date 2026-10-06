@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   // Страница #/library: поиск и фильтры, «Рекомендовано мне» по зонам роста, статусы «хочу / читаю / изучено».
   import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
@@ -55,7 +56,7 @@
 </script>
 
 <header class="page-head">
-  <div><h1>{lt('title')}</h1><p class="sub">{lt('sub')}</p></div>
+  <div><h1>{lt('title')}<PageHelp topic="library" /></h1><p class="sub">{lt('sub')}</p></div>
   <div class="head-actions">
     {#if data}<span class="chip grad">✓ {lt('done_cnt')}: {data.done}</span>{/if}
     {#if data?.can_edit}<button class="btn grad" onclick={() => (form = {})}>＋ {lt('add')}</button>{/if}

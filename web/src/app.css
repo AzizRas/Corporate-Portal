@@ -275,3 +275,5 @@ label.chk input { width: 18px; height: 18px; accent-color: var(--accent); }
   .modal-back { align-items: end; padding: 0; }
   .modal { border-radius: 24px 24px 0 0; width: 100%; }
 }
+
+.tr-wrap { display: inline-flex; }

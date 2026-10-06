@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
@@ -37,7 +38,7 @@
 {:else}
   <header class="page-head">
     <div>
-      <h1>{t('path_title')} <span class="grad-text">{app.lang === 'uz' ? d.target.dat_uz : d.target.dat_ru}</span></h1>
+      <h1>{t('path_title')} <span class="grad-text">{app.lang === 'uz' ? d.target.dat_uz : d.target.dat_ru}</span><PageHelp topic="path" /></h1>
       <p class="sub">{app.user?.position ? '' : ''}{pick({ name_ru: 'Колл-центр', name_uz: 'Call-markaz' }, 'name')} · {t('path_sub')}</p>
     </div>
     <div class="head-actions">

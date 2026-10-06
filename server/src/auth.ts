@@ -75,7 +75,7 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
 }
 
 // Внешнее подразделение видит только разрешённые разделы: остальное закрыто на сервере.
-const ALWAYS = ['/api/me', '/api/login', '/api/logout', '/api/notify', '/api/avatar', '/api/wellness', '/api/health-user'];
+const ALWAYS = ['/api/me', '/api/login', '/api/logout', '/api/notify', '/api/avatar', '/api/wellness', '/api/health-user', '/api/tour', '/api/visit', '/api/checklist', '/api/help'];
 const SECTION_API: Record<string, string[]> = {
   chat: ['/api/chat', '/api/people'], training: ['/api/training'], tests: ['/api/tests'], library: ['/api/library'], kb: ['/api/kb'],
   schedule: ['/api/schedule', '/api/checkin', '/api/attendance'], news: ['/api/feed', '/api/birthdays'],
