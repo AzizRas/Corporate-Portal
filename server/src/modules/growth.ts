@@ -6,7 +6,8 @@ import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth
 import { getSetting, setSetting, tzDate, tzMonth } from '../settings.js';
 import { POSITIONS, type Comp } from '../model.js';
 import { pathFor } from './path.js';
-import { aiEnabled, claude } from '../ai.js';
+import { AiUnavailable, aiCall, aiEnabled, aiStatus } from '../ai.js';
+import { workStats } from '../ai-context.js';
 
 /* ---------- беседы 1:1: вопросы шаблонов ---------- */
 export const TALK: Record<'month' | 'stay', { ru: string; uz: string }[]> = {
@@ -76,7 +77,10 @@ async function aiContext(t: Row) {
   if (!p) return '';
   const recs = (await q('SELECT text FROM recs WHERE target_id=$1 ORDER BY id DESC LIMIT 5', [t.id])).rows.map((r) => `- ${r.text}`);
   const goals = (await q(`SELECT title,progress FROM goals WHERE user_id=$1 AND status='active'`, [t.id])).rows.map((g) => `- ${g.title} (${g.progress}%)`);
-  return `Сотрудник: ${t.name}. Должность: ${p.current.ru}. Цель: ${p.target.ru}.\n` +
+  const w = (await workStats([t.id])).get(t.id);
+  const work = w ? `Обучение: уроков ${w.training.lessons_done} из ${w.training.lessons_total}${w.training.day ? `, день ${w.training.day}` : ''}. Тестов пройдено: ${w.tests.taken}${w.tests.last ? `, последний «${w.tests.last.title}»${w.tests.last.pct != null ? ` — ${w.tests.last.pct}%` : ''}` : ''}. ` +
+    `Назначенных тестов ждут: ${w.tests.pending}. Тренажёр: средняя оценка ${w.trainer.avg_now ?? '—'}. Открытых задач: ${w.tasks.open}.\n` : '';
+  return `Сотрудник: ${t.name}. Должность: ${p.current.ru}. Цель: ${p.target.ru}.\n${work}` +
     `Готовность к цели: ${p.readiness}%. Зоны роста: ${p.gaps.map((g: any) => `${p.competencies.find((c: any) => c.id === g.comp)?.name_ru} ${g.cur.toFixed(1)}→${g.req}`).join('; ') || 'нет'}.\n` +
     `Рекомендации руководителя:\n${recs.join('\n') || '- нет'}\nЦели ИПР:\n${goals.join('\n') || '- нет'}`;
 }
@@ -389,12 +393,13 @@ export async function growthRoutes(app: FastifyInstance) {
   /* ----- ИИ-наставник ----- */
   app.get('/api/growth/mentor', auth, async (req) => {
     const r = await q('SELECT id,role,body,created_at FROM mentor_messages WHERE user_id=$1 ORDER BY id DESC LIMIT 60', [req.user!.id]);
-    return { messages: r.rows.reverse(), configured: aiEnabled() };
+    const ai = await aiStatus('mentor');
+    return { messages: r.rows.reverse(), configured: ai.available, reason: ai.reason };
   });
   app.post('/api/growth/mentor', auth, async (req, reply) => {
     const body = String((req.body as any)?.message ?? '').trim().slice(0, 1500);
     if (!body) return reply.code(400).send({ error: 'empty' });
-    if (!aiEnabled()) return reply.code(503).send({ error: 'ai_off' });
+    if (!(await aiStatus('mentor')).available) return reply.code(503).send({ error: 'ai_off' });
     const today = (await q(`SELECT count(*)::int AS n FROM mentor_messages WHERE user_id=$1 AND role='user' AND created_at > now() - interval '24 hours'`, [req.user!.id])).rows[0].n;
     if (today >= 40) return reply.code(429).send({ error: 'ai_limit' });
     await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'user',$2)`, [req.user!.id, body]);
@@ -405,24 +410,27 @@ export async function growthRoutes(app: FastifyInstance) {
     const system = 'Ты — ИИ-наставник корпоративного портала Qadam в компании Darian (колл-центр, сервис-центр, склад). Помогаешь сотруднику расти до целевой должности: коротко, тепло, по делу, с конкретным следующим шагом. ' +
       `Отвечай на ${req.user!.lang === 'uz' ? 'узбекском (латиница)' : 'русском'}. Не обсуждай зарплаты других людей и не давай оценок коллегам. Если вопрос не про работу и развитие — вежливо верни к теме. Ты не заменяешь руководителя: важные решения — на беседе 1:1.\n` +
       (style ? `Стиль общения руководителя (подстройся под него):\n${style}\n` : '') + `\nДанные сотрудника:\n${await aiContext(me)}`;
-    let text: string | null;
-    try { text = await claude(process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, hist); }
-    catch (e: any) { req.log.error(e); return reply.code(502).send({ error: 'ai_error', detail: hasRole(req.user!, 'admin') ? String(e?.message ?? e).slice(0, 300) : undefined }); }
-    await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'ai',$2)`, [req.user!.id, text ?? '']);
-    return { reply: text };
+    let text: string;
+    try { text = await aiCall({ role: 'mentor', user: req.user, model: process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, messages: hist, ref: 'mentor' }); }
+    catch (e: any) {
+      if (e instanceof AiUnavailable) return reply.code(503).send({ error: 'ai_off' });
+      req.log.error(e); return reply.code(502).send({ error: 'ai_error', detail: hasRole(req.user!, 'admin') ? String(e?.message ?? e).slice(0, 300) : undefined });
+    }
+    const mid = (await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'ai',$2) RETURNING id`, [req.user!.id, text])).rows[0].id;
+    return { reply: text, ref: `mentor:${mid}` };
   });
   // черновики рекомендаций руководителю — всегда с пометкой «ИИ», пока их не отредактирует человек
   app.post('/api/growth/analysis/:id', auth, async (req, reply) => {
     const t = await getUser(Number((req.params as any).id));
     if (!t) return reply.code(404).send({ error: 'not_found' });
     if (!canManage(req.user!, t)) return reply.code(403).send({ error: 'forbidden' });
-    if (!aiEnabled()) return reply.code(503).send({ error: 'ai_off' });
+    if (!(await aiStatus('analyst')).available) return reply.code(503).send({ error: 'ai_off' });
     const ids = (await compsActive()).map((c) => c.id).join(', ');
     const style = await getSetting('growth_style', '');
     const system = `Ты помогаешь руководителю в компании Darian составить рекомендации по развитию сотрудника. Верни ТОЛЬКО JSON-массив из 2–3 объектов {"comp":"<id компетенции из списка: ${ids}>","text":"<конкретный шаг на ближайшие 2 недели, до 300 знаков, по-русски>"}. Без пояснений.` + (style ? `\nСтиль руководителя:\n${style}` : '');
-    let out: string | null;
-    try { out = await claude(process.env.ANALYSIS_MODEL || 'claude-opus-5-5', system, [{ role: 'user', content: await aiContext(t) }], 900); }
-    catch (e: any) { req.log.error(e); return reply.code(502).send({ error: 'ai_error' }); }
+    let out: string;
+    try { out = await aiCall({ role: 'analyst', user: req.user, model: process.env.ANALYSIS_MODEL || 'claude-opus-5-5', system, messages: [{ role: 'user', content: await aiContext(t) }], maxTokens: 900, ref: `recs:${t.id}` }); }
+    catch (e: any) { if (e instanceof AiUnavailable) return reply.code(503).send({ error: 'ai_off' }); req.log.error(e); return reply.code(502).send({ error: 'ai_error' }); }
     let items: any[] = [];
     try { items = JSON.parse((out ?? '').slice((out ?? '').indexOf('['), (out ?? '').lastIndexOf(']') + 1)); } catch { /* нет разбора — ничего не добавляем */ }
     let n = 0;

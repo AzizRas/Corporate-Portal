@@ -20,7 +20,8 @@ let index: { stamp: string; items: Idx[] } | null = null;
 const words = (s: string) => new Set(tokens(s).flatMap((w) => [w, toLatin(w)]));
 
 async function loadIndex(): Promise<Idx[]> {
-  const st = (await q(`SELECT count(*)::text||'/'||COALESCE(max(updated_at)::text,'') AS s FROM kb_articles`)).rows[0].s;
+  // в отпечаток входит и число опубликованных: снятие с публикации не меняет updated_at, но поиск должен это увидеть
+  const st = (await q(`SELECT count(*)::text||'/'||count(*) FILTER (WHERE status='published')::text||'/'||COALESCE(max(updated_at)::text,'') AS s FROM kb_articles`)).rows[0].s;
   if (index && index.stamp === st) return index.items;
   const rows = (await q('SELECT id,section_id,title_ru,title_uz,tags,body_ru,body_uz,updated_at,status,dept_ids FROM kb_articles')).rows;
   const built = { stamp: st, items: rows.map((r) => ({ ...r, words: words(`${r.title_ru} ${r.title_uz} ${r.tags} ${r.body_ru} ${r.body_uz}`), title: words(`${r.title_ru} ${r.title_uz}`) })) };
@@ -74,6 +75,25 @@ export async function searchArticles(query: string, deptId: number | null, inclu
     snippet_ru: snip(a.body_ru), snippet_uz: snip(a.body_uz), score: a.score,
   }));
 }
+
+export const writeArticle = async (id: number | null, b: any, userId: number) => tx(async (c) => {
+  const vals = [b.section_id, b.title_ru ?? '', b.title_uz ?? '', b.body_ru ?? '', b.body_uz ?? '', b.tags ?? '',
+    Array.isArray(b.dept_ids) ? b.dept_ids.map(Number) : [], b.owner_id || userId, b.review_months || 6];
+  let row;
+  if (id === null) {
+    row = (await c.query(
+      `INSERT INTO kb_articles(section_id,title_ru,title_uz,body_ru,body_uz,tags,dept_ids,owner_id,review_months)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, vals)).rows[0];
+  } else {
+    row = (await c.query(
+      `UPDATE kb_articles SET section_id=$2,title_ru=$3,title_uz=$4,body_ru=$5,body_uz=$6,tags=$7,dept_ids=$8,owner_id=$9,
+              review_months=$10,version=version+1,updated_at=now() WHERE id=$1 RETURNING *`, [id, ...vals])).rows[0];
+  }
+  if (!row) return null;
+  await c.query('INSERT INTO kb_versions(article_id,version,snapshot,by_user) VALUES($1,$2,$3,$4)',
+    [row.id, row.version, JSON.stringify({ ...row, search_text: undefined }), userId]);
+  return row;
+});
 
 export async function kbRoutes(app: FastifyInstance) {
   const edit = { preHandler: requireRole('editor', 'hr') };
@@ -142,25 +162,6 @@ export async function kbRoutes(app: FastifyInstance) {
   app.post('/api/kb/unanswered/resolve', edit, async (req) => {
     await q('UPDATE kb_unanswered SET resolved=true WHERE id = ANY($1::int[])', [(req.body as any).ids ?? []]);
     return { ok: true };
-  });
-
-  const writeArticle = async (id: number | null, b: any, userId: number) => tx(async (c) => {
-    const vals = [b.section_id, b.title_ru ?? '', b.title_uz ?? '', b.body_ru ?? '', b.body_uz ?? '', b.tags ?? '',
-      Array.isArray(b.dept_ids) ? b.dept_ids.map(Number) : [], b.owner_id || userId, b.review_months || 6];
-    let row;
-    if (id === null) {
-      row = (await c.query(
-        `INSERT INTO kb_articles(section_id,title_ru,title_uz,body_ru,body_uz,tags,dept_ids,owner_id,review_months)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, vals)).rows[0];
-    } else {
-      row = (await c.query(
-        `UPDATE kb_articles SET section_id=$2,title_ru=$3,title_uz=$4,body_ru=$5,body_uz=$6,tags=$7,dept_ids=$8,owner_id=$9,
-                review_months=$10,version=version+1,updated_at=now() WHERE id=$1 RETURNING *`, [id, ...vals])).rows[0];
-    }
-    if (!row) return null;
-    await c.query('INSERT INTO kb_versions(article_id,version,snapshot,by_user) VALUES($1,$2,$3,$4)',
-      [row.id, row.version, JSON.stringify({ ...row, search_text: undefined }), userId]);
-    return row;
   });
 
   app.post('/api/kb/articles', edit, async (req, reply) => {

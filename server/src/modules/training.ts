@@ -3,7 +3,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { q, tx } from '../db.js';
 import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
-import { aiEnabled, claude, parseJson } from '../ai.js';
+import { AiUnavailable, aiCall, aiEnabled, aiStatus, parseJson } from '../ai.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
 import { AREAS, BANK, COURSE, LESSONS, SCENARIOS, type Area, type Crit } from '../training-seed.js';
@@ -85,7 +85,7 @@ const loc = (o: { ru: string; uz: string }, l: 'ru' | 'uz') => (l === 'uz' && o.
 /* ============================== ИИ с лимитом ============================== */
 /** Один ИИ-запрос на пользователя: false — ключа нет или суточный лимит исчерпан. */
 export async function takeAi(userId: number): Promise<'ok' | 'off' | 'limit'> {
-  if (!aiEnabled()) return 'off';
+  if (!(await aiStatus('trainer')).available) return 'off';
   const r = await q(
     `INSERT INTO training_ai_usage(user_id,day,n) VALUES($1,$2,1)
      ON CONFLICT (user_id,day) DO UPDATE SET n=training_ai_usage.n+1 WHERE training_ai_usage.n < $3 RETURNING n`,
@@ -97,7 +97,7 @@ async function askJson<T>(userId: number, system: string, user: string, maxToken
   const g = await takeAi(userId);
   if (g !== 'ok') return { ai: false, limit: g === 'limit', data: null };
   try {
-    const text = await claude(trainModel(), system, [{ role: 'user', content: user }], maxTokens);
+    const text = await aiCall({ role: 'trainer', user: { id: userId }, model: trainModel(), system, messages: [{ role: 'user', content: user }], maxTokens, cache: true, ref: 'training' });
     const data = parseJson<T>(text);
     return { ai: !!data, limit: false, data };
   } catch { return { ai: false, limit: false, data: null }; }

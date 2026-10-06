@@ -52,7 +52,7 @@ const shape = (r: any) => ({
 });
 
 /** Проверка и нормализация полей материала; строка — текст ошибки. */
-async function parseItem(b: any): Promise<{ ok: any } | { err: string }> {
+export async function parseItem(b: any): Promise<{ ok: any } | { err: string }> {
   const title = String(b.title ?? '').trim().slice(0, 200);
   if (!title) return { err: 'title' };
   if (!KINDS.includes(b.kind)) return { err: 'kind' };

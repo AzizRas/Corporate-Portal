@@ -3,7 +3,7 @@
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
-import { aiEnabled, claude, parseJson } from '../ai.js';
+import { AiUnavailable, aiCall, aiEnabled, aiStatus, parseJson } from '../ai.js';
 import { searchArticles } from './kb.js';
 import { channelsFor } from './social.js';
 import { takeAi } from './training.js';
@@ -15,14 +15,14 @@ const normText = (s: string) => [...new Set(s.toLowerCase().replace(/[^\p{L}\p{N
 export async function queueQuestion(u: AuthUser, body: string, o: { anonymous?: boolean; kind?: 'question' | 'suggestion'; source?: 'search' | 'manual' } = {}) {
   const text = body.trim().slice(0, 1000);
   const norm = normText(text) || text.toLowerCase();
-  const dup = (await q(`SELECT id FROM open_questions WHERE norm=$1 AND status IN ('new','in_progress') ORDER BY id LIMIT 1`, [norm])).rows[0];
+  const dup = (await q(`SELECT id FROM open_questions WHERE norm=$1 AND node_id IS NOT DISTINCT FROM $2 AND status IN ('new','in_progress') ORDER BY id LIMIT 1`, [norm, u.node_id])).rows[0];
   if (dup) {
     await q('UPDATE open_questions SET dup_count=dup_count+1, updated_at=now() WHERE id=$1', [dup.id]);
     return { id: Number(dup.id), dup: true };
   }
   const r = await q(
-    `INSERT INTO open_questions(user_id,anonymous,dept_id,kind,source,body,norm) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-    [u.id, !!o.anonymous, u.dept_id, o.kind ?? 'question', o.source ?? 'manual', text, norm]);
+    `INSERT INTO open_questions(user_id,anonymous,dept_id,node_id,kind,source,body,norm) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+    [u.id, !!o.anonymous, u.dept_id, u.node_id, o.kind ?? 'question', o.source ?? 'manual', text, norm]);
   return { id: Number(r.rows[0].id), dup: false };
 }
 
@@ -59,7 +59,7 @@ export async function searchRoutes(app: FastifyInstance) {
     if (query.length < 3) return { found: false, ai: aiEnabled(), queued: false };
     const lang = u.lang === 'uz' ? 'uz' : 'ru';
     const queue = async (extra: Record<string, unknown> = {}) => ({ found: false, ai: aiEnabled(), queued: true, ...(await queueQuestion(u, query, { source: 'search' })), ...extra });
-    if (!aiEnabled()) return queue();
+    if (!(await aiStatus('search')).available) return queue();
     const key = `${lang}:${normText(query)}`;
     const hit = cache.get(key);
     if (hit && Date.now() - hit.at < 3_600_000) return hit.v;
@@ -72,7 +72,7 @@ export async function searchRoutes(app: FastifyInstance) {
     const system = `Ты помощник по базе знаний компании Darian. Отвечай ТОЛЬКО на основе приведённых статей, ничего не выдумывай. Если ответа в статьях нет — верни {"found":false}. ` +
       `Иначе верни ТОЛЬКО JSON {"found":true,"answer":"<ответ до 600 знаков на ${lang === 'uz' ? 'узбекском (латиница)' : 'русском'}>","sources":[<id использованных статей>]}.\n\nСтатьи:\n${ctx}`;
     try {
-      const out = parseJson<{ found?: boolean; answer?: string; sources?: number[] }>(await claude(process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, [{ role: 'user', content: query }], 500));
+      const out = parseJson<{ found?: boolean; answer?: string; sources?: number[] }>(await aiCall({ role: 'search', user: u, model: process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, messages: [{ role: 'user', content: query }], maxTokens: 500, cache: true, ref: 'kb' }));
       const valid = new Set(rows.map((r) => Number(r.id)));
       const sources = (out?.sources ?? []).map(Number).filter((i) => valid.has(i));
       await audit(req, 'ai_search', out?.found ? 'answered' : 'not_found', { sources });
@@ -81,6 +81,7 @@ export async function searchRoutes(app: FastifyInstance) {
       cache.set(key, { at: Date.now(), v });
       return v;
     } catch (e: any) {
+      if (e instanceof AiUnavailable) return queue();
       req.log.error(e);
       await audit(req, 'ai_search', 'error', { error: String(e?.message ?? e).slice(0, 200) });
       return queue({ error: hasRole(u, 'admin') ? String(e?.message ?? e).slice(0, 300) : undefined });
