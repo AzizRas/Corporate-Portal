@@ -13,19 +13,19 @@ import { queueScopeSql } from './questions.js';
 const REASON_RU: Record<SignalReason, string> = { activity_drop: 'активность в портале заметно упала', late: 'частые опоздания', quality_drop: 'результаты в обучении снизились', tasks_overdue: 'просрочены задачи', mood_low: 'настроение ниже обычного' };
 
 /** Кого видит панель: админ и HR — всех, супервайзер и руководитель отдела — свою ветку, старший оператор — свою группу. */
-async function panelScope(u: AuthUser): Promise<number[] | null> {
+export async function panelScope(u: AuthUser): Promise<number[] | null> {
   if (hasRole(u, 'admin') || u.roles.includes('hr')) return (await q('SELECT id FROM users WHERE active AND id<>$1 ORDER BY name LIMIT 300', [u.id])).rows.map((r) => r.id);
   if (u.roles.includes('manager') || u.roles.includes('head')) return teamIds(u);
   if (u.roles.includes('senior') && u.node_id != null) return (await q('SELECT id FROM users WHERE active AND id<>$1 AND node_id=$2', [u.id, u.node_id])).rows.map((r) => r.id);
   return null;
 }
 /** Сигнал видит только прямой руководитель (и замещающий по делегированию) и HR — не админ и не вышестоящие. */
-const mayHearSignal = (u: AuthUser, t: { manager_id: number | null }) => u.roles.includes('hr') || (t.manager_id != null && (t.manager_id === u.id || u.acting_for.includes(t.manager_id)));
+export const mayHearSignal = (u: AuthUser, t: { manager_id: number | null }) => u.roles.includes('hr') || (t.manager_id != null && (t.manager_id === u.id || u.acting_for.includes(t.manager_id)));
 
 const monday = () => { const d = new Date(`${tzDate()}T00:00:00Z`); const dow = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() - (dow - 1)); return d.toISOString().slice(0, 10); };
 const trend = (a: number | null, b: number | null) => (a == null || b == null ? null : a - b >= 0.7 ? 'up' : b - a >= 0.7 ? 'down' : 'flat');
 
-function flagsOf(s: WorkStats): string[] {
+export function flagsOf(s: WorkStats): string[] {
   const f: string[] = [];
   const idleDays = s.activity.last_at ? (Date.now() - new Date(s.activity.last_at).getTime()) / 864e5 : 999;
   if (!s.leave.now && s.employment !== 'dismissed' && idleDays >= 7) f.push('inactive');

@@ -17,6 +17,9 @@ export interface WorkStats {
   tasks: { open: number; overdue: number };
   mood: { now: number | null; prev: number | null; n: number };
   leave: { now: boolean; days28: number };
+  /** чтение: книги и другие материалы библиотеки за 90 дней, перерывы (разминка, вода) за 14 дней */
+  reading: { books90: number; other90: number; in_progress: number; last_at: string | null };
+  breaks: { done14: number; skipped14: number };
 }
 
 const one = <T>(m: Map<number, T>, id: number, def: T) => m.get(id) ?? def;
@@ -89,6 +92,16 @@ export async function workStats(ids: number[]): Promise<Map<number, WorkStats>> 
             COALESCE(sum(GREATEST(0, LEAST(to_date, $2::date) - GREATEST(from_date, $2::date - 28) + 1)),0)::int AS days28
        FROM user_leaves WHERE user_id = ANY($1::int[]) AND to_date >= $2::date - 28 AND from_date <= $2::date GROUP BY user_id`, [ids, today])).rows.map((r) => [r.user_id, r]));
 
+  const reading = new Map<number, any>((await q(
+    `SELECT p.user_id,
+            count(*) FILTER (WHERE p.status='done' AND p.updated_at > now() - interval '90 days' AND i.kind='book')::int AS books90,
+            count(*) FILTER (WHERE p.status='done' AND p.updated_at > now() - interval '90 days' AND i.kind<>'book')::int AS other90,
+            count(*) FILTER (WHERE p.status='reading')::int AS in_progress, max(p.updated_at) AS last_at
+       FROM library_progress p JOIN library_items i ON i.id=p.item_id WHERE p.user_id = ANY($1::int[]) GROUP BY p.user_id`, [ids])).rows.map((r) => [r.user_id, r]));
+  const brk = new Map<number, any>((await q(
+    `SELECT user_id, count(*) FILTER (WHERE action='done')::int AS done, count(*) FILTER (WHERE action<>'done')::int AS skipped
+       FROM wellness_log WHERE user_id = ANY($1::int[]) AND created_at > now() - interval '14 days' GROUP BY user_id`, [ids])).rows.map((r) => [r.user_id, r]));
+
   const num = (v: unknown) => (v == null ? null : Math.round(Number(v) * 10) / 10);
   for (const u of users) {
     const e = enr.get(u.id), t = tests.get(u.id), lt = lastTest.get(u.id), tr = trainer.get(u.id), a = act.get(u.id), tk = one(tasks, u.id, { open: 0, overdue: 0 }), md = mood.get(u.id), lv = leave.get(u.id), pd = pend.get(u.id);
@@ -104,6 +117,8 @@ export async function workStats(ids: number[]): Promise<Map<number, WorkStats>> 
       tasks: { open: tk.open, overdue: tk.overdue },
       mood: { now: num(md?.now), prev: num(md?.prev), n: md?.n ?? 0 },
       leave: { now: !!lv?.now, days28: lv?.days28 ?? 0 },
+      reading: { books90: reading.get(u.id)?.books90 ?? 0, other90: reading.get(u.id)?.other90 ?? 0, in_progress: reading.get(u.id)?.in_progress ?? 0, last_at: reading.get(u.id)?.last_at ?? null },
+      breaks: { done14: brk.get(u.id)?.done ?? 0, skipped14: brk.get(u.id)?.skipped ?? 0 },
     });
   }
   return out;

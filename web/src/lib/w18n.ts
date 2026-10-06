@@ -62,6 +62,9 @@ const ru: Record<string, string> = {
   ac_from_kb: 'Из базы знаний', ac_general: 'Не из базы компании — проверьте', ac_reply: 'Готовый ответ клиенту', ac_copy: 'Скопировать', ac_copied: 'Скопировано', ac_busy: 'Ищу ответ…',
   ac_none: 'Точного ответа не нашлось.', ac_queued: 'Вопрос сохранён и передан руководителю — он ответит и дополнит базу.', ac_queued_dup: 'Такой вопрос уже ждёт ответа руководителя — мы учли ещё один голос.',
   ac_limit: 'Дневной лимит вопросов к ИИ исчерпан.', ac_err: 'Не получилось. Попробуйте ещё раз.', ac_priv: 'Телефоны и номера клиентов в ИИ не передаются.',
+  ac_ai_wait: 'ИИ готовит ответ', ac_from_data: 'По данным портала', ac_data: 'Данные портала', ac_you: 'Вы', ac_head: 'руководитель', ac_books: 'книг за 90 дн.:', ac_other: 'материалов:', ac_now: 'читает сейчас:', ac_act: 'активность 14 дн.:', ac_breaks: 'перерывы (сделано/пропущено):', ac_lib: 'Можно почитать',
+  ac_summary: 'В зоне {n} чел.; читали за 90 дней: {r}; не читали: {z}; в среднем {a} на человека.', ac_denied: 'Показатели сотрудников видят только они сами, их прямой руководитель и HR. Спросите у своего руководителя.',
+  tg_reads_a_lot: 'читает много', tg_reads_little: 'не читает', tg_overload: 'признаки перегрузки', tg_mood_down: 'настроение снижается', tg_talk: 'стоит поговорить', tg_inactive: 'давно не заходил', tg_overdue: 'просрочены задачи', tg_late: 'опоздания', tg_test_waiting: 'ждёт тест',
 };
 const uz: Record<string, string> = {
   g_main: 'Bosh sahifa', g_learn: 'O‘qitish', g_know: 'Bilimlar', g_people: 'Odamlar', g_profile: 'Profil', g_manage: 'Boshqaruv',
@@ -114,6 +117,9 @@ const uz: Record<string, string> = {
   ac_from_kb: 'Bilimlar bazasidan', ac_general: 'Kompaniya bazasidan emas — tekshiring', ac_reply: 'Mijozga tayyor javob', ac_copy: 'Nusxalash', ac_copied: 'Nusxalandi', ac_busy: 'Javob qidiryapman…',
   ac_none: 'Aniq javob topilmadi.', ac_queued: 'Savol saqlandi va rahbarga yuborildi — u javob berib, bazani to‘ldiradi.', ac_queued_dup: 'Bunday savol rahbar javobini kutyapti — yana bir ovoz hisobga olindi.',
   ac_limit: 'AI’ga kunlik savollar limiti tugadi.', ac_err: 'Bajarib bo‘lmadi. Qayta urinib ko‘ring.', ac_priv: 'Mijozlarning telefon va raqamlari AI’ga yuborilmaydi.',
+  ac_ai_wait: 'AI javob tayyorlayapti', ac_from_data: 'Portal ma’lumotlari bo‘yicha', ac_data: 'Portal ma’lumotlari', ac_you: 'Siz', ac_head: 'rahbar', ac_books: '90 kunda kitob:', ac_other: 'materiallar:', ac_now: 'hozir o‘qiyapti:', ac_act: '14 kunlik faollik:', ac_breaks: 'tanaffuslar (bajarilgan/o‘tkazilgan):', ac_lib: 'O‘qish mumkin',
+  ac_summary: 'Zonada {n} kishi; 90 kunda o‘qiganlar: {r}; o‘qimaganlar: {z}; o‘rtacha {a}.', ac_denied: 'Xodimlar ko‘rsatkichlarini faqat o‘zi, bevosita rahbari va HR ko‘radi. Rahbaringizdan so‘rang.',
+  tg_reads_a_lot: 'ko‘p o‘qiydi', tg_reads_little: 'o‘qimaydi', tg_overload: 'ortiqcha yuklanish belgilari', tg_mood_down: 'kayfiyat pasaymoqda', tg_talk: 'suhbatlashish kerak', tg_inactive: 'uzoq kirmagan', tg_overdue: 'vazifalar muddati o‘tgan', tg_late: 'kechikishlar', tg_test_waiting: 'test kutmoqda',
 };
 export const wt = (k: string, v?: Record<string, string | number>) => {
   let s = (app.lang === 'uz' && uz[k]) || ru[k] || k;

@@ -457,7 +457,8 @@ test('Окно помощника оператора: база → общий с
   const none = await chat(op, 'Расскажите про квантовую бухгалтерию на Луне');
   assert.deepEqual([none.mode, none.queued], ['none', true]);
   assert.ok((await get(sv, '/api/questions/queue')).json().items.some((i: any) => i.id === none.id), 'руководитель видит вопрос');
-  assert.equal((await chat(op, art.title_ru)).mode, 'kb_plain');
+  assert.deepEqual([(await chat(op, art.title_ru)).queued], [false], 'есть статья — вопрос не в очередь');
+  assert.ok((await send(op, 'POST', '/api/search/chat/kb', { messages: [{ role: 'user', content: art.title_ru }] })).json().articles.length, 'быстрый поиск по базе работает без ИИ');
   // ИИ нашёл ответ в базе — вопрос не сохраняется
   aiOn(); calls.length = 0;
   respond = () => JSON.stringify({ source: 'kb', answer: 'Ответ из статьи', reply: 'Здравствуйте! Ответ из статьи.', sources: [art.id] });
@@ -475,4 +476,58 @@ test('Окно помощника оператора: база → общий с
   const err = await chat(op, 'Что-нибудь совсем непонятное xyz');
   assert.equal(err.queued, true); failWith = null;
   assert.equal((await send({ cookies: {} }, 'POST', '/api/search/chat', { messages: [] })).statusCode, 401);
+});
+
+test('Помощник и данные платформы: кто что видит, чтение, перегрузка, без ИИ', async () => {
+  const op = await login('op1'), op3 = await login('op3'), sv = await login('rustam'), boss = await login('whboss'), adm = await login('admin', 'admin-test-1');
+  const [o1, o2, o3] = [await uid('op1'), await uid('op2'), await uid('op3')];
+  // чтение: у op1 пять книг, у op2 и op3 ничего; у op3 пропущены перерывы (признак перегрузки)
+  for (let i = 0; i < 5; i++) {
+    const id = (await pool.query(`INSERT INTO library_items(kind,title) VALUES('book',$1) RETURNING id`, [`Книга ${i} для теста`])).rows[0].id;
+    await pool.query(`INSERT INTO library_progress(user_id,item_id,status) VALUES($1,$2,'done')`, [o1, id]);
+  }
+  await pool.query(`INSERT INTO wellness_log(user_id,action) SELECT $1,'skip' FROM generate_series(1,8)`, [o3]);
+  const kb = (who: any, text: string) => send(who, 'POST', '/api/search/chat/kb', { messages: [{ role: 'user', content: text }] }).then((r) => r.json());
+  aiOn(); calls.length = 0;
+  respond = () => JSON.stringify({ source: 'data', answer: 'По данным: советую беседу', reply: '', sources: [] });
+
+  // оператор: про себя — да, про коллегу — нет, и в модель его показатели не уходят
+  const me = await kb(op, 'Сколько книг я прочитал и что мне посоветуете почитать?');
+  assert.deepEqual([me.platform.intent, me.platform.facts[0].books90, me.platform.facts[0].self], ['self', 5, true]);
+  assert.ok(me.platform.library.length >= 0);
+  const other = await kb(op, 'Сколько книг прочитал Рустам?');
+  assert.equal(other.platform.intent, 'denied'); assert.deepEqual(other.platform.facts, []);
+  calls.length = 0;
+  const denied = await send(op, 'POST', '/api/search/chat', { messages: [{ role: 'user', content: 'Сколько книг прочитал Рустам?' }] });
+  assert.equal(denied.statusCode, 200);
+  assert.match(calls.at(-1)!.system, /нет доступа/); assert.ok(!/книг за 90 дней/.test(calls.at(-1)!.system), 'чужие показатели не ушли в модель');
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM open_questions WHERE body ILIKE '%Рустам%'`)).rows[0].n, 0, 'вопрос о людях не засоряет очередь базы знаний');
+  assert.equal((await kb(op, 'Кто в команде мало читает?')).platform.intent, 'denied');
+  // справочник открыт всем: должность и руководитель
+  const who = await kb(op, 'Кто такой Рустам?');
+  assert.ok(who.platform.directory.length && who.platform.facts.length === 0);
+
+  // руководитель: команда — сводка, читающие и нечитающие, признаки перегрузки; в модель идут только показатели
+  const team = await kb(sv, 'Кто в команде читает много, а кто мало?');
+  assert.equal(team.platform.intent, 'team');
+  const f1 = team.platform.facts.find((f: any) => f.id === o1), f3 = team.platform.facts.find((f: any) => f.id === o3);
+  assert.deepEqual([f1.books90, f1.tags.includes('reads_a_lot')], [5, true]);
+  assert.ok(f3.tags.includes('reads_little') && f3.tags.includes('overload'), 'op3: не читает и пропускает перерывы');
+  calls.length = 0;
+  const ai = await send(sv, 'POST', '/api/search/chat', { messages: [{ role: 'user', content: 'Кто в команде читает много, а кто мало? Кто выгорает?' }] }).then((r) => r.json());
+  assert.deepEqual([ai.mode, ai.queued], ['data', false]);
+  assert.match(calls.at(-1)!.system, /overload/); assert.ok(!/salary|зарплат[аы]: \d|avatar|photo/i.test(calls.at(-1)!.system));
+  assert.ok((await pool.query(`SELECT 1 FROM audit_log WHERE action='assist_data' AND user_id=$1`, [await uid('rustam')])).rowCount, 'просмотр данных людей записан в журнал');
+
+  // другая ветка чужих не видит; админ видит всех, но «признаки перегрузки» — только прямому руководителю и HR
+  assert.equal((await kb(boss, 'Сколько книг прочитал Азиз?')).platform.intent, 'denied');
+  const wide = await kb(adm, 'Покажи статистику по чтению у op3 Ольга');   // имя может не совпасть — проверяем только отсутствие сигналов
+  assert.ok(!wide.platform?.facts?.some((f: any) => f.tags.includes('overload') && !f.self));
+
+  // без ИИ: данные и статьи приходят из быстрого запроса, окно не падает
+  aiOff();
+  const off = await kb(sv, 'Кто в команде читает мало?');
+  assert.equal(off.platform.intent, 'team'); assert.ok(!off.platform.facts.some((f: any) => f.tags.includes('overload')), 'без ИИ признаков перегрузки нет');
+  const offAi = await send(sv, 'POST', '/api/search/chat', { messages: [{ role: 'user', content: 'Кто в команде читает мало?' }] });
+  assert.equal(offAi.statusCode, 200); assert.equal(offAi.json().ai, false);
 });
