@@ -15,7 +15,7 @@
     msgs.push({ id: -1, role: 'user', body: m, created_at: new Date().toISOString() });
     await scroll();
     try { const r = await api.post('/api/growth/mentor', { message: m }); msgs.push({ id: -2, role: 'ai', body: r.reply, created_at: new Date().toISOString() }); }
-    catch (e) { err = gt(e instanceof ApiError && e.code === 'ai_off' ? 'ai_off_msg' : e instanceof ApiError && e.code === 'ai_limit' ? 'ai_limit_msg' : 'ai_error_msg'); }
+    catch (e) { err = gt(e instanceof ApiError && e.code === 'ai_off' ? 'ai_off_msg' : e instanceof ApiError && e.code === 'ai_limit' ? 'ai_limit_msg' : 'ai_error_msg') + (e instanceof ApiError && e.body?.detail ? ` [${e.body.detail}]` : ''); }
     finally { busy = false; await scroll(); }
   }
 </script>

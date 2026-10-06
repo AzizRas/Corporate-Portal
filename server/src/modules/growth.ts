@@ -407,7 +407,7 @@ export async function growthRoutes(app: FastifyInstance) {
       (style ? `Стиль общения руководителя (подстройся под него):\n${style}\n` : '') + `\nДанные сотрудника:\n${await aiContext(me)}`;
     let text: string | null;
     try { text = await claude(process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, hist); }
-    catch (e: any) { req.log.error(e); return reply.code(502).send({ error: 'ai_error' }); }
+    catch (e: any) { req.log.error(e); return reply.code(502).send({ error: 'ai_error', detail: hasRole(req.user!, 'admin') ? String(e?.message ?? e).slice(0, 300) : undefined }); }
     await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'ai',$2)`, [req.user!.id, text ?? '']);
     return { reply: text };
   });
