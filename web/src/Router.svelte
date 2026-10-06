@@ -3,7 +3,6 @@
   import { t } from './lib/i18n';
   import Home from './pages/Home.svelte';
   import Path from './pages/Path.svelte';
-  import Payroll from './pages/Payroll.svelte';
   import Attendance from './pages/Attendance.svelte';
   import Kb from './pages/Kb.svelte';
   import Profile from './pages/Profile.svelte';
@@ -15,6 +14,8 @@
   import Training from './training/Training.svelte';
   import Tests from './tests/Tests.svelte';
   import Library from './library/Library.svelte';
+  import Help from './pages/Help.svelte';
+  import Reports from './pages/Reports.svelte';
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
   const head = $derived(parts[0] ?? '');
@@ -32,7 +33,9 @@
   {:else if head === 'tests'}<Tests />
   {:else if head === 'library'}<Library />
   {:else if head === 'path'}<Path />
-  {:else if head === 'pay'}<Payroll />
+  {:else if head === 'pay'}<Profile tab="pay" />
+  {:else if head === 'help'}<Help />
+  {:else if head === 'reports'}<Reports />
   {:else if head === 'att'}<Attendance />
   {:else if head === 'kb'}<Kb id={parts[1] ? Number(parts[1]) : null} />
   {:else if head === 'growth'}
@@ -47,7 +50,7 @@
     {:then m}
       <m.default />
     {/await}
-  {:else if head === 'profile'}<Profile />
+  {:else if head === 'profile'}<Profile tab={parts[1] ?? 'me'} />
   {:else if head === 'more'}<More />
   {:else if head === 'team'}<Team />
   {:else if head === 'admin'}

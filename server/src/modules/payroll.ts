@@ -216,15 +216,36 @@ export async function payrollRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // --- сотрудник: только свои данные
+  // --- сотрудник: только свои данные. Суммы в этот ответ не попадают: они выдаются только по кнопке «Показать» (каждый показ — в журнал)
+  const MONEY = ['total', 'fixed', 'earned', 'bonus', 'penalty', 'deductions'] as const;
   app.get('/api/payroll/me', { preHandler: requireAuth }, async (req) => {
     const r = await q(
       `SELECT p.month, p.published_at, r.data FROM payroll_rows r JOIN payroll_periods p ON p.id=r.period_id
         WHERE r.user_id=$1 AND p.status='published' ORDER BY p.month DESC LIMIT 12`, [req.user!.id],
     );
-    await audit(req, 'payroll_view', String(req.user!.id));
+    const rows = r.rows.reverse();
+    const max = Math.max(1, ...rows.map((x) => Number(x.data.total) || 0));
     const formula = await getSetting('payroll_formula', { text_ru: '', text_uz: '', calc: { enabled: false } });
-    return { periods: r.rows.reverse(), formula };
+    return {
+      periods: rows.map((x) => ({
+        month: x.month, published_at: x.published_at,
+        ratio: Math.round(((Number(x.data.total) || 0) / max) * 100) / 100,
+        lines: MONEY.filter((k) => x.data[k] != null && (k !== 'penalty' && k !== 'deductions' || x.data[k])),
+        kpi: x.data.kpi ?? [],
+      })),
+      formula,
+    };
+  });
+  app.post('/api/payroll/reveal', { preHandler: requireAuth }, async (req, reply) => {
+    const month = String((req.body as any)?.month ?? '');
+    const row = (await q(
+      `SELECT r.data FROM payroll_rows r JOIN payroll_periods p ON p.id=r.period_id
+        WHERE r.user_id=$1 AND p.month=$2 AND p.status='published'`, [req.user!.id, month])).rows[0];
+    if (!row) return reply.code(404).send({ error: 'not_found' });
+    await audit(req, 'payroll_reveal', month);
+    const data: Record<string, number> = {};
+    for (const k of MONEY) if (row.data[k] != null) data[k] = Number(row.data[k]);
+    return { month, data };
   });
 
   // «что если»: ожидаемый бонус по плановому проценту KPI; только если бухгалтерия задала формулу

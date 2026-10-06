@@ -19,6 +19,7 @@ import { settingsRoutes } from './modules/settings.js';
 import { growthRoutes } from './modules/growth.js';
 import { communityRoutes } from './modules/community.js';
 import { socialRoutes } from './modules/social.js';
+import { searchRoutes } from './modules/search.js';
 import { scheduleRoutes } from './modules/schedule.js';
 import { trainingRoutes } from './modules/training.js';
 import { testsRoutes } from './modules/tests.js';
@@ -56,6 +57,7 @@ export async function buildApp() {
   await app.register(growthRoutes);
   await app.register(communityRoutes);
   await app.register(socialRoutes);
+  await app.register(searchRoutes);
   await app.register(scheduleRoutes);
   await app.register(trainingRoutes);
   await app.register(testsRoutes);

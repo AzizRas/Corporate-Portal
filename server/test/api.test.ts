@@ -59,7 +59,14 @@ test('ЗП: сотрудник видит только свои цифры, чу
   const me = (await pool.query(`SELECT id FROM users WHERE login='dilnoza'`)).rows[0].id;
   const own = (await pool.query(`SELECT data FROM payroll_rows r JOIN payroll_periods p ON p.id=r.period_id WHERE r.user_id=$1 AND p.status='published' ORDER BY p.month DESC LIMIT 1`, [me])).rows[0];
   const last = r.json().periods.at(-1);
-  assert.equal(last.data.total, own.data.total);
+  assert.equal(last.data, undefined, 'суммы не приходят без «Показать»');
+  assert.ok(!JSON.stringify(r.json()).includes(String(own.data.total)) || String(own.data.total).length < 4);
+  const before = (await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='payroll_reveal'`)).rows[0].n;
+  const rv = await send(dil, 'POST', '/api/payroll/reveal', { month: last.month });
+  assert.equal(rv.statusCode, 200);
+  assert.equal(rv.json().data.total, Number(own.data.total));
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='payroll_reveal'`)).rows[0].n, before + 1, 'показ суммы попал в журнал');
+  assert.equal((await send(dil, 'POST', '/api/payroll/reveal', { month: '1999-01' })).statusCode, 404);
   assert.equal((await get(dil, '/api/admin/payroll')).statusCode, 403);
   assert.equal((await get(dil, '/api/payroll/team?month=2026-01')).statusCode, 403);
   const log = (await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='access_denied'`)).rows[0].n;
@@ -94,7 +101,7 @@ test('ЗП: ведомость в формате заказчика (шапка 
   const dil = await login('dilnoza');
   assert.ok(!(await get(dil, '/api/payroll/me')).json().periods.some((p: any) => p.month === '2027-01'));
   assert.equal((await send(buh, 'POST', `/api/admin/payroll/${j.period_id}/publish`, { force: true })).statusCode, 200);
-  const p = (await get(dil, '/api/payroll/me')).json().periods.find((x: any) => x.month === '2027-01');
+  const p = (await send(dil, 'POST', '/api/payroll/reveal', { month: '2027-01' })).json();
   assert.deepEqual([p.data.fixed, p.data.earned, p.data.bonus, p.data.total], [5500000, 4800000, 500000, 5300000]);
   // каждый видит только свою строку; свод по команде руководителю недоступен
   const sv = await login('rustam');
@@ -631,4 +638,66 @@ test('Руководитель отдела: видит зоны роста от
   assert.equal((await get(dil, '/api/path/user/' + me)).statusCode, 403, 'старший оператор чужой путь не открывает');
   const roles = (await get(await login('admin', 'admin-test-1'), '/api/admin/users')).json().users.find((u: any) => u.login === 'head').roles;
   assert.ok(roles.includes('head') && roles.includes('manager'));
+});
+
+/* ======================= Волна A: поиск, ответ ИИ по базе, очередь вопросов ======================= */
+test('Поиск: статьи, люди, тесты; в чатах — только доступные каналы', async () => {
+  const op = await login('op1'), adm = await login('admin', 'admin-test-1');
+  assert.deepEqual((await get(op, '/api/search?q=a')).json().kb, [], 'слишком короткий запрос ничего не ищет');
+  const r = (await get(op, '/api/search?q=' + encodeURIComponent('зарплату'))).json();
+  assert.ok(r.kb.length >= 1, 'статья про выплату найдена');
+  assert.ok((await get(op, '/api/search?q=' + encodeURIComponent('Дилноза'))).json().people.some((p: any) => p.name.startsWith('Дилноза')));
+  assert.ok((await get(op, '/api/search?q=PAEI')).json().tests.length >= 1);
+  const dep = (await pool.query(`SELECT code FROM departments WHERE code <> (SELECT d.code FROM users u JOIN departments d ON d.id=u.dept_id WHERE u.login='op1') LIMIT 1`)).rows[0].code;
+  const me = await uid('dilnoza');
+  await pool.query(`INSERT INTO chat_messages(channel,user_id,body) VALUES($1,$2,'уникальнаяфразаотдела')`, [`dept:${dep}`, me]);
+  await pool.query(`INSERT INTO chat_messages(channel,user_id,body) VALUES('general',$1,'уникальнаяфразаобщая')`, [me]);
+  assert.equal((await get(op, '/api/search?q=уникальнаяфразаотдела')).json().chats.messages.length, 0, 'чужой отдел в поиске не виден');
+  assert.equal((await get(op, '/api/search?q=уникальнаяфразаобщая')).json().chats.messages.length, 1);
+  assert.equal((await get(adm, '/api/search?q=уникальнаяфразаотдела')).json().chats.messages.length, 1, 'админу виден любой канал отдела');
+  assert.equal((await app.inject({ url: '/api/search?q=test' })).statusCode, 401);
+});
+
+test('Очередь вопросов: без ИИ вопрос попадает в очередь, повтор склеивается, анонимно можно', async () => {
+  delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENROUTER_API_KEY;
+  const op = await login('op1'), op2 = await login('op2');
+  const a = (await send(op, 'POST', '/api/search/ask', { query: 'Как оформить командировку в Самарканд?' })).json();
+  assert.equal(a.found, false); assert.equal(a.ai, false); assert.equal(a.queued, true);
+  const b = (await send(op2, 'POST', '/api/search/ask', { query: 'как оформить командировку Самарканд' })).json();
+  assert.equal(b.dup, true, 'повтор склеился');
+  assert.equal((await pool.query(`SELECT dup_count FROM open_questions WHERE id=$1`, [a.id])).rows[0].dup_count, 2);
+  const an = (await send(op, 'POST', '/api/questions', { body: 'Предлагаю добавить кофемашину', anonymous: true, kind: 'suggestion' })).json();
+  const row = (await pool.query(`SELECT anonymous,kind FROM open_questions WHERE id=$1`, [an.id])).rows[0];
+  assert.deepEqual([row.anonymous, row.kind], [true, 'suggestion']);
+  assert.equal((await send(op, 'POST', '/api/questions', { body: 'x' })).statusCode, 400);
+});
+
+test('ИИ по базе знаний: ответ только со ссылками на статьи; нет ответа или сбой — в очередь, админ видит причину', async () => {
+  const real = globalThis.fetch; const prompts: string[] = [];
+  let mode: 'ok' | 'none' | 'fail' = 'ok';
+  const art = (await pool.query(`SELECT id FROM kb_articles WHERE title_ru ILIKE '%зарплат%' LIMIT 1`)).rows[0].id;
+  globalThis.fetch = (async (_u: any, init: any) => {
+    const body = JSON.parse(init.body); prompts.push(body.system);
+    if (mode === 'fail') return { ok: false, json: async () => ({ error: { message: 'Insufficient credits' } }) } as any;
+    const json = mode === 'ok' ? { found: true, answer: 'Аванс до 25 числа.', sources: [art, 999999] } : { found: false };
+    return { ok: true, json: async () => ({ content: [{ type: 'text', text: JSON.stringify(json) }] }) } as any;
+  }) as any;
+  process.env.ANTHROPIC_API_KEY = 'k';
+  try {
+    const op = await login('op3'), adm = await login('admin', 'admin-test-1');
+    const r = (await send(op, 'POST', '/api/search/ask', { query: 'когда выплачивают зарплату и аванс' })).json();
+    assert.equal(r.found, true); assert.deepEqual(r.sources.map((s: any) => s.id), [art], 'чужие источники отброшены');
+    assert.ok(!/payroll|total|bonus/i.test(prompts[0]), 'в ИИ уходят только статьи, без данных о зарплате');
+    await send(op, 'POST', '/api/search/ask', { query: 'когда выплачивают зарплату и аванс' });
+    assert.equal(prompts.length, 1, 'одинаковый вопрос берётся из кэша');
+    assert.ok((await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='ai_search'`)).rows[0].n >= 1, 'действие ИИ в журнале');
+    mode = 'none';
+    const n = (await send(op, 'POST', '/api/search/ask', { query: 'как начисляется зарплата за выходной день' })).json();
+    assert.equal(n.found, false); assert.equal(n.queued, true);
+    mode = 'fail';
+    const f = (await send(op, 'POST', '/api/search/ask', { query: 'когда выплачивают зарплату и аванс на испытательном' })).json();
+    assert.equal(f.queued, true); assert.equal(f.error, undefined, 'обычному сотруднику причина не показывается');
+    const fa = (await send(adm, 'POST', '/api/search/ask', { query: 'когда выплачивают зарплату и аванс стажёрам' })).json();
+    assert.match(fa.error ?? '', /Insufficient credits/, 'админ видит причину');
+  } finally { globalThis.fetch = real; delete process.env.ANTHROPIC_API_KEY; }
 });

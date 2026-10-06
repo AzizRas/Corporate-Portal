@@ -4,7 +4,11 @@
   import { t } from '../lib/i18n';
   import { st } from '../lib/s18n';
   import Avatar from '../components/Avatar.svelte';
+  import { wt } from '../lib/w18n';
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
+  import Payroll from './Payroll.svelte';
+
+  let { tab = 'me' }: { tab?: string } = $props();
 
   let oldPw = $state(''), newPw = $state(''), msg = $state(''), ok = $state(false);
   async function change(e: Event) {
@@ -36,23 +40,14 @@
 </script>
 
 <header class="page-head"><div><h1>{t('profile_title')}</h1><p class="sub">{app.user?.name} · {app.user?.position}</p></div></header>
+<nav class="tabs">
+  <a href="#/profile" class:on={tab === 'me'}>{wt('i_mydata')}</a>
+  <a href="#/profile/pay" class:on={tab === 'pay'}>{st('n_pay')}</a>
+  <a href="#/profile/settings" class:on={tab === 'settings'}>{wt('i_settings')}</a>
+</nav>
+{#if tab === 'pay'}<Payroll />
+{:else if tab === 'settings'}
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
-  <form class="card stack" onsubmit={saveProfile}>
-    <h3 class="card-title">{st('pf_photo')}</h3>
-    <div class="row" style="gap:18px;flex-wrap:wrap">
-      <Avatar u={{ ...app.user!, bday: false }} size={96} />
-      <div class="stack" style="gap:8px">
-        <label class="btn sm" style="cursor:pointer">{app.user?.avatar_v ? st('pf_photo_change') : st('pf_photo_add')}<input type="file" accept="image/*" class="sr" onchange={pickPhoto} disabled={busy} /></label>
-        {#if app.user?.avatar_v}<button type="button" class="btn sm" onclick={dropPhoto}>{st('pf_photo_del')}</button>{/if}
-        <span class="muted xs">{st('pf_crop')}</span>
-      </div>
-    </div>
-    {#if perr}<div class="alert">{perr}</div>{/if}
-    <label class="f" style="margin:0">{st('pf_status')}<input maxlength="80" bind:value={status} placeholder={st('pf_status_ph')} /></label>
-    <label class="f" style="margin:0">{st('pf_birthday')}<input type="date" bind:value={birthday} /></label>
-    {#if pmsg}<div class="alert ok">{pmsg}</div>{/if}
-    <button class="btn grad">{t('save')}</button>
-  </form>
   <section class="card stack">
     <div><div class="muted small">{t('profile_lang')}</div>
       <div class="tabs" style="margin:8px 0 0"><button class:on={app.lang === 'ru'} onclick={() => setLang('ru')}>Русский</button><button class:on={app.lang === 'uz'} onclick={() => setLang('uz')}>O‘zbekcha</button></div></div>
@@ -73,3 +68,24 @@
     <button class="btn grad">{t('save')}</button>
   </form>
 </div>
+
+{:else}
+<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+  <form class="card stack" onsubmit={saveProfile}>
+    <h3 class="card-title">{st('pf_photo')}</h3>
+    <div class="row" style="gap:18px;flex-wrap:wrap">
+      <Avatar u={{ ...app.user!, bday: false }} size={96} />
+      <div class="stack" style="gap:8px">
+        <label class="btn sm" style="cursor:pointer">{app.user?.avatar_v ? st('pf_photo_change') : st('pf_photo_add')}<input type="file" accept="image/*" class="sr" onchange={pickPhoto} disabled={busy} /></label>
+        {#if app.user?.avatar_v}<button type="button" class="btn sm" onclick={dropPhoto}>{st('pf_photo_del')}</button>{/if}
+        <span class="muted xs">{st('pf_crop')}</span>
+      </div>
+    </div>
+    {#if perr}<div class="alert">{perr}</div>{/if}
+    <label class="f" style="margin:0">{st('pf_status')}<input maxlength="80" bind:value={status} placeholder={st('pf_status_ph')} /></label>
+    <label class="f" style="margin:0">{st('pf_birthday')}<input type="date" bind:value={birthday} /></label>
+    {#if pmsg}<div class="alert ok">{pmsg}</div>{/if}
+    <button class="btn grad">{t('save')}</button>
+  </form>
+</div>
+{/if}

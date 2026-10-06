@@ -32,7 +32,7 @@
     <div class="card-head"><h3>{t('home_pay')}</h3>{#if last}<span class="aside">{monthLong(last.month)}</span>{/if}</div>
     {#if last}
       <div class="big-num" style="font-size:clamp(28px,3vw,44px)">{fmtSum(last.data.total)}</div><p class="muted small" style="margin-top:6px">{t('pay_net')}</p>
-      <a href="#/pay" style="display:inline-block;margin-top:14px;font-weight:700">{t('nav_pay')} →</a>
+      <a href="#/profile/pay" style="display:inline-block;margin-top:14px;font-weight:700">{t('nav_pay')} →</a>
     {:else}<p class="muted">{t('pay_none')}</p>{/if}
   </section>
 

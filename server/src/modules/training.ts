@@ -84,7 +84,7 @@ const loc = (o: { ru: string; uz: string }, l: 'ru' | 'uz') => (l === 'uz' && o.
 
 /* ============================== ИИ с лимитом ============================== */
 /** Один ИИ-запрос на пользователя: false — ключа нет или суточный лимит исчерпан. */
-async function takeAi(userId: number): Promise<'ok' | 'off' | 'limit'> {
+export async function takeAi(userId: number): Promise<'ok' | 'off' | 'limit'> {
   if (!aiEnabled()) return 'off';
   const r = await q(
     `INSERT INTO training_ai_usage(user_id,day,n) VALUES($1,$2,1)

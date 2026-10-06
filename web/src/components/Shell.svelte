@@ -4,6 +4,8 @@
   import { app, has, logout, go } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
   import { notif, startNotify } from '../lib/notify.svelte';
+  import { navGroups, activeItem } from '../lib/nav';
+  import Search from './Search.svelte';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
@@ -20,31 +22,25 @@
   const toggle = () => { collapsed = !collapsed; try { localStorage.setItem('side-collapsed', collapsed ? '1' : '0'); } catch { /* */ } };
   onMount(startNotify);
 
-  // чат — первым: это основной инструмент общения
-  const links = $derived([
-    { id: 'chat', l: st('n_chat'), i: 'chat', h: '#/chat', badge: notif.chat_total },
-    { id: 'news', l: st('n_news'), i: 'news', h: '#/news' },
-    { id: 'home', l: st('n_home'), i: 'home', h: '#/home' },
-    { id: 'path', l: st('n_path'), i: 'path', h: '#/path' },
-    { id: 'growth', l: st('n_growth'), i: 'growth', h: '#/growth' },
-    { id: 'training', l: st('n_training'), i: 'training', h: '#/training' },
-    { id: 'tests', l: st('n_tests'), i: 'tests', h: '#/tests' },
-    { id: 'library', l: st('n_library'), i: 'library', h: '#/library' },
-    { id: 'schedule', l: st('n_schedule'), i: 'schedule', h: '#/schedule' },
-    { id: 'pay', l: st('n_pay'), i: 'pay', h: '#/pay' },
-    { id: 'kb', l: st('n_kb'), i: 'kb', h: '#/kb' },
-    { id: 'assist', l: st('n_assist'), i: 'assist', h: '#/assist' },
-    ...(has('manager', 'head', 'hr', 'senior') ? [{ id: 'team', l: st('n_team'), i: 'team', h: '#/team' }] : []),
-    ...(has('admin', 'hr', 'accountant', 'editor', 'head') ? [{ id: 'admin', l: st('n_admin'), i: 'admin', h: '#/admin' }] : []),
-  ] as { id: string; l: string; i: string; h: string; badge?: number }[]);
+  const groups = $derived(navGroups(notif.chat_total));
+  const active = $derived(activeItem(groups, app.route));
+  // группы сворачиваются; без явного выбора раскрыта только та, где мы сейчас
+  let explicit: Record<string, boolean> = $state({});
+  try { explicit = JSON.parse(localStorage.getItem('nav-groups') || '{}'); } catch { /* приватный режим */ }
+  const isOpen = (id: string) => explicit[id] ?? active?.group === id;
+  const toggleGroup = (id: string) => { explicit[id] = !isOpen(id); try { localStorage.setItem('nav-groups', JSON.stringify(explicit)); } catch { /* */ } };
+  const groupBadge = (g: { items: { badge?: number }[] }) => g.items.reduce((n, i) => n + (i.badge ?? 0), 0);
+
+  // нижняя панель телефона: 5 пунктов и «Ещё»
   const tabs = $derived([
     { id: 'chat', l: st('n_chat'), i: 'chat', h: '#/chat', badge: notif.chat_total },
     { id: 'news', l: st('n_news'), i: 'news', h: '#/news' },
     { id: 'training', l: st('n_training'), i: 'training', h: '#/training' },
+    { id: 'kb', l: st('n_kb'), i: 'kb', h: '#/kb' },
     { id: 'path', l: st('n_path'), i: 'path', h: '#/path' },
     { id: 'more', l: st('n_more'), i: 'more', h: '#/more' },
   ] as { id: string; l: string; i: string; h: string; badge?: number }[]);
-  const tabIds = ['chat', 'news', 'training', 'path'];
+  const tabIds = ['chat', 'news', 'training', 'kb', 'path'];
 </script>
 
 <div class="shell">
@@ -55,15 +51,28 @@
         <svg viewBox="0 0 24 24" style="transform:rotate({collapsed ? 0 : 180}deg)"><path d="M9 6l6 6-6 6" /></svg>
       </button>
     </div>
-    <nav class="nvs">
-      {#each links as l}
-        <a class="nv" class:on={key === l.id} href={l.h} title={collapsed ? l.l : undefined}>
-          <i><Icon name={l.i} /></i><span class="lbl">{l.l}</span>
-          {#if l.badge}<em>{l.badge > 99 ? '99+' : l.badge}</em>{/if}
-        </a>
+    <div class="side-tools"><Search /><NotifyBell /><ThemeToggle /></div>
+    <nav class="nvs" aria-label="menu">
+      {#each groups as g (g.id)}
+        {#if !collapsed}
+          <button class="ng-head" class:cur={active?.group === g.id} aria-expanded={isOpen(g.id)} onclick={() => toggleGroup(g.id)}>
+            <span class="lbl">{g.label}</span>
+            {#if !isOpen(g.id) && groupBadge(g)}<em>{groupBadge(g)}</em>{/if}
+            <svg viewBox="0 0 24 24" class="ng-chev" style="transform:rotate({isOpen(g.id) ? 90 : 0}deg)"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+        {:else}<div class="ng-sep"></div>{/if}
+        {#if collapsed || isOpen(g.id)}
+          <div class="ng-items">
+            {#each g.items as l (l.id)}
+              <a class="nv" class:on={active?.item === l.id && active?.group === g.id} href={'#' + l.href} title={collapsed ? l.label : undefined} aria-current={active?.item === l.id ? 'page' : undefined}>
+                <i><Icon name={l.icon} /></i><span class="lbl">{l.label}</span>
+                {#if l.badge}<em>{l.badge > 99 ? '99+' : l.badge}</em>{/if}
+              </a>
+            {/each}
+          </div>
+        {/if}
       {/each}
     </nav>
-    <div class="side-tools"><NotifyBell /><ThemeToggle /></div>
     <a class="me-card" href="#/profile" title={app.user!.name}>
       <Avatar u={{ ...app.user!, bday: false }} size={44} />
       <div class="lbl" style="min-width:0">
@@ -77,7 +86,7 @@
   <main class="main">
     <div class="topbar">
       <div class="logo sm"><i></i>Qadam</div>
-      <div class="row"><NotifyBell /><ThemeToggle /><a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a></div>
+      <div class="row"><Search /><NotifyBell /><ThemeToggle /><a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a></div>
     </div>
     <CheckIn />
     {@render children()}
