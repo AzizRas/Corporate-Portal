@@ -2,6 +2,7 @@
   import { api, ApiError } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
+  import { wt } from '../lib/w18n';
   import { monthLong } from '../lib/format';
   import Modal from '../components/Modal.svelte';
   import Avatar from '../components/Avatar.svelte';
@@ -69,7 +70,7 @@
             disabled={past || d.kind === 'off'} onclick={() => { reqDay = d; err = ''; }}>
             <b>{dn(d.day)}</b>
             {#if d.kind === 'work'}<small>{d.shift_start}–{d.shift_end}</small>{:else}<small>{st('s_off')}</small>{/if}
-            {#if d.source === 'pending'}<i title={st('s_pending')}>⏳</i>{:else if d.source === 'rejected'}<i title={st('s_rejected')}>✖</i>{/if}
+            {#if d.source === 'leave'}<i title={wt('o_vacation')}>🌴</i>{:else if d.source === 'pending'}<i title={st('s_pending')}>⏳</i>{:else if d.source === 'rejected'}<i title={st('s_rejected')}>✖</i>{/if}
           </button>
         {/each}
       </div>

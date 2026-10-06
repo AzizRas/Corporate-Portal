@@ -195,6 +195,8 @@ test('Отпуск и делегирование: заместитель пол�
   assert.equal((await get(dep, `/api/path/user/${op1}`)).statusCode, 200, 'заместитель видит ветку руководителя');
   assert.equal((await get(dep, '/api/tests/team')).statusCode, 200);
   assert.equal((await get(await login('rustam'), '/api/checkin/status')).json().on_leave, true, 'в отпуске напоминание об отметке не нужно');
+  const sch = (await get(sv, '/api/schedule/me')).json().days.find((d: any) => d.day === today);
+  assert.deepEqual([sch.kind, sch.source], ['off', 'leave'], 'день отпуска в графике — выходной с пометкой, не пропуск');
   const dl = (await get(sv, '/api/org/delegations')).json().items;
   assert.equal(dl.length, 1);
   assert.equal((await send(dep, 'DELETE', `/api/org/delegations/${dl[0].id}`)).statusCode, 403, 'снять может руководитель или админ');

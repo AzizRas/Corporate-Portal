@@ -44,7 +44,7 @@ function canDecide(v: AuthUser, t: P) {
 }
 const canEditSchedule = (v: AuthUser, t: P) => hasRole(v, 'admin', 'hr', 'manager', 'head') && inScope(v, t);
 
-export interface DayInfo { day: string; kind: 'work' | 'off'; source: 'pattern' | 'approved' | 'pending' | 'rejected'; shift_start: string | null; shift_end: string | null; note?: string }
+export interface DayInfo { day: string; kind: 'work' | 'off'; source: 'pattern' | 'approved' | 'pending' | 'rejected' | 'leave'; shift_start: string | null; shift_end: string | null; note?: string }
 
 function dayInfo(p: P, day: string, ov?: any): DayInfo {
   const base: DayInfo = p.days_off.includes(isoDow(day))
@@ -55,6 +55,19 @@ function dayInfo(p: P, day: string, ov?: any): DayInfo {
     return { day, kind: ov.kind, source: 'approved', shift_start: ov.kind === 'work' ? (ov.shift_start ?? p.shift_start) : null, shift_end: ov.kind === 'work' ? (ov.shift_end ?? p.shift_end) : null, note: ov.note };
   // заявка ждёт решения или отклонена — сам день остаётся по графику, но с пометкой
   return { ...base, source: ov.status, note: ov.note };
+}
+// отпуск и больничный: день показывается как выходной с пометкой, пропуском не считается
+type Lv = { from: string; to: string; kind: string };
+async function leavesFor(ids: number[], ym: string) {
+  const r = await q(`SELECT user_id,kind,to_char(from_date,'YYYY-MM-DD') AS f,to_char(to_date,'YYYY-MM-DD') AS t FROM user_leaves WHERE user_id = ANY($1::int[]) AND from_date <= $3::date AND to_date >= $2::date`,
+    [ids, `${ym}-01`, `${ym}-31`]);
+  const m = new Map<number, Lv[]>();
+  for (const x of r.rows) m.set(x.user_id, [...(m.get(x.user_id) ?? []), { from: x.f, to: x.t, kind: x.kind }]);
+  return m;
+}
+function withLeave(i: DayInfo, lv: Lv[] | undefined, day: string): DayInfo & { leave_kind?: string } {
+  const hit = lv?.find((x) => day >= x.from && day <= x.to);
+  return hit ? { ...i, kind: 'off', source: 'leave', shift_start: null, shift_end: null, leave_kind: hit.kind } : i;
 }
 const OV_COLS = `user_id,to_char(day,'YYYY-MM-DD') AS day,kind,to_char(shift_start,'HH24:MI') AS shift_start,to_char(shift_end,'HH24:MI') AS shift_end,status,note`;
 const OV_COLS_Q = `schedule_days.user_id,to_char(schedule_days.day,'YYYY-MM-DD') AS day,schedule_days.kind,to_char(schedule_days.shift_start,'HH24:MI') AS shift_start,to_char(schedule_days.shift_end,'HH24:MI') AS shift_end,schedule_days.status,schedule_days.note`;
@@ -68,7 +81,8 @@ export async function scheduleRoutes(app: FastifyInstance) {
     const p = (await getP(u.id))!;
     const ovs = (await q(`SELECT ${OV_COLS} FROM schedule_days WHERE user_id=$1 AND to_char(day,'YYYY-MM')=$2`, [u.id, ym])).rows;
     const byDay = Object.fromEntries(ovs.map((o) => [o.day, o]));
-    const days = monthDays(ym).map((d) => dayInfo(p, d, byDay[d]));
+    const lv = await leavesFor([u.id], ym);
+    const days = monthDays(ym).map((d) => withLeave(dayInfo(p, d, byDay[d]), lv.get(u.id), d));
     const upcoming = (await q(`SELECT ${OV_COLS} FROM schedule_days WHERE user_id=$1 AND day>=$2 ORDER BY day LIMIT 20`, [u.id, tzDate()])).rows;
     return { month: ym, today: tzDate(), days, pattern: { days_off: p.days_off, shift_start: p.shift_start, shift_end: p.shift_end }, upcoming, can_team: canSeeTeam(u) };
   });
@@ -111,12 +125,13 @@ export async function scheduleRoutes(app: FastifyInstance) {
     const ids = team.map((t) => t.id);
     const ovs = (await q(`SELECT ${OV_COLS} FROM schedule_days WHERE user_id = ANY($1::int[]) AND to_char(day,'YYYY-MM')=$2`, [ids, ym])).rows;
     const days = monthDays(ym);
+    const lv = await leavesFor(ids, ym);
     const rows = team.map((t) => {
       const mine = Object.fromEntries(ovs.filter((o) => o.user_id === t.id).map((o) => [o.day, o]));
       return {
         id: t.id, name: t.name, position: t.position, avatar_v: t.avatar_v, can_edit: canEditSchedule(u, t), can_decide: canDecide(u, t),
         pattern: { days_off: t.days_off, shift_start: t.shift_start, shift_end: t.shift_end },
-        days: days.map((d) => { const i = dayInfo(t, d, mine[d]); return { k: i.kind === 'off' ? 'o' : 'w', s: i.source }; }),
+        days: days.map((d) => { const i = withLeave(dayInfo(t, d, mine[d]), lv.get(t.id), d); return { k: i.kind === 'off' ? 'o' : 'w', s: i.source }; }),
       };
     });
     const pending = (await q(

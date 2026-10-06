@@ -15,6 +15,7 @@
   import Tests from './tests/Tests.svelte';
   import Library from './library/Library.svelte';
   import Help from './pages/Help.svelte';
+  import Structure from './org/Structure.svelte';
   import Reports from './pages/Reports.svelte';
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
@@ -35,6 +36,7 @@
   {:else if head === 'path'}<Path />
   {:else if head === 'pay'}<Profile tab="pay" />
   {:else if head === 'help'}<Help />
+  {:else if head === 'structure'}<Structure />
   {:else if head === 'reports'}<Reports />
   {:else if head === 'att'}<Attendance />
   {:else if head === 'kb'}<Kb id={parts[1] ? Number(parts[1]) : null} />

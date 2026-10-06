@@ -1,31 +1,32 @@
 // Меню портала: 6 групп, видимость по ролям. Один источник для боковой колонки, нижней панели телефона, поиска и «Ещё».
-import { has } from './state.svelte';
+import { app, has } from './state.svelte';
 import { st } from './s18n';
 import { wt } from './w18n';
 
-export interface NavItem { id: string; label: string; href: string; icon: string; badge?: number }
+export interface NavItem { id: string; label: string; href: string; icon: string; badge?: number; section?: string }
 export interface NavGroup { id: string; label: string; icon: string; items: NavItem[] }
 
 export function navGroups(chatBadge = 0): NavGroup[] {
-  const it = (id: string, label: string, href: string, icon: string, badge?: number): NavItem => ({ id, label, href, icon, badge });
+  const it = (id: string, label: string, href: string, icon: string, badge?: number, section?: string): NavItem => ({ id, label, href, icon, badge, section });
   const groups: NavGroup[] = [
     { id: 'main', label: wt('g_main'), icon: 'home', items: [
-      it('home', wt('i_summary'), '/home', 'home'), it('news', st('n_news'), '/news', 'news'), it('path', st('n_path'), '/path', 'path'),
+      it('home', wt('i_summary'), '/home', 'home', undefined, 'internal'), it('news', st('n_news'), '/news', 'news', undefined, 'news'), it('path', st('n_path'), '/path', 'path', undefined, 'internal'),
     ] },
     { id: 'learn', label: wt('g_learn'), icon: 'training', items: [
-      it('plan', wt('i_plan'), '/training', 'training'), it('trainer', wt('i_trainer'), '/training/trainer', 'chat'), it('tests', st('n_tests'), '/tests', 'tests'),
-      it('library', st('n_library'), '/library', 'library'), it('ready', wt('i_ready'), '/training/ready', 'att'), it('growth', wt('i_growth'), '/growth', 'growth'),
+      it('plan', wt('i_plan'), '/training', 'training', undefined, 'training'), it('trainer', wt('i_trainer'), '/training/trainer', 'chat', undefined, 'training'), it('tests', st('n_tests'), '/tests', 'tests', undefined, 'tests'),
+      it('library', st('n_library'), '/library', 'library', undefined, 'library'), it('ready', wt('i_ready'), '/training/ready', 'att', undefined, 'training'), it('growth', wt('i_growth'), '/growth', 'growth', undefined, 'internal'),
     ] },
     { id: 'know', label: wt('g_know'), icon: 'kb', items: [
-      it('kb', st('n_kb'), '/kb', 'kb'), it('assist', st('n_assist'), '/assist', 'assist'), it('help', wt('i_help'), '/help', 'more'),
+      it('kb', st('n_kb'), '/kb', 'kb', undefined, 'kb'), it('assist', st('n_assist'), '/assist', 'assist', undefined, 'internal'), it('help', wt('i_help'), '/help', 'more'),
     ] },
     { id: 'people', label: wt('g_people'), icon: 'team', items: [
-      it('chat', st('n_chat'), '/chat', 'chat', chatBadge),
-      ...(has('manager', 'head', 'hr', 'senior') ? [it('team', st('n_team'), '/team', 'team')] : []),
-      it('schedule', st('n_schedule'), '/schedule', 'schedule'),
+      it('chat', st('n_chat'), '/chat', 'chat', chatBadge, 'chat'),
+      ...(has('manager', 'head', 'hr', 'senior') ? [it('team', st('n_team'), '/team', 'team', undefined, 'internal')] : []),
+      it('structure', wt('i_structure'), '/structure', 'admin', undefined, 'internal'),
+      it('schedule', st('n_schedule'), '/schedule', 'schedule', undefined, 'schedule'),
     ] },
     { id: 'profile', label: wt('g_profile'), icon: 'user', items: [
-      it('profile', wt('i_mydata'), '/profile', 'user'), it('pay', st('n_pay'), '/profile/pay', 'pay'), it('settings', wt('i_settings'), '/profile/settings', 'more'),
+      it('profile', wt('i_mydata'), '/profile', 'user'), it('pay', st('n_pay'), '/profile/pay', 'pay', undefined, 'staff'), it('settings', wt('i_settings'), '/profile/settings', 'more'),
     ] },
   ];
   const manage: NavItem[] = [
@@ -33,7 +34,17 @@ export function navGroups(chatBadge = 0): NavGroup[] {
     ...(has('manager', 'head', 'hr') ? [it('reports', wt('i_reports'), '/reports', 'path')] : []),
   ];
   if (manage.length) groups.push({ id: 'manage', label: wt('g_manage'), icon: 'admin', items: manage });
-  return groups;
+  // внешнее подразделение видит только разрешённые разделы; стажёр — без ЗП и KPI (то же закрыто на сервере)
+  const ext = app.user?.external, intern = app.user?.employment === 'intern';
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => {
+      if (i.section === 'staff') return !ext && !intern;
+      if (!ext) return true;
+      if (g.id === 'manage') return false;
+      return !i.section || (i.section !== 'internal' && ext.includes(i.section));
+    }),
+  })).filter((g) => g.items.length);
 }
 
 /** Текущий маршрут → путь для сравнения (пустой маршрут — это чат). */
