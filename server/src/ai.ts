@@ -21,42 +21,59 @@ export const AI_VOICE = `СТИЛЬ ОБЩЕНИЯ (применяй ко все
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
-interface Reply { text: string; tokens_in: number; tokens_out: number; cost: number | null }
+interface Reply { text: string; tokens_in: number; tokens_out: number; cost: number | null; model: string }
 
-/** Низкий уровень: один запрос к провайдеру (OpenRouter или Anthropic). Использует aiCall — он следит за стоимостью, кэшем и журналом. */
-async function provider(model: string, system: string, messages: Msg[], maxTokens: number): Promise<Reply> {
-  const orKey = process.env.OPENROUTER_API_KEY;
-  if (orKey) {
-    // OpenRouter: OpenAI-совместимый API. Модель задаётся OPENROUTER_MODEL, например "anthropic/claude-sonnet-4.5" или "openai/gpt-4o-mini".
-    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${orKey}`, 'x-title': 'Qadam Portal' },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5',
-        // у reasoning-моделей «размышления» тоже считаются в лимит, поэтому даём запас и просим короткое рассуждение
-        max_tokens: maxTokens + 2500,
-        reasoning: { effort: 'low' },
-        usage: { include: true },
-        messages: [{ role: 'system', content: system }, ...messages],
-      }),
-    });
-    const j: any = await r.json();
-    if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
-    if (j?.error) throw new Error(String(j.error.message || JSON.stringify(j.error)).slice(0, 300));
-    const out = String(j.choices?.[0]?.message?.content ?? '').trim();
-    if (!out) throw new Error(`Пустой ответ модели. Ответ OpenRouter: ${JSON.stringify(j).slice(0, 400)}`);
-    return { text: out, tokens_in: j.usage?.prompt_tokens ?? 0, tokens_out: j.usage?.completion_tokens ?? 0, cost: typeof j.usage?.cost === 'number' ? j.usage.cost : null };
+/** Список моделей OpenRouter по порядку: «модель1, модель2, …». Если первая не ответила или вернула ошибку, пробуем следующую. */
+export const openrouterModels = () => (process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5').split(',').map((m) => m.trim()).filter(Boolean);
+const TIMEOUT_MS = 45_000;
+
+async function openrouter(model: string, system: string, messages: Msg[], maxTokens: number): Promise<Reply> {
+  const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'x-title': 'Qadam Portal' },
+    signal: AbortSignal.timeout(TIMEOUT_MS),       // «не отвечает» — тоже повод перейти к следующей модели
+    body: JSON.stringify({
+      model,
+      // у reasoning-моделей «размышления» тоже считаются в лимит, поэтому даём запас и просим короткое рассуждение
+      max_tokens: maxTokens + 2500,
+      reasoning: { effort: 'low' },
+      usage: { include: true },
+      messages: [{ role: 'system', content: system }, ...messages],
+    }),
+  });
+  const j: any = await r.json();
+  if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
+  if (j?.error) throw new Error(String(j.error.message || JSON.stringify(j.error)).slice(0, 300));
+  const out = String(j.choices?.[0]?.message?.content ?? '').trim();
+  if (!out) throw new Error(`Пустой ответ модели. Ответ OpenRouter: ${JSON.stringify(j).slice(0, 400)}`);
+  return { text: out, tokens_in: j.usage?.prompt_tokens ?? 0, tokens_out: j.usage?.completion_tokens ?? 0, cost: typeof j.usage?.cost === 'number' ? j.usage.cost : null, model };
+}
+
+/** Низкий уровень: один запрос к провайдеру (OpenRouter с запасными моделями или Anthropic). aiCall следит за стоимостью, кэшем и журналом. */
+async function provider(model: string, system: string, messages: Msg[], maxTokens: number, onFail?: (model: string, err: string) => Promise<void>): Promise<Reply> {
+  if (process.env.OPENROUTER_API_KEY) {
+    const list = openrouterModels();
+    let last = 'ai_error';
+    for (const [i, m] of list.entries()) {
+      try { return await openrouter(m, system, messages, maxTokens); }
+      catch (e: any) {
+        last = String(e?.name === 'TimeoutError' ? `таймаут ${TIMEOUT_MS / 1000} с` : e?.message ?? e).slice(0, 300);
+        if (i < list.length - 1) await onFail?.(m, last);       // запишем неудачу и пойдём к запасной модели
+      }
+    }
+    throw new Error(list.length > 1 ? `Не ответила ни одна модель из списка (${list.join(', ')}). Последняя ошибка: ${last}` : last);
   }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new AiUnavailable('no_key');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
     body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
   });
   const j: any = await r.json();
   if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
-  return { text: (j.content || []).map((c: any) => c.text || '').join('').trim(), tokens_in: j.usage?.input_tokens ?? 0, tokens_out: j.usage?.output_tokens ?? 0, cost: null };
+  return { text: (j.content || []).map((c: any) => c.text || '').join('').trim(), tokens_in: j.usage?.input_tokens ?? 0, tokens_out: j.usage?.output_tokens ?? 0, cost: null, model };
 }
 
 /** Устаревший прямой вызов (без учёта и лимитов) — оставлен для совместимости; новый код использует aiCall. */
@@ -116,10 +133,10 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
   }
   const cfg = await aiConfig();
   try {
-    const r = await provider(o.model, system, o.messages, o.maxTokens ?? 700);
+    const r = await provider(o.model, system, o.messages, o.maxTokens ?? 700, (m, err) => q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, m, `${err} → пробуем следующую модель`]).then(() => undefined));
     const tin = r.tokens_in || Math.round((system.length + o.messages.reduce((n, m) => n + m.content.length, 0)) / 4), tout = r.tokens_out || Math.round(r.text.length / 4);
     const cost = r.cost ?? (tin * cfg.prices.in + tout * cfg.prices.out) / 1e6;
-    await q(`INSERT INTO ai_usage(user_id,role,model,tokens_in,tokens_out,cost) VALUES($1,$2,$3,$4,$5,$6)`, [o.user?.id ?? null, o.role, o.model, tin, tout, cost]);
+    await q(`INSERT INTO ai_usage(user_id,role,model,tokens_in,tokens_out,cost) VALUES($1,$2,$3,$4,$5,$6)`, [o.user?.id ?? null, o.role, r.model || o.model, tin, tout, cost]);
     await q(`INSERT INTO audit_log(user_id,action,target,meta) VALUES($1,$2,$3,$4)`, [o.user?.id ?? null, `ai_${o.role}`, o.ref ?? null, JSON.stringify({ tokens: tin + tout, cost: Number(cost.toFixed(5)) })]);
     if (key) await q(`INSERT INTO ai_cache(key,role,response) VALUES($1,$2,$3) ON CONFLICT (key) DO UPDATE SET response=$3, created_at=now()`, [key, o.role, r.text]);
     return r.text;

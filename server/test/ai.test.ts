@@ -18,6 +18,8 @@ const realFetch = globalThis.fetch;
 const calls: { system: string; user: string }[] = [];
 let respond: (system: string, user: string) => string = () => '{}';
 let failWith: string | null = null;
+const orCalls: string[] = [];
+const orFail = new Set<string>();
 
 before(async () => {
   const admin = new pg.Client({ connectionString: `${base}/postgres` });
@@ -42,6 +44,11 @@ before(async () => {
   (await import('../src/org-core.js')).invalidateOrg();
   await pool.query(`UPDATE users SET hired_at = CURRENT_DATE - 200`);
   globalThis.fetch = (async (url: any, init: any) => {
+    if (String(url).includes('openrouter.ai')) {
+      const b = JSON.parse(init.body); orCalls.push(b.model);
+      if (orFail.has(b.model)) return { ok: false, json: async () => ({ error: { message: `модель ${b.model} недоступна` } }) } as any;
+      return { ok: true, json: async () => ({ choices: [{ message: { content: 'Ответ запасной модели' } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }) } as any;
+    }
     if (!String(url).includes('anthropic.com')) return realFetch(url, init);
     const body = JSON.parse(init.body);
     const user = body.messages.map((m: any) => m.content).join('\n');
@@ -416,4 +423,27 @@ test('Задачи: руководитель ставит своим, чужим
   assert.equal((await send(await login('op4'), 'POST', `/api/tasks/${t.id}/done`, {})).statusCode, 404, 'чужую задачу не отметить');
   assert.equal((await send(op, 'POST', `/api/tasks/${t.id}/done`, {})).statusCode, 200);
   assert.equal((await get(op, '/api/tasks')).json().items[0].overdue, false);
+});
+
+test('Несколько моделей: если первая не отвечает, пробуется следующая; сбой записывается, при полном отказе портал не падает', async () => {
+  aiOff();
+  process.env.OPENROUTER_API_KEY = 'or-key'; process.env.OPENROUTER_MODEL = 'bad/model, good/model , third/model';
+  try {
+    const op = await login('op1'), adm = await login('admin', 'admin-test-1');
+    orCalls.length = 0; orFail.clear(); orFail.add('bad/model');
+    const r = await send(op, 'POST', '/api/growth/mentor', { message: 'Как развиваться дальше?' });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.json().reply, 'Ответ запасной модели');
+    assert.deepEqual(orCalls, ['bad/model', 'good/model'], 'после сбоя первой взялась вторая, третья не понадобилась');
+    const log = (await get(adm, '/api/admin/ai/log')).json().items;
+    assert.ok(log.some((l: any) => l.model === 'bad/model' && !l.ok && /следующую модель/.test(l.error)), 'неудача первой модели видна в журнале');
+    assert.ok(log.some((l: any) => l.model === 'good/model' && l.ok), 'успех записан на ту модель, что ответила');
+    // отвечают не все: ошибка понятна администратору, остальным — обычный отказ
+    orCalls.length = 0; orFail.add('good/model'); orFail.add('third/model');
+    const bad = await send(adm, 'POST', '/api/growth/mentor', { message: 'Ещё вопрос про рост и развитие?' });
+    assert.equal(bad.statusCode, 502);
+    assert.match(bad.json().detail, /Не ответила ни одна модель из списка \(bad\/model, good\/model, third\/model\)/);
+    assert.equal(orCalls.length, 3);
+    assert.equal((await get(adm, '/api/panel')).statusCode, 200, 'портал продолжает работать');
+  } finally { delete process.env.OPENROUTER_API_KEY; delete process.env.OPENROUTER_MODEL; orFail.clear(); }
 });
