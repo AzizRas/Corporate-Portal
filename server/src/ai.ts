@@ -17,13 +17,17 @@ export async function claude(model: string, system: string, messages: Msg[], max
       },
       body: JSON.stringify({
         model: process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5',
-        max_tokens: maxTokens,
+        // у reasoning-моделей «размышления» тоже считаются в лимит, поэтому даём запас и просим короткое рассуждение
+        max_tokens: maxTokens + 2500,
+        reasoning: { effort: 'low' },
         messages: [{ role: 'system', content: system }, ...messages],
       }),
     });
     const j: any = await r.json();
     if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
-    return String(j.choices?.[0]?.message?.content ?? '').trim();
+    const out = String(j.choices?.[0]?.message?.content ?? '').trim();
+    if (!out) throw new Error(`Модель вернула пустой ответ (finish_reason: ${j.choices?.[0]?.finish_reason ?? '?'}). Попробуйте другую модель в OPENROUTER_MODEL.`);
+    return out;
   }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
