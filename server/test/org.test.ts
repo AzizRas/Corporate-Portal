@@ -140,7 +140,7 @@ test('Внешнее подразделение: только разрешённ
     assert.equal((await get(ext, url)).statusCode, 403, `закрыто: ${url}`);
   assert.equal((await send(ext, 'POST', '/api/payroll/reveal', { month: '2026-01' })).statusCode, 403);
   assert.equal((await get(ext, '/api/training/me')).statusCode, 200, 'обучение разрешено');
-  assert.equal((await get(ext, '/api/chat/channels')).json().channels.length, 0, 'внутренние каналы закрыты');
+  assert.deepEqual((await get(ext, '/api/chat/channels')).json().channels.map((c: any) => c.kind), ['ext'], 'внутренние каналы закрыты, остался чат своего подразделения');
   assert.equal((await get(ext, '/api/chat/general')).statusCode, 403);
   const ppl = (await get(ext, '/api/people')).json().people;
   assert.deepEqual(ppl.map((p: any) => p.id), [extId], 'в справочнике только внешнее подразделение');

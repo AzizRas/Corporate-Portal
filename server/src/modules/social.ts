@@ -4,15 +4,10 @@ import { q } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { bdaySql } from '../notify.js';
 import { tzDate } from '../settings.js';
+import { channelsFor } from '../chat-core.js';
 import { externalRootOf, orgNodes, subtreeIds } from '../org-core.js';
 
-/** Каналы чата, доступные сотруднику: общий + свой отдел (HR и админ — все отделы). */
-export async function channelsFor(u: { dept_id: number | null; roles: string[]; external?: string[] | null }) {
-  if (u.external) return [];   // внешнее подразделение: общий и отделные каналы закрыты (его группы — в разделе чата)
-  const depts = (await q('SELECT id,code,name_ru,name_uz FROM departments ORDER BY id')).rows;
-  const all = u.roles.includes('admin') || u.roles.includes('hr');
-  return [{ id: 'general', name_ru: 'Общий', name_uz: 'Umumiy' }, ...depts.filter((d) => all || d.id === u.dept_id).map((d) => ({ id: `dept:${d.code}`, name_ru: d.name_ru, name_uz: d.name_uz }))];
-}
+export { channelsFor } from '../chat-core.js';
 
 export async function socialRoutes(app: FastifyInstance) {
   const auth = { preHandler: requireAuth };
@@ -55,7 +50,9 @@ export async function socialRoutes(app: FastifyInstance) {
   /* ----- уведомления: непрочитанные сообщения чата, новости, упоминания, решения по выходным ----- */
   app.get('/api/notify', auth, async (req) => {
     const u = req.user!;
-    const chans = await channelsFor(u);
+    const chans = (await channelsFor(u)).filter((c) => !c.archived);
+    const prefs = (await q(`SELECT chat,mentions,news,to_char(quiet_from,'HH24:MI') AS quiet_from,to_char(quiet_to,'HH24:MI') AS quiet_to,muted FROM notify_prefs WHERE user_id=$1`, [u.id])).rows[0]
+      ?? { chat: true, mentions: true, news: true, quiet_from: null, quiet_to: null, muted: [] };
     // для каналов без отметки о прочтении начинаем с последнего сообщения, чтобы не завалить историей
     await q(
       `INSERT INTO chat_reads(user_id,channel,last_id)
@@ -64,12 +61,17 @@ export async function socialRoutes(app: FastifyInstance) {
     const un = await q(
       `SELECT r.channel, count(m.id)::int AS n, max(m.id) AS last,
               count(m.id) FILTER (WHERE $1 = ANY(m.mentions))::int AS mentions
-         FROM chat_reads r JOIN chat_messages m ON m.channel=r.channel AND m.id>r.last_id AND m.user_id<>$1
+         FROM chat_reads r JOIN chat_messages m ON m.channel=r.channel AND m.id>r.last_id AND m.user_id<>$1 AND m.system IS NULL
         WHERE r.user_id=$1 AND r.channel = ANY($2::text[]) GROUP BY r.channel`, [u.id, chans.map((c) => c.id)]);
-    const chat: Record<string, { n: number; mentions: number }> = {};
-    for (const r of un.rows) chat[r.channel] = { n: r.n, mentions: r.mentions };
+    const chat: Record<string, { n: number; mentions: number; muted?: boolean }> = {};
+    for (const r of un.rows) {
+      const muted = !prefs.chat || prefs.muted.includes(r.channel);
+      // отключённый чат считает только упоминания
+      const n = muted ? r.mentions : r.n;
+      if (n > 0) chat[r.channel] = { n, mentions: r.mentions, muted };
+    }
     const items = (await q(`SELECT id,kind,title,body,link,read,created_at FROM notifications WHERE user_id=$1 ORDER BY id DESC LIMIT 40`, [u.id])).rows;
-    return { chat, chat_total: Object.values(chat).reduce((a, c) => a + c.n, 0), items, unread: items.filter((i) => !i.read).length };
+    return { chat, chat_total: Object.values(chat).reduce((a, c) => a + c.n, 0), items, unread: items.filter((i) => !i.read).length, prefs };
   });
   app.post('/api/notify/read', auth, async (req) => {
     const b = (req.body ?? {}) as { ids?: number[]; all?: boolean };

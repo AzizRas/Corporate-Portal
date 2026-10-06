@@ -5,8 +5,10 @@ import { tzDate } from './settings.js';
 export async function notify(userIds: number[], kind: string, title: string, body = '', link: string | null = null) {
   const ids = [...new Set(userIds)];
   if (!ids.length) return;
+  // сотрудник мог отключить объявления или упоминания в настройках уведомлений
   await q(
-    `INSERT INTO notifications(user_id,kind,title,body,link) SELECT x,$2,$3,$4,$5 FROM unnest($1::int[]) AS x`,
+    `INSERT INTO notifications(user_id,kind,title,body,link) SELECT x,$2,$3,$4,$5 FROM unnest($1::int[]) AS x
+      WHERE NOT EXISTS (SELECT 1 FROM notify_prefs p WHERE p.user_id=x AND ((NOT p.news AND $2='news') OR (NOT p.mentions AND $2 IN ('mention','reply'))))`,
     [ids, kind, title.slice(0, 200), body.slice(0, 400), link],
   );
 }

@@ -3,7 +3,6 @@ import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { audit, hasRole, requireAuth } from '../auth.js';
 import { bdaySql, notify } from '../notify.js';
-import { channelsFor } from './social.js';
 
 const KINDS = ['thought', 'kudos', 'win', 'announce'];
 
@@ -68,55 +67,6 @@ export async function communityRoutes(app: FastifyInstance) {
     await q('INSERT INTO post_comments(post_id,user_id,body) VALUES($1,$2,$3)', [id, req.user!.id, body]);
     const owner = (await q('SELECT user_id FROM posts WHERE id=$1', [id])).rows[0].user_id;
     if (owner !== req.user!.id) await notify([owner], 'news', `💬 ${req.user!.name}`, body.slice(0, 160), '#/news');
-    return { ok: true };
-  });
-
-  /* ----- чат: общий канал и каналы отделов; ответы на сообщения и @упоминания ----- */
-  const channelOk = async (u: NonNullable<import('fastify').FastifyRequest['user']>, ch: string) =>
-    (await channelsFor(u)).some((c) => c.id === ch);
-
-  app.get('/api/chat/channels', auth, async (req) => ({ channels: await channelsFor(req.user!) }));
-  app.get('/api/chat/:ch', auth, async (req, reply) => {
-    const ch = (req.params as any).ch;
-    if (!(await channelOk(req.user!, ch))) return reply.code(403).send({ error: 'forbidden' });
-    const after = Number((req.query as any).after) || 0;
-    const r = await q(`SELECT * FROM (
-        SELECT m.id,m.body,m.created_at,m.user_id,m.reply_to,m.mentions,u.name AS author,u.avatar_v,u.status,u.position AS author_position,${bdaySql('u')} AS bday,
-               rp.body AS reply_body, ru.name AS reply_author
-          FROM chat_messages m JOIN users u ON u.id=m.user_id
-          LEFT JOIN chat_messages rp ON rp.id=m.reply_to LEFT JOIN users ru ON ru.id=rp.user_id
-         WHERE m.channel=$1 AND m.id>$2 ORDER BY m.id DESC LIMIT 100) x ORDER BY id`, [ch, after]);
-    const msgs = r.rows.map((m) => ({ ...m, reply_body: m.reply_body ? String(m.reply_body).slice(0, 140) : null }));
-    // читаем канал — значит всё, что в нём пришло, прочитано
-    if (msgs.length) await q(`INSERT INTO chat_reads(user_id,channel,last_id) VALUES($1,$2,$3) ON CONFLICT (user_id,channel) DO UPDATE SET last_id=GREATEST(chat_reads.last_id,$3)`, [req.user!.id, ch, msgs[msgs.length - 1].id]);
-    return { messages: msgs };
-  });
-  app.post('/api/chat/:ch', auth, async (req, reply) => {
-    const ch = (req.params as any).ch;
-    if (!(await channelOk(req.user!, ch))) return reply.code(403).send({ error: 'forbidden' });
-    const b = (req.body ?? {}) as { body?: string; reply_to?: number; mentions?: number[] };
-    const body = String(b.body ?? '').trim().slice(0, 1000);
-    if (!body) return reply.code(400).send({ error: 'empty' });
-    let replyTo: number | null = null, replyOwner: number | null = null;
-    if (b.reply_to) {
-      const rp = (await q('SELECT id,user_id FROM chat_messages WHERE id=$1 AND channel=$2', [Number(b.reply_to), ch])).rows[0];
-      if (rp) { replyTo = rp.id; replyOwner = rp.user_id; }
-    }
-    const asked = Array.isArray(b.mentions) ? [...new Set(b.mentions.map(Number).filter(Boolean))].slice(0, 10) : [];
-    const mentions = asked.length ? (await q('SELECT id FROM users WHERE active AND id = ANY($1::int[]) AND id<>$2', [asked, req.user!.id])).rows.map((x) => x.id) : [];
-    const id = (await q('INSERT INTO chat_messages(channel,user_id,body,reply_to,mentions) VALUES($1,$2,$3,$4,$5) RETURNING id', [ch, req.user!.id, body, replyTo, mentions])).rows[0].id;
-    await q(`INSERT INTO chat_reads(user_id,channel,last_id) VALUES($1,$2,$3) ON CONFLICT (user_id,channel) DO UPDATE SET last_id=GREATEST(chat_reads.last_id,$3)`, [req.user!.id, ch, id]);
-    const link = `#/chat/${encodeURIComponent(ch)}`;
-    await notify(mentions, 'mention', `@ ${req.user!.name}`, body.slice(0, 160), link);
-    if (replyOwner && replyOwner !== req.user!.id && !mentions.includes(replyOwner)) await notify([replyOwner], 'reply', `↩ ${req.user!.name}`, body.slice(0, 160), link);
-    return { ok: true, id };
-  });
-  app.delete('/api/chat/message/:id', auth, async (req, reply) => {
-    const m = (await q('SELECT user_id FROM chat_messages WHERE id=$1', [Number((req.params as any).id)])).rows[0];
-    if (!m) return reply.code(404).send({ error: 'not_found' });
-    if (m.user_id !== req.user!.id && !hasRole(req.user!, 'admin', 'hr')) return reply.code(403).send({ error: 'forbidden' });
-    await q('DELETE FROM chat_messages WHERE id=$1', [Number((req.params as any).id)]);
-    await audit(req, 'chat_delete', String((req.params as any).id));
     return { ok: true };
   });
 }
