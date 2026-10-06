@@ -11,6 +11,7 @@
   import '../growth/growth.css';
   import Requests from './Requests.svelte';
   import Audit from './Audit.svelte';
+  import AiAdmin from './AiAdmin.svelte';
 
   let { parts }: { parts: string[] } = $props();
   const tabs = $derived([
@@ -23,6 +24,7 @@
     has('hr') && { id: 'wellness', l: 'Напоминания' },
     has('editor') && { id: 'assist', l: 'Помощник оператора' },
     has('hr', 'accountant') && { id: 'requests', l: 'Заявки' },
+    has('admin') && { id: 'ai', l: 'ИИ' },
     has('admin') && { id: 'audit', l: 'Журнал' },
   ].filter(Boolean) as { id: string; l: string }[]);
   const cur = $derived(parts[0] ?? tabs[0]?.id);
@@ -40,5 +42,6 @@
 {:else if cur === 'wellness'}<WellnessAdmin />
 {:else if cur === 'assist'}<AssistAdmin collection={parts[1] ?? null} />
 {:else if cur === 'requests'}<Requests />
+{:else if cur === 'ai'}<AiAdmin />
 {:else if cur === 'audit'}<Audit />
 {:else}<p class="muted">Нет доступных разделов</p>{/if}

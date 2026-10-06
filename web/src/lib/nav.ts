@@ -10,11 +10,12 @@ export function navGroups(chatBadge = 0): NavGroup[] {
   const it = (id: string, label: string, href: string, icon: string, badge?: number, section?: string): NavItem => ({ id, label, href, icon, badge, section });
   const groups: NavGroup[] = [
     { id: 'main', label: wt('g_main'), icon: 'home', items: [
-      it('home', wt('i_summary'), '/home', 'home', undefined, 'internal'), it('news', st('n_news'), '/news', 'news', undefined, 'news'), it('path', st('n_path'), '/path', 'path', undefined, 'internal'),
+      it('home', wt('i_summary'), '/home', 'home', undefined, 'internal'), it('news', st('n_news'), '/news', 'news', undefined, 'news'), it('path', st('n_path'), '/path', 'path', undefined, 'internal'), it('tasks', wt('i_tasks'), '/tasks', 'tests', undefined, 'internal'),
     ] },
     { id: 'learn', label: wt('g_learn'), icon: 'training', items: [
       it('plan', wt('i_plan'), '/training', 'training', undefined, 'training'), it('trainer', wt('i_trainer'), '/training/trainer', 'chat', undefined, 'training'), it('tests', st('n_tests'), '/tests', 'tests', undefined, 'tests'),
       it('library', st('n_library'), '/library', 'library', undefined, 'library'), it('ready', wt('i_ready'), '/training/ready', 'att', undefined, 'training'), it('growth', wt('i_growth'), '/growth', 'growth', undefined, 'internal'),
+      ...(has('manager', 'head', 'hr') ? [it('assistant', wt('i_assistant'), '/assistant', 'assist', undefined, 'internal')] : []),
     ] },
     { id: 'know', label: wt('g_know'), icon: 'kb', items: [
       it('kb', st('n_kb'), '/kb', 'kb', undefined, 'kb'), it('assist', st('n_assist'), '/assist', 'assist', undefined, 'internal'), it('help', wt('i_help'), '/help', 'more'),
@@ -32,6 +33,8 @@ export function navGroups(chatBadge = 0): NavGroup[] {
   const manage: NavItem[] = [
     ...(has('admin', 'hr', 'accountant', 'editor', 'head') ? [it('admin', st('n_admin'), '/admin', 'admin')] : []),
     ...(has('manager', 'head', 'hr') ? [it('reports', wt('i_reports'), '/reports', 'path')] : []),
+    ...(has('manager', 'head', 'hr') ? [it('queue', wt('i_queue'), '/queue', 'kb')] : []),
+    ...(has('manager', 'head', 'hr', 'editor') ? [it('editor', wt('i_editor'), '/editor', 'news')] : []),
   ];
   if (manage.length) groups.push({ id: 'manage', label: wt('g_manage'), icon: 'admin', items: manage });
   // внешнее подразделение видит только разрешённые разделы; стажёр — без ЗП и KPI (то же закрыто на сервере)

@@ -6,6 +6,7 @@ const ru: Record<string, string> = {
   g_main: 'Главная', g_learn: 'Обучение', g_know: 'Знания', g_people: 'Люди', g_profile: 'Профиль', g_manage: 'Управление',
   i_summary: 'Сводка', i_plan: 'План обучения', i_trainer: 'Тренажёр', i_ready: 'Готовность к линии', i_help: 'Как пользоваться порталом',
   i_structure: 'Структура',
+  i_tasks: 'Задачи', i_assistant: 'Помощник супервайзера', i_queue: 'Очередь вопросов', i_editor: 'ИИ-редактор', af_helpful: 'Полезно', af_not: 'Не помогло', af_thanks: 'Спасибо за оценку',
   i_mydata: 'Мои данные', i_settings: 'Настройки', i_reports: 'Отчёты', i_growth: 'Развитие',
   // уведомления
   nt_today: 'Сегодня', nt_earlier: 'Раньше', nt_mark: 'Отметить прочитанным', nt_chat_unread: 'Непрочитанные сообщения', nt_close: 'Закрыть', nt_unread_n: 'Новых: {n}',
@@ -53,6 +54,7 @@ const uz: Record<string, string> = {
   g_main: 'Bosh sahifa', g_learn: 'O‘qitish', g_know: 'Bilimlar', g_people: 'Odamlar', g_profile: 'Profil', g_manage: 'Boshqaruv',
   i_summary: 'Xulosa', i_plan: 'O‘qitish rejasi', i_trainer: 'Trenajyor', i_ready: 'Liniyaga tayyorlik', i_help: 'Portaldan foydalanish',
   i_structure: 'Tuzilma',
+  i_tasks: 'Vazifalar', i_assistant: 'Supervayzer yordamchisi', i_queue: 'Savollar navbati', i_editor: 'AI-muharrir', af_helpful: 'Foydali', af_not: 'Yordam bermadi', af_thanks: 'Bahoyingiz uchun rahmat',
   i_mydata: 'Mening ma’lumotlarim', i_settings: 'Sozlamalar', i_reports: 'Hisobotlar', i_growth: 'Rivojlanish',
   nt_today: 'Bugun', nt_earlier: 'Avvalroq', nt_mark: 'O‘qilgan deb belgilash', nt_chat_unread: 'O‘qilmagan xabarlar', nt_close: 'Yopish', nt_unread_n: 'Yangi: {n}',
   sr_open: 'Qidiruv', sr_ph: 'Portal bo‘yicha qidiruv: savol-javob, testlar, odamlar, chatlar…', sr_sections: 'Bo‘limlar', sr_kb: 'Savol-javob va maqolalar', sr_tests: 'Testlar', sr_library: 'Kutubxona', sr_people: 'Odamlar', sr_chats: 'Chatlar',
