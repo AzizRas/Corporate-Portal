@@ -3,7 +3,7 @@
 // hr/admin — все). Старший оператор (senior) чужих результатов не видит.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
 import { notify } from '../notify.js';
 import { SEED_TESTS } from '../tests-seed.js';
 
@@ -95,9 +95,7 @@ const canTeam = (u: AuthUser) => hasRole(u, 'manager', 'head', 'hr');
 export async function teamScope(u: AuthUser): Promise<number[]> {
   if (!canTeam(u)) return [];
   if (hasRole(u, 'hr')) return (await q('SELECT id FROM users WHERE active AND id<>$1 ORDER BY name', [u.id])).rows.map((r) => r.id);
-  return (await q(
-    `SELECT id FROM users WHERE active AND id<>$1 AND (manager_id=$1 OR ($2::int IS NOT NULL AND dept_id=$2)) ORDER BY name`,
-    [u.id, u.dept_id])).rows.map((r) => r.id);
+  return teamIds(u);
 }
 
 export async function ensureTests() {

@@ -32,7 +32,10 @@ before(async () => {
   // дополнительные люди: старший оператор и руководитель отдела под супервайзером, оператор из другого отдела
   const sv = (await pool.query(`SELECT id FROM users WHERE login='rustam'`)).rows[0].id;
   await seed.createUser({ login: 'senior1', name: 'Старший Тест', roles: ['employee', 'senior'], password: 'demo12345', position: 'Старший оператор', code: 'sr', dept: 'call', manager: sv });
-  await seed.createUser({ login: 'head1', name: 'Начальник Отдела', roles: ['employee', 'head'], password: 'demo12345', position: 'Руководитель отдела', code: 'hd', dept: 'call' });
+  const head1 = await seed.createUser({ login: 'head1', name: 'Начальник Отдела', roles: ['employee', 'head'], password: 'demo12345', position: 'Руководитель отдела', code: 'hd', dept: 'call' });
+  // по новой модели руководитель видит только свою ветку: делаем его главой отдела «Колл-центр»
+  await pool.query(`UPDATE org_nodes SET head_user_id=$1 WHERE kind='dept' AND dept_id=(SELECT id FROM departments WHERE code='call')`, [head1]);
+  (await import('../src/org-core.js')).invalidateOrg();
   await seed.createUser({ login: 'other1', name: 'Чужой Оператор', roles: ['employee'], password: 'demo12345', position: 'Оператор', code: 'op', dept: 'warehouse' });
 });
 after(async () => { await app.close(); await pool.end(); });

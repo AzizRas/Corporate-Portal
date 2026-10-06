@@ -6,6 +6,9 @@ import { ensureTraining } from './modules/training.js';
 import { ensureTests } from './modules/tests.js';
 import { ensureLibrary } from './modules/library.js';
 import { ensureWellness } from './modules/wellness.js';
+import { ensureOrg, invalidateOrg, placeUser, syncManager } from './org-core.js';
+
+let autoPlace = true;   // при первичной загрузке демо дерево строит ensureOrg (группы супервайзеров); позже созданные сотрудники размещаются сразу
 import { prevPeriod } from './model.js';
 import { tzMonth } from './settings.js';
 import crypto from 'node:crypto';
@@ -89,6 +92,7 @@ export async function ensureBase() {
   await ensureTests();
   await ensureLibrary();
   await ensureWellness();
+  await ensureOrg();
 }
 
 interface NewUser {
@@ -98,10 +102,12 @@ interface NewUser {
 export async function createUser(u: NewUser): Promise<number> {
   const dept = u.dept ? (await q('SELECT id FROM departments WHERE code=$1', [u.dept])).rows[0]?.id : null;
   const r = await q(
-    `INSERT INTO users(tab_number,login,pass_hash,name,position,position_code,target_position_code,dept_id,manager_id,lang,hired_at,must_change_password)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-    [u.tab ?? null, u.login, hashPassword(u.password), u.name, u.position ?? '', u.code ?? 'op', u.target ?? null, dept, u.manager ?? null, u.lang ?? 'ru', u.hired ?? null, u.must_change ?? false]);
+    `INSERT INTO users(tab_number,login,pass_hash,name,position,position_code,target_position_code,dept_id,manager_id,lang,hired_at,must_change_password,employment)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+    [u.tab ?? null, u.login, hashPassword(u.password), u.name, u.position ?? '', u.code ?? 'op', u.target ?? null, dept, u.manager ?? null, u.lang ?? 'ru', u.hired ?? null, u.must_change ?? false,
+     u.roles.includes('newbie') ? 'intern' : 'staff']);
   for (const role of u.roles) await q('INSERT INTO user_roles VALUES($1,$2)', [r.rows[0].id, role]);
+  if (autoPlace) { await placeUser(r.rows[0].id); await syncManager(r.rows[0].id); }
   return r.rows[0].id;
 }
 
@@ -109,6 +115,7 @@ export async function createUser(u: NewUser): Promise<number> {
 export async function seedDemo() {
   if ((await q(`SELECT 1 FROM users WHERE login='dilnoza'`)).rows.length) return console.log('[seed] демо уже загружено');
   const pw = 'demo12345';
+  autoPlace = false;
   const head = await createUser({ login: 'head', name: 'Бахтиёр Н.', roles: ['employee', 'manager', 'head'], password: pw, tab: '1000', position: 'Руководитель отдела', code: 'hd', dept: 'call' });
   const sv = await createUser({ login: 'rustam', name: 'Рустам А.', roles: ['employee', 'manager', 'mentor'], password: pw, tab: '1001', position: 'Супервайзер', code: 'sv', dept: 'call', manager: head });
   const dil = await createUser({ login: 'dilnoza', name: 'Дилноза К.', roles: ['employee', 'senior'], password: pw, tab: '1002', position: 'Старший оператор', code: 'sr', target: 'sv', dept: 'call', manager: sv, hired: '2025-03-01' });
@@ -178,6 +185,14 @@ export async function seedDemo() {
     const id = (await q(`INSERT INTO kb_articles(section_id,title_ru,title_uz,body_ru,body_uz,tags,owner_id,status) VALUES($1,$2,$3,$4,$5,$6,$7,'published') RETURNING id`, [sec[s], tr, tu, br, bu, tags, hr])).rows[0].id;
     await q(`INSERT INTO kb_versions(article_id,version,snapshot,by_user) VALUES($1,1,$2,$3)`, [id, JSON.stringify({ title_ru: tr, body_ru: br, section_id: sec[s] }), hr]);
   }
+  // сотрудник внешнего подразделения: видит только чат и обучение
+  await ensureOrg();
+  autoPlace = true;
+  const root = (await q(`SELECT id FROM org_nodes WHERE kind='root'`)).rows[0].id;
+  const ext = (await q(`INSERT INTO org_nodes(parent_id,kind,name_ru,name_uz,allowed,sort) VALUES($1,'external','Подрядчик «Сервис+»','Pudratchi «Servis+»','{chat,training}',50) RETURNING id`, [root])).rows[0].id;
+  const extUser = await createUser({ login: 'ext1', name: 'Фарход (подрядчик)', roles: ['employee'], password: pw, tab: '9001', position: 'Мастер подрядчика', code: 'op' });
+  await q('UPDATE users SET node_id=$2 WHERE id=$1', [extUser, ext]);
+  invalidateOrg();
   console.log(`[seed] готово. Входы (пароль ${pw}): dilnoza, rustam (руководитель), hr, buh, editor, op1…op4`);
 }
 

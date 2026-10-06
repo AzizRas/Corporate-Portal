@@ -2,7 +2,7 @@
 // интервью «готов ли к линии», прогресс команды и допуск на линию. Без ANTHROPIC_API_KEY всё работает во встроенном режиме.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { q, tx } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
 import { aiEnabled, claude, parseJson } from '../ai.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
@@ -115,12 +115,12 @@ const canRecommend = (u: AuthUser) => hasRole(u, 'senior', 'manager', 'head', 'h
 /** Id сотрудников на обучении, которых viewer вправе видеть: все (hr/admin); отдел (head, senior); подчинённые (manager, head); подопечные (наставник). */
 async function visibleIds(v: AuthUser): Promise<number[]> {
   const all = hasRole(v, 'admin', 'hr');
-  const dept = hasRole(v, 'head', 'senior') && !v.roles.includes('admin');
-  const mgr = hasRole(v, 'manager', 'head');
+  // руководитель — своя ветка дерева; старший оператор — свой узел (группа); наставник — подопечные
+  const branch = hasRole(v, 'manager', 'head') && !all ? await teamIds(v) : [];
   const r = await q(
     `SELECT DISTINCT e.user_id AS id FROM enrollments e JOIN users u ON u.id=e.user_id
-      WHERE u.active AND u.id<>$1 AND ($2 OR ($3 AND $4::int IS NOT NULL AND u.dept_id=$4) OR ($5 AND u.manager_id=$1) OR e.mentor_id=$1)`,
-    [v.id, all, dept, v.dept_id, mgr]);
+      WHERE u.active AND u.id<>$1 AND ($2 OR u.id = ANY($3::int[]) OR ($4 AND $5::int IS NOT NULL AND u.node_id=$5) OR e.mentor_id=$1)`,
+    [v.id, all, branch, hasRole(v, 'senior') && !all, v.node_id]);
   return r.rows.map((x) => x.id);
 }
 async function canSeeUser(v: AuthUser, uid: number) { return (await visibleIds(v)).includes(uid); }

@@ -4,9 +4,11 @@ import { q } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { bdaySql } from '../notify.js';
 import { tzDate } from '../settings.js';
+import { externalRootOf, orgNodes, subtreeIds } from '../org-core.js';
 
 /** Каналы чата, доступные сотруднику: общий + свой отдел (HR и админ — все отделы). */
-export async function channelsFor(u: { dept_id: number | null; roles: string[] }) {
+export async function channelsFor(u: { dept_id: number | null; roles: string[]; external?: string[] | null }) {
+  if (u.external) return [];   // внешнее подразделение: общий и отделные каналы закрыты (его группы — в разделе чата)
   const depts = (await q('SELECT id,code,name_ru,name_uz FROM departments ORDER BY id')).rows;
   const all = u.roles.includes('admin') || u.roles.includes('hr');
   return [{ id: 'general', name_ru: 'Общий', name_uz: 'Umumiy' }, ...depts.filter((d) => all || d.id === u.dept_id).map((d) => ({ id: `dept:${d.code}`, name_ru: d.name_ru, name_uz: d.name_uz }))];
@@ -88,10 +90,18 @@ export async function socialRoutes(app: FastifyInstance) {
   });
 
   // кто есть в команде: для упоминаний, списков и т. п.
-  app.get('/api/people', auth, async () => ({
-    people: (await q(
-      `SELECT u.id,u.name,u.position,u.dept_id,u.phone,u.manager_id,u.status,u.avatar_v,${bdaySql('u')} AS bday,
-              COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
-         FROM users u WHERE u.active ORDER BY u.name`)).rows,
-  }));
+  app.get('/api/people', auth, async (req) => {
+    // внешние видят только своих (в рамках своего внешнего подразделения)
+    let only: number[] | null = null;
+    if (req.user!.external) {
+      const all = await orgNodes(), ext = externalRootOf(all, req.user!.node_id);
+      only = ext ? subtreeIds(all, ext.id) : [];
+    }
+    return {
+      people: (await q(
+        `SELECT u.id,u.name,u.position,u.dept_id,u.phone,u.manager_id,u.status,u.avatar_v,${bdaySql('u')} AS bday,
+                COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
+           FROM users u WHERE u.active AND ($1::int[] IS NULL OR u.node_id = ANY($1)) ORDER BY u.name`, [only])).rows,
+    };
+  });
 }

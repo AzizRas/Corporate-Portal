@@ -26,14 +26,14 @@ export const TALK: Record<'month' | 'stay', { ru: string; uz: string }[]> = {
   ],
 };
 
-interface Row { id: number; name: string; position_code: string; target_position_code: string | null; dept_id: number | null; manager_id: number | null; active: boolean; lang: string }
+interface Row { id: number; name: string; position_code: string; target_position_code: string | null; dept_id: number | null; node_id: number | null; manager_id: number | null; active: boolean; lang: string }
 const getUser = async (id: number): Promise<Row | undefined> =>
-  (await q('SELECT id,name,position_code,target_position_code,dept_id,manager_id,active,lang FROM users WHERE id=$1', [id])).rows[0];
+  (await q('SELECT id,name,position_code,target_position_code,dept_id,node_id,manager_id,active,lang FROM users WHERE id=$1', [id])).rows[0];
 
-/** Руководить человеком может: админ; HR — любым, кроме себя; руководитель — своими подчинёнными и сотрудниками своего отдела. */
+/** Руководить человеком может: админ; HR — любым, кроме себя; руководитель — сотрудниками своей ветки дерева (в том числе по замещению). */
 export const canManage = (v: AuthUser, t: Row) =>
   hasRole(v, 'admin') ||
-  (t.id !== v.id && (hasRole(v, 'hr') || ((v.roles.includes('manager') || v.roles.includes('head')) && (t.manager_id === v.id || (v.dept_id != null && t.dept_id === v.dept_id)))));
+  (t.id !== v.id && (hasRole(v, 'hr') || ((v.roles.includes('manager') || v.roles.includes('head')) && (t.node_id != null && v.branch_nodes.includes(t.node_id)))));
 export const canSee = (v: AuthUser, t: Row) => v.id === t.id || canManage(v, t);
 /** Зоны роста видят: сам сотрудник, его супервайзер, руководитель отдела и администратор (не коллеги и не HR). */
 export const canSeeGrowth = (v: AuthUser, t: Row) =>
@@ -331,7 +331,7 @@ export async function growthRoutes(app: FastifyInstance) {
   /* ----- кадровый резерв и карточка человека ----- */
   app.get('/api/growth/reserve', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
     const me = req.user!;
-    const users = (await q('SELECT id,name,position_code,target_position_code,dept_id,manager_id,active,lang FROM users WHERE active AND id<>$1', [me.id])).rows as Row[];
+    const users = (await q('SELECT id,name,position_code,target_position_code,dept_id,node_id,manager_id,active,lang FROM users WHERE active AND id<>$1', [me.id])).rows as Row[];
     const mine = users.filter((u) => canManage(me, u));
     const rows = [];
     for (const u of mine) {
@@ -436,7 +436,7 @@ export async function growthRoutes(app: FastifyInstance) {
   });
 
   /* ----- личная цель: видит только сам сотрудник и руководитель его отдела ----- */
-  const headOf = (v: AuthUser, t: Row) => v.roles.includes('head') && v.dept_id != null && v.dept_id === t.dept_id && v.id !== t.id;
+  const headOf = (v: AuthUser, t: Row) => v.roles.includes('head') && t.node_id != null && v.branch_nodes.includes(t.node_id) && v.id !== t.id;
   app.get('/api/growth/personal', auth, async (req) => ({
     items: (await q('SELECT id,text,done,created_at FROM personal_goals WHERE user_id=$1 ORDER BY done, id DESC', [req.user!.id])).rows,
   }));

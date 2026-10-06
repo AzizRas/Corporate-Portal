@@ -4,6 +4,7 @@ import { migrate } from './migrate.js';
 import { pool } from './db.js';
 import { ensureBase } from './seed.js';
 import { cleanupPhotos } from './modules/attendance.js';
+import { applyDueTransfers } from './org-core.js';
 
 async function main() {
   if (config.isProd && !(process.env.DATABASE_URL || process.env.POSTGRES_URL)) {
@@ -19,6 +20,10 @@ async function main() {
   // ежедневная очистка просроченных селфи (при старте и раз в час проверяем)
   const clean = () => cleanupPhotos().then((n) => n && console.log(`[portal] удалено фото: ${n}`)).catch((e) => console.error('[cleanup]', e));
   setTimeout(clean, 10_000);
+  // переводы с датой вступают в силу в свой день
+  const transfers = () => applyDueTransfers().then((n) => n && console.log(`[portal] применено переводов: ${n}`)).catch((e) => console.error('[transfers]', e));
+  setTimeout(transfers, 15_000);
+  setInterval(transfers, 3600_000).unref();
   setInterval(clean, 3600_000).unref();
 
   const stop = async () => { await app.close(); await pool.end(); process.exit(0); };

@@ -218,7 +218,9 @@ export async function payrollRoutes(app: FastifyInstance) {
 
   // --- сотрудник: только свои данные. Суммы в этот ответ не попадают: они выдаются только по кнопке «Показать» (каждый показ — в журнал)
   const MONEY = ['total', 'fixed', 'earned', 'bonus', 'penalty', 'deductions'] as const;
-  app.get('/api/payroll/me', { preHandler: requireAuth }, async (req) => {
+  // ЗП и KPI открываются при переводе в штат: у стажёра раздел закрыт на сервере
+  const notIntern = async (req: any, reply: any) => { if (req.user?.employment === 'intern') return reply.code(403).send({ error: 'intern' }); };
+  app.get('/api/payroll/me', { preHandler: [requireAuth, notIntern] }, async (req) => {
     const r = await q(
       `SELECT p.month, p.published_at, r.data FROM payroll_rows r JOIN payroll_periods p ON p.id=r.period_id
         WHERE r.user_id=$1 AND p.status='published' ORDER BY p.month DESC LIMIT 12`, [req.user!.id],
@@ -236,7 +238,7 @@ export async function payrollRoutes(app: FastifyInstance) {
       formula,
     };
   });
-  app.post('/api/payroll/reveal', { preHandler: requireAuth }, async (req, reply) => {
+  app.post('/api/payroll/reveal', { preHandler: [requireAuth, notIntern] }, async (req, reply) => {
     const month = String((req.body as any)?.month ?? '');
     const row = (await q(
       `SELECT r.data FROM payroll_rows r JOIN payroll_periods p ON p.id=r.period_id
@@ -249,7 +251,7 @@ export async function payrollRoutes(app: FastifyInstance) {
   });
 
   // «что если»: ожидаемый бонус по плановому проценту KPI; только если бухгалтерия задала формулу
-  app.post('/api/payroll/whatif', { preHandler: requireAuth }, async (req, reply) => {
+  app.post('/api/payroll/whatif', { preHandler: [requireAuth, notIntern] }, async (req, reply) => {
     const f = await getSetting<any>('payroll_formula', { calc: { enabled: false } });
     if (!f.calc?.enabled) return reply.code(404).send({ error: 'no_formula' });
     const pct = Number((req.body as any)?.kpi_pct);

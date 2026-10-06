@@ -2,14 +2,15 @@
 // Сотрудник просит выходной → подтверждает старший оператор (для операторов своего отдела), супервайзер, руководитель отдела, HR, админ.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
+import { branchNodes, isOnLeave } from '../org-core.js';
 import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
 import { notify } from '../notify.js';
 import { tzDate, tzMinutes } from '../settings.js';
 import { settingsFor } from './attendance.js';
 
-interface P { id: number; name: string; position: string; position_code: string; dept_id: number | null; manager_id: number | null; days_off: number[]; shift_start: string; shift_end: string; avatar_v: number; roles: string[] }
+interface P { id: number; name: string; position: string; position_code: string; dept_id: number | null; node_id: number | null; manager_id: number | null; days_off: number[]; shift_start: string; shift_end: string; avatar_v: number; roles: string[] }
 
-const PEOPLE = `SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.manager_id,u.days_off,u.avatar_v,
+const PEOPLE = `SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.node_id,u.manager_id,u.days_off,u.avatar_v,
     to_char(u.shift_start,'HH24:MI') AS shift_start, to_char(u.shift_end,'HH24:MI') AS shift_end,
     COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
   FROM users u WHERE u.active`;
@@ -29,10 +30,10 @@ function canSeeTeam(v: AuthUser) { return hasRole(v, 'manager', 'head', 'hr') ||
 function inScope(v: AuthUser, t: P) {
   if (t.id === v.id) return false;
   if (hasRole(v, 'admin', 'hr')) return true;
-  const sameDept = v.dept_id != null && t.dept_id === v.dept_id;
-  if (v.roles.includes('head')) return sameDept;
-  if (v.roles.includes('manager')) return t.manager_id === v.id || sameDept;
-  if (isSenior(v)) return sameDept;
+  const inBranch = t.node_id != null && v.branch_nodes.includes(t.node_id);
+  if (v.roles.includes('head')) return inBranch;
+  if (v.roles.includes('manager')) return inBranch;
+  if (isSenior(v)) return v.node_id != null && t.node_id === v.node_id;   // старший оператор — операторы своей группы
   return false;
 }
 /** Решать по выходному: старший оператор — только за обычных операторов; остальные руководители — за всех в своей зоне. */
@@ -89,7 +90,9 @@ export async function scheduleRoutes(app: FastifyInstance) {
       [u.id, day, String(b.note ?? '').slice(0, 200)]);
     // уведомляем тех, кто может подтвердить
     const all = (await q(PEOPLE)).rows as P[];
-    const approvers = all.filter((x) => x.id !== u.id && canDecide({ ...(x as any), roles: x.roles } as AuthUser, p)).map((x) => x.id);
+    const approvers: number[] = [];
+    for (const x of all.filter((x) => x.id !== u.id && x.roles.some((r) => ['admin', 'hr', 'manager', 'head', 'senior'].includes(r))))
+      if (canDecide({ ...(x as any), roles: x.roles, branch_nodes: await branchNodes([x.id]), acting_for: [] } as AuthUser, p)) approvers.push(x.id);
     await notify(approvers, 'dayoff', `📅 ${u.name}`, `${day}${b.note ? ` — ${String(b.note).slice(0, 100)}` : ''}`, '#/schedule/team');
     return { ok: true };
   });
@@ -184,6 +187,7 @@ export async function scheduleRoutes(app: FastifyInstance) {
     const mins = tzMinutes();
     const toMin = (t: string | null) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : 0);
     const inWindow = di.kind === 'work' && mins >= toMin(di.shift_start) - 120 && mins <= toMin(di.shift_end);
-    return { needs: inWindow && !marked, marked, work_day: di.kind === 'work', simple: !(s.geo || s.selfie || s.qr || s.wifi) };
+    const leave = await isOnLeave(u.id, today);     // отпуск и больничный — не пропуск, напоминание не нужно
+    return { needs: inWindow && !marked && !leave, on_leave: leave, marked, work_day: di.kind === 'work', simple: !(s.geo || s.selfie || s.qr || s.wifi) };
   });
 }
