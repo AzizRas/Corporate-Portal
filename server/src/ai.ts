@@ -1,7 +1,30 @@
-// Единая точка обращения к Anthropic API. Без ANTHROPIC_API_KEY ИИ-функции работают во встроенном режиме (без живой модели).
-export const aiEnabled = () => !!process.env.ANTHROPIC_API_KEY;
+// Единая точка обращения к ИИ. Приоритет: OPENROUTER_API_KEY (любая модель OpenRouter), затем ANTHROPIC_API_KEY.
+// Без ключей ИИ-функции работают во встроенном режиме (без живой модели).
+export const aiEnabled = () => !!(process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY);
 
-export async function claude(model: string, system: string, messages: { role: 'user' | 'assistant'; content: string }[], maxTokens = 700) {
+type Msg = { role: 'user' | 'assistant'; content: string };
+
+export async function claude(model: string, system: string, messages: Msg[], maxTokens = 700) {
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (orKey) {
+    // OpenRouter: OpenAI-совместимый API. Модель задаётся OPENROUTER_MODEL, например "anthropic/claude-sonnet-4.5" или "openai/gpt-4o-mini".
+    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${orKey}`,
+        'x-title': 'Qadam Portal',
+      },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5',
+        max_tokens: maxTokens,
+        messages: [{ role: 'system', content: system }, ...messages],
+      }),
+    });
+    const j: any = await r.json();
+    if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
+    return String(j.choices?.[0]?.message?.content ?? '').trim();
+  }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
   const r = await fetch('https://api.anthropic.com/v1/messages', {

@@ -6,7 +6,7 @@ import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth
 import { getSetting, setSetting, tzDate, tzMonth } from '../settings.js';
 import { POSITIONS, type Comp } from '../model.js';
 import { pathFor } from './path.js';
-import { claude } from '../ai.js';
+import { aiEnabled, claude } from '../ai.js';
 
 /* ---------- беседы 1:1: вопросы шаблонов ---------- */
 export const TALK: Record<'month' | 'stay', { ru: string; uz: string }[]> = {
@@ -88,7 +88,7 @@ export async function growthRoutes(app: FastifyInstance) {
   app.get('/api/growth/model', auth, async () => {
     const { comps, rounds: rd } = await rounds();
     const badges = (await q('SELECT id,icon,name_ru,name_uz,descr_ru,descr_uz,auto,goal FROM badges ORDER BY sort')).rows;
-    return { period: tzMonth(), competencies: comps, rounds: rd, talk: TALK, badges, positions: Object.entries(POSITIONS).map(([code, p]) => ({ code, ru: p.ru, uz: p.uz })), ai: !!process.env.ANTHROPIC_API_KEY };
+    return { period: tzMonth(), competencies: comps, rounds: rd, talk: TALK, badges, positions: Object.entries(POSITIONS).map(([code, p]) => ({ code, ru: p.ru, uz: p.uz })), ai: aiEnabled() };
   });
 
   /* ----- опросы 360° ----- */
@@ -355,7 +355,7 @@ export async function growthRoutes(app: FastifyInstance) {
     for (const r of reqs) (matrix[r.position_code] ??= {})[r.comp] = r.level;
     return {
       soft_weight: await getSetting('path_soft_weight', 70), threshold: await getSetting('path_threshold', 90), style: await getSetting('growth_style', ''),
-      positions: Object.entries(POSITIONS).map(([code, p]) => ({ code, ru: p.ru, uz: p.uz })), competencies: comps, matrix, ai: !!process.env.ANTHROPIC_API_KEY,
+      positions: Object.entries(POSITIONS).map(([code, p]) => ({ code, ru: p.ru, uz: p.uz })), competencies: comps, matrix, ai: aiEnabled(),
     };
   });
   app.put('/api/growth/settings', sett, async (req, reply) => {
@@ -389,12 +389,12 @@ export async function growthRoutes(app: FastifyInstance) {
   /* ----- ИИ-наставник ----- */
   app.get('/api/growth/mentor', auth, async (req) => {
     const r = await q('SELECT id,role,body,created_at FROM mentor_messages WHERE user_id=$1 ORDER BY id DESC LIMIT 60', [req.user!.id]);
-    return { messages: r.rows.reverse(), configured: !!process.env.ANTHROPIC_API_KEY };
+    return { messages: r.rows.reverse(), configured: aiEnabled() };
   });
   app.post('/api/growth/mentor', auth, async (req, reply) => {
     const body = String((req.body as any)?.message ?? '').trim().slice(0, 1500);
     if (!body) return reply.code(400).send({ error: 'empty' });
-    if (!process.env.ANTHROPIC_API_KEY) return reply.code(503).send({ error: 'ai_off' });
+    if (!aiEnabled()) return reply.code(503).send({ error: 'ai_off' });
     const today = (await q(`SELECT count(*)::int AS n FROM mentor_messages WHERE user_id=$1 AND role='user' AND created_at > now() - interval '24 hours'`, [req.user!.id])).rows[0].n;
     if (today >= 40) return reply.code(429).send({ error: 'ai_limit' });
     await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'user',$2)`, [req.user!.id, body]);
@@ -416,7 +416,7 @@ export async function growthRoutes(app: FastifyInstance) {
     const t = await getUser(Number((req.params as any).id));
     if (!t) return reply.code(404).send({ error: 'not_found' });
     if (!canManage(req.user!, t)) return reply.code(403).send({ error: 'forbidden' });
-    if (!process.env.ANTHROPIC_API_KEY) return reply.code(503).send({ error: 'ai_off' });
+    if (!aiEnabled()) return reply.code(503).send({ error: 'ai_off' });
     const ids = (await compsActive()).map((c) => c.id).join(', ');
     const style = await getSetting('growth_style', '');
     const system = `Ты помогаешь руководителю в компании Darian составить рекомендации по развитию сотрудника. Верни ТОЛЬКО JSON-массив из 2–3 объектов {"comp":"<id компетенции из списка: ${ids}>","text":"<конкретный шаг на ближайшие 2 недели, до 300 знаков, по-русски>"}. Без пояснений.` + (style ? `\nСтиль руководителя:\n${style}` : '');
