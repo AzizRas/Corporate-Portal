@@ -54,3 +54,29 @@
   .ch-m { outline: none; }
   .ch-list { padding: 14px; }
 }
+
+/* ---- группы, личные чаты, файлы, закреплённое ---- */
+.ch-sec { margin: 12px 8px 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ch-ch .ch-nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-ch .ch-h { width: 26px; text-align: center; flex: none; }
+.ch-plus { border: 1px solid var(--border); background: var(--card); color: var(--text); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 1; flex: none; }
+.ch-ib { border: 0; background: none; color: var(--muted); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; font-size: 17px; flex: none; }
+.ch-ib:hover, .ch-ib.on { background: var(--card-2); color: var(--text); }
+.ch-ib svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ch-head { gap: 6px; }
+.ch-pinbar { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--accent) 8%, transparent); color: inherit; padding: 8px 22px; font: inherit; font-size: 13px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-panel { border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; max-height: 40%; overflow: hidden; }
+.ch-res { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.ch-res button { text-align: left; border: 0; background: none; color: inherit; font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+.ch-res button:hover { background: var(--card-2); }
+.ch-sys { align-self: center; font-size: 12px; color: var(--muted); background: var(--card-2); padding: 4px 14px; border-radius: 99px; margin: 8px 0; text-align: center; max-width: 90%; }
+.ch-who small.former { color: #f59e0b; }
+.ch-img { max-width: min(320px, 100%); max-height: 260px; border-radius: 12px; display: block; margin-bottom: 4px; }
+.ch-file { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: inherit; text-decoration: none; margin-bottom: 4px; }
+.ch-file span { display: flex; flex-direction: column; min-width: 0; }
+.ch-file b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-file small { color: var(--muted); }
+.tick { margin-left: 6px; letter-spacing: -2px; }
+.tick.seen { color: var(--accent); }
+.ch-plus.ch-tab-plus { width: 34px; }
+@media (max-width: 880px) { .ch-tabs .ch-plus { flex: none; align-self: center; } .ch-pinbar { padding: 8px 14px; } }

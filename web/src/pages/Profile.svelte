@@ -7,6 +7,7 @@
   import { wt } from '../lib/w18n';
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
   import Payroll from './Payroll.svelte';
+  import NotifyPrefs from '../components/NotifyPrefs.svelte';
 
   let { tab = 'me' }: { tab?: string } = $props();
 
@@ -59,6 +60,7 @@
     <div><div class="muted small">{t('role')}</div><div class="row wrap" style="margin-top:8px">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
     <button class="btn danger" onclick={logout}>{t('nav_logout')}</button>
   </section>
+  <NotifyPrefs />
   <section class="card stack"><h3 class="card-title">{st('pf_wellness')}</h3><WellnessSettings /></section>
   <form class="card stack" onsubmit={change}>
     <h3 class="card-title">{t('profile_pw')}</h3>
