@@ -25,8 +25,10 @@ export async function claude(model: string, system: string, messages: Msg[], max
     });
     const j: any = await r.json();
     if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
-    const out = String(j.choices?.[0]?.message?.content ?? '').trim();
-    if (!out) throw new Error(`Модель вернула пустой ответ (finish_reason: ${j.choices?.[0]?.finish_reason ?? '?'}). Попробуйте другую модель в OPENROUTER_MODEL.`);
+    if (j?.error) throw new Error(String(j.error.message || JSON.stringify(j.error)).slice(0, 300));
+    const m = j.choices?.[0]?.message;
+    const out = String(m?.content ?? '').trim();
+    if (!out) throw new Error(`Пустой ответ модели. Ответ OpenRouter: ${JSON.stringify(j).slice(0, 400)}`);
     return out;
   }
   const key = process.env.ANTHROPIC_API_KEY;
