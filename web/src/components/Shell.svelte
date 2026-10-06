@@ -6,6 +6,7 @@
   import { notif, startNotify } from '../lib/notify.svelte';
   import { navGroups, activeItem } from '../lib/nav';
   import Search from './Search.svelte';
+  import AssistChat from './AssistChat.svelte';
   import Tour from './Tour.svelte';
   import { tour, maybeAutoStart, visit, visitSearch } from '../lib/tour.svelte';
   import Icon from './Icon.svelte';
@@ -113,5 +114,6 @@
     {/each}
   </div>
   <Wellness />
+  <AssistChat />
   <Tour />
 </div>

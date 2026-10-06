@@ -447,3 +447,32 @@ test('Несколько моделей: если первая не отвеча
     assert.equal((await get(adm, '/api/panel')).statusCode, 200, 'портал продолжает работать');
   } finally { delete process.env.OPENROUTER_API_KEY; delete process.env.OPENROUTER_MODEL; orFail.clear(); }
 });
+
+test('Окно помощника оператора: база → общий совет с пометкой → вопрос руководителю; телефон клиента в ИИ не уходит', async () => {
+  const op = await login('op1'), sv = await login('rustam');
+  const art = (await pool.query(`SELECT id,title_ru FROM kb_articles WHERE status='published' ORDER BY id LIMIT 1`)).rows[0];
+  const chat = (who: any, content: string) => send(who, 'POST', '/api/search/chat', { messages: [{ role: 'user', content }] }).then((r) => r.json());
+  // без ИИ: нет статьи — вопрос в очередь; есть статья — показываем её как есть
+  aiOff();
+  const none = await chat(op, 'Расскажите про квантовую бухгалтерию на Луне');
+  assert.deepEqual([none.mode, none.queued], ['none', true]);
+  assert.ok((await get(sv, '/api/questions/queue')).json().items.some((i: any) => i.id === none.id), 'руководитель видит вопрос');
+  assert.equal((await chat(op, art.title_ru)).mode, 'kb_plain');
+  // ИИ нашёл ответ в базе — вопрос не сохраняется
+  aiOn(); calls.length = 0;
+  respond = () => JSON.stringify({ source: 'kb', answer: 'Ответ из статьи', reply: 'Здравствуйте! Ответ из статьи.', sources: [art.id] });
+  const kb = await chat(op, `${art.title_ru} +998 90 123 45 67`);
+  assert.deepEqual([kb.mode, kb.queued, kb.sources[0].id, !!kb.reply], ['kb', false, art.id, true]);
+  assert.ok(!/998|123 45/.test(calls.at(-1)!.user), 'номер телефона замаскирован');
+  // ответа в базе нет, модель советует из общих знаний — пометка «не из базы» и вопрос всё равно у руководителя
+  respond = () => JSON.stringify({ source: 'general', answer: 'Общий совет', reply: 'Готовый текст', sources: [] });
+  const gen = await chat(op, 'Как вежливо попросить клиента повторить номер заказа?');
+  assert.deepEqual([gen.mode, gen.queued, gen.reply], ['general', true, 'Готовый текст']);
+  // модель не уверена — вопрос руководителю без выдумок; сбой ИИ не роняет окно
+  respond = () => JSON.stringify({ source: 'none', answer: '', sources: [] });
+  assert.deepEqual([(await chat(op, 'Какая скидка у корпоративных клиентов?')).mode], ['none']);
+  failWith = 'boom';
+  const err = await chat(op, 'Что-нибудь совсем непонятное xyz');
+  assert.equal(err.queued, true); failWith = null;
+  assert.equal((await send({ cookies: {} }, 'POST', '/api/search/chat', { messages: [] })).statusCode, 401);
+});

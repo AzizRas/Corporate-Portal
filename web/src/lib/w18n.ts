@@ -57,6 +57,11 @@ const ru: Record<string, string> = {
   o_import_pw: 'Временные пароли новых сотрудников (показываются один раз):', o_import_err: 'Ошибки в файле', o_import_hint: 'Файл — как в экспорте: листы «Структура» и «Сотрудники».',
   o_deleg_title: 'Замещение', o_deleg_hint: 'На срок отпуска заместитель получает ваши права и видит вашу ветку.', o_deleg_to: 'Кому', o_deleg_add: 'Делегировать', o_deleg_none: 'Активных замещений нет', o_acting: 'Вы замещаете руководителя',
   o_err: 'Не получилось. Проверьте данные.', o_err_level: 'Такой узел сюда не вкладывается.', o_err_cycle: 'Нельзя перенести узел внутрь самого себя.', o_drop_bad: 'Сюда нельзя',
+  // окно-помощник оператора
+  ac_title: 'Помощник', ac_hello: 'Опишите вопрос клиента или свой. Я посмотрю в базе знаний; если там нет — предложу готовый ответ и передам вопрос руководителю.', ac_ph: 'Вопрос или ситуация…', ac_send: 'Отправить',
+  ac_from_kb: 'Из базы знаний', ac_general: 'Не из базы компании — проверьте', ac_reply: 'Готовый ответ клиенту', ac_copy: 'Скопировать', ac_copied: 'Скопировано', ac_busy: 'Ищу ответ…',
+  ac_none: 'Точного ответа не нашлось.', ac_queued: 'Вопрос сохранён и передан руководителю — он ответит и дополнит базу.', ac_queued_dup: 'Такой вопрос уже ждёт ответа руководителя — мы учли ещё один голос.',
+  ac_limit: 'Дневной лимит вопросов к ИИ исчерпан.', ac_err: 'Не получилось. Попробуйте ещё раз.', ac_priv: 'Телефоны и номера клиентов в ИИ не передаются.',
 };
 const uz: Record<string, string> = {
   g_main: 'Bosh sahifa', g_learn: 'O‘qitish', g_know: 'Bilimlar', g_people: 'Odamlar', g_profile: 'Profil', g_manage: 'Boshqaruv',
@@ -105,6 +110,10 @@ const uz: Record<string, string> = {
   o_import_pw: 'Yangi xodimlarning vaqtinchalik parollari (bir marta ko‘rsatiladi):', o_import_err: 'Fayldagi xatolar', o_import_hint: 'Fayl eksportdagidek: «Tuzilma» va «Xodimlar» varaqlari.',
   o_deleg_title: 'O‘rinbosarlik', o_deleg_hint: 'Ta’til muddatiga o‘rinbosar sizning huquqlaringizni oladi va shoxobchangizni ko‘radi.', o_deleg_to: 'Kimga', o_deleg_add: 'Topshirish', o_deleg_none: 'Faol o‘rinbosarliklar yo‘q', o_acting: 'Siz rahbar o‘rnini bosyapsiz',
   o_err: 'Bajarib bo‘lmadi. Ma’lumotlarni tekshiring.', o_err_level: 'Bunday bo‘linma bu yerga qo‘yilmaydi.', o_err_cycle: 'Bo‘linmani o‘z ichiga ko‘chirib bo‘lmaydi.', o_drop_bad: 'Bu yerga mumkin emas',
+  ac_title: 'Yordamchi', ac_hello: 'Mijoz yoki o‘z savolingizni yozing. Bilimlar bazasidan qidiraman; topilmasa — tayyor javob taklif qilib, savolni rahbarga yuboraman.', ac_ph: 'Savol yoki vaziyat…', ac_send: 'Yuborish',
+  ac_from_kb: 'Bilimlar bazasidan', ac_general: 'Kompaniya bazasidan emas — tekshiring', ac_reply: 'Mijozga tayyor javob', ac_copy: 'Nusxalash', ac_copied: 'Nusxalandi', ac_busy: 'Javob qidiryapman…',
+  ac_none: 'Aniq javob topilmadi.', ac_queued: 'Savol saqlandi va rahbarga yuborildi — u javob berib, bazani to‘ldiradi.', ac_queued_dup: 'Bunday savol rahbar javobini kutyapti — yana bir ovoz hisobga olindi.',
+  ac_limit: 'AI’ga kunlik savollar limiti tugadi.', ac_err: 'Bajarib bo‘lmadi. Qayta urinib ko‘ring.', ac_priv: 'Mijozlarning telefon va raqamlari AI’ga yuborilmaydi.',
 };
 export const wt = (k: string, v?: Record<string, string | number>) => {
   let s = (app.lang === 'uz' && uz[k]) || ru[k] || k;
