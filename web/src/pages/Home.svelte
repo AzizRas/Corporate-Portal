@@ -50,7 +50,7 @@
   <section class="card">
     <div class="card-head"><h3>{t('home_pay')}</h3>{#if last}<span class="aside">{monthLong(last.month)}</span>{/if}</div>
     {#if last}
-      <div class="big-num u-7fa2d86">{fmtSum(last.data.total)}</div><p class="muted small u-fe7b497">{t('pay_net')}</p>
+      <div class="big-num u-7fa2d86" aria-label="••• •••">••• •••</div><p class="muted small u-fe7b497">{t('pay_net')}</p>
       <a class="u-6bf6cab" href="#/profile/pay">{t('nav_pay')} →</a>
     {:else if fail.pay}<ErrorState error={fail.pay} retry={loadPay} />
     {:else if !done.pay}<Skeleton lines={2} />

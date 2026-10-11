@@ -2,7 +2,7 @@
 import { chromium } from 'playwright-core';
 const base = process.env.BASE || 'http://localhost:3000';
 const out = process.argv[2] || '/tmp/shots';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
 const errors = [];
 async function login(user, ctxOpts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 960 }, permissions: ['geolocation'], geolocation: { latitude: 41.2996, longitude: 69.2402 }, ...ctxOpts });

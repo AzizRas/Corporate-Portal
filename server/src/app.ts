@@ -51,7 +51,7 @@ export function staticCache(file: string): string {
 }
 
 export async function buildApp() {
-  const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: true, genReqId: () => Math.random().toString(36).slice(2, 10) });
+  const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: process.env.TRUST_PROXY ? (process.env.TRUST_PROXY === 'true' ? true : process.env.TRUST_PROXY.split(',').map((x) => x.trim())) : !config.isProd, genReqId: () => Math.random().toString(36).slice(2, 10) });
 
   await app.register(cookie);
   await app.register(compress);

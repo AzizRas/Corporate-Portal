@@ -14,8 +14,9 @@
   async function changePw(e: Event) {
     e.preventDefault();
     if (pw1.length < 8) { msg = t('pw_weak'); return; }
+    if (pw1 !== pw2) { msg = app.lang === 'uz' ? 'Parollar mos kelmadi' : 'Пароли не совпадают'; return; }
     busy = true;
-    try { await api.patch('/api/me', { password: pw1 }); await loadMe(); pw1 = ''; msg = ''; }
+    try { await api.patch('/api/me', { password: pw1 }); await loadMe(); pw1 = pw2 = ''; msg = ''; }
     catch { msg = t('error'); } finally { busy = false; }
   }
   async function consent() {
@@ -34,6 +35,7 @@
       <h2>{t('pw_title')}</h2>
       <p class="muted small">{t('pw_sub')}</p>
       <label class="f">{t('pw_new')}<input type="password" bind:value={pw1} autocomplete="new-password" required /></label>
+      <label class="f">{app.lang === 'uz' ? 'Parolni takrorlang' : 'Повторите пароль'}<input type="password" bind:value={pw2} autocomplete="new-password" required /></label>
       {#if msg}<div class="alert">{msg}</div>{/if}
       <button class="btn grad block" disabled={busy}>{t('save')}</button>
     </form>

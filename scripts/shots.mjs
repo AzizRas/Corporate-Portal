@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const out = process.argv[2] || '/tmp/shots';
 fs.mkdirSync(out, { recursive: true });
 const base = process.env.BASE || 'http://localhost:3000';
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
 
 async function session(user, pw, viewport, theme, pages, tag) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: theme, permissions: ['geolocation'], geolocation: { latitude: 41.2996, longitude: 69.2402 } });

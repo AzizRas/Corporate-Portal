@@ -6,7 +6,7 @@
 
   let { pipelineId, name, onclose }: { pipelineId: number; name: string; onclose: () => void } = $props();
   let fields: any[] = $state([]), data: Record<string, any> = $state({}), status = $state('draft'), who: any = $state(null), err = $state('');
-  api.get(`/api/hire/pipeline/${pipelineId}/offer`).then((r) => { fields = r.fields; data = { ...r.offer.data }; status = r.offer.status; who = r.who; }).catch((e) => (err = errText(e)));
+  $effect(() => { api.get(`/api/hire/pipeline/${pipelineId}/offer`).then((r) => { fields = r.fields; data = { ...r.offer.data }; status = r.offer.status; who = r.who; }).catch((e) => (err = errText(e))); });
 
   const label = (f: any) => (app.lang === 'uz' && f.label_uz) || f.label;
   async function save(e: Event) {
