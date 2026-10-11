@@ -1,13 +1,13 @@
 // Админка: какие разделы видят подразделения (колл-центр, сервис-центр, склад, HR, рекрутеры, бухгалтерия).
 import type { FastifyInstance } from 'fastify';
 import { audit, requireRole } from '../auth.js';
-import { DEFAULT_MATRIX, PROFILES, SECTIONS, currentMatrix, dropAccessCache, type Profile } from '../access.js';
+import { DEFAULT_MATRIX, PROFILES, SECTIONS, currentMatrix, dropAccessCache, serverClosedSections, type Profile } from '../access.js';
 import { getSetting, setSetting } from '../settings.js';
 
 export async function accessAdminRoutes(app: FastifyInstance) {
   const adm = { preHandler: requireRole('admin') };
   app.get('/api/admin/access', adm, async () => ({
-    sections: SECTIONS, profiles: PROFILES, matrix: await currentMatrix(), defaults: DEFAULT_MATRIX,
+    sections: SECTIONS, profiles: PROFILES, server_closed: serverClosedSections(), matrix: await currentMatrix(), defaults: DEFAULT_MATRIX,
     changed: Object.keys(await getSetting<Record<string, unknown>>('section_access', {})),
   }));
   app.put('/api/admin/access', adm, async (req, reply) => {

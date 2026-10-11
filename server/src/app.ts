@@ -37,6 +37,7 @@ import { libraryRoutes } from './modules/library.js';
 import { wellnessRoutes } from './modules/wellness.js';
 import { hireRoutes } from './modules/hire.js';
 import { accessAdminRoutes } from './modules/access-admin.js';
+import { usageRoutes } from './modules/usage.js';
 
 // index.html ссылается на файлы с хэшем в имени: после выкладки он должен подтягиваться заново, иначе вместо новых файлов будут ссылки на удалённые (белый экран).
 // Файлы в /assets/ неизменны (хэш меняется вместе с содержимым), их можно держать в кэше год.
@@ -98,6 +99,7 @@ export async function buildApp() {
   await app.register(wellnessRoutes);
   await app.register(hireRoutes);
   await app.register(accessAdminRoutes);
+  await app.register(usageRoutes);
 
   app.setErrorHandler((err: any, req, reply) => {
     req.log.error(err);

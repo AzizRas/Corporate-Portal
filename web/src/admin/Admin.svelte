@@ -14,6 +14,7 @@
   import AiAdmin from './AiAdmin.svelte';
   import TourStats from './TourStats.svelte';
   import AccessAdmin from './AccessAdmin.svelte';
+  import UsageAdmin from './UsageAdmin.svelte';
 
   let { parts }: { parts: string[] } = $props();
   const tabs = $derived([
@@ -27,6 +28,7 @@
     has('editor') && { id: 'assist', l: 'Помощник оператора' },
     has('hr', 'accountant') && { id: 'requests', l: 'Заявки' },
     has('admin') && { id: 'access', l: 'Доступ к разделам' },
+    has('admin') && { id: 'usage', l: 'Использование разделов' },
     has('admin') && { id: 'ai', l: 'ИИ' },
     has('admin') && { id: 'tour', l: 'Обучение порталу' },
     has('admin') && { id: 'audit', l: 'Журнал' },
@@ -47,6 +49,7 @@
 {:else if cur === 'assist'}<AssistAdmin collection={parts[1] ?? null} />
 {:else if cur === 'requests'}<Requests />
 {:else if cur === 'access'}<AccessAdmin />
+{:else if cur === 'usage'}<UsageAdmin />
 {:else if cur === 'ai'}<AiAdmin />
 {:else if cur === 'tour'}<TourStats />
 {:else if cur === 'audit'}<Audit />

@@ -84,7 +84,7 @@ export async function restartTour() {
 }
 
 /** Какие страницы считаем посещёнными для чек-листа и статистики. */
-const PAGE_IDS = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports']);
+const PAGE_IDS = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports']);
 const seen = new Set<string>();
 export function visit(route: string) {
   const parts = route.split('?')[0].split('/').filter(Boolean);

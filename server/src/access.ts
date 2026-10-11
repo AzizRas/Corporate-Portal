@@ -38,6 +38,8 @@ const GATES: Gate[] = [
   ...['mentor', 'survey', 'reserve', 'talks', 'recs', 'analysis', '360', 'goals', 'model', 'badges'].map((x) => G(`/api/growth/${x}`, ['growth'])),
   G('/api/kb', ['kb'], ['hr', 'editor']),
 ];
+/** Разделы, чьи данные закрыты на сервере (см. GATES): интерфейс админки отмечает их в матрице доступа. */
+export const serverClosedSections = (): Section[] => [...new Set(GATES.flatMap((g) => g.any))];
 const hitPrefix = (p: string, pre: string) => p === pre || p.startsWith(pre + '/');
 /** Первое подходящее правило для адреса (самое длинное совпадение префикса). */
 export const gateOfUrl = (url: string): { any: Section[]; except?: string[] } | null => {
