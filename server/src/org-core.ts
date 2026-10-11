@@ -120,11 +120,12 @@ export async function applyDueTransfers() {
 }
 
 /** Первичное построение дерева из справочника отделов и разметка тех, кто ещё не размещён. Безопасно вызывать повторно. */
-/** Системный пользователь: у него есть роль admin и нет роли сотрудника. Это служебная учётная запись, а не человек в штате: в структуре, списках людей и графике его нет. */
-export const SYSTEM_USER_SQL = `(EXISTS(SELECT 1 FROM user_roles sr WHERE sr.user_id=u.id AND sr.role='admin') AND NOT EXISTS(SELECT 1 FROM user_roles se WHERE se.user_id=u.id AND se.role='employee'))`;
+/** Служебная учётная запись (users.is_system): техническая учётка администратора, а не человек в штате — в структуре, списках людей и графике её нет.
+ *  Админ-человек (директор с ролью admin) — обычный сотрудник: руководит узлами и видит свою команду. */
+export const SYSTEM_USER_SQL = `(u.is_system)`;
 
 export async function ensureOrg() {
-  // системных пользователей из структуры убираем (раньше админ попадал в узел как сотрудник)
+  // служебные учётные записи в структуре не бывают (руководство людьми не трогаем)
   await q(`UPDATE org_nodes SET head_user_id=NULL WHERE head_user_id IN (SELECT u.id FROM users u WHERE ${SYSTEM_USER_SQL})`);
   await q(`UPDATE users u SET node_id=NULL WHERE node_id IS NOT NULL AND ${SYSTEM_USER_SQL}`);
   let root = (await q(`SELECT id FROM org_nodes WHERE kind='root' LIMIT 1`)).rows[0]?.id as number | undefined;

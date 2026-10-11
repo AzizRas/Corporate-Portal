@@ -282,6 +282,9 @@ export async function payrollRoutes(app: FastifyInstance) {
         WHERE p.month=$1 AND p.status='published' AND ($2::int[] IS NULL OR r.user_id = ANY($2))`, [month, ids],
     );
     await audit(req, 'payroll_team_view', month);
+    // k-анонимность: по команде из 1–2 человек сумма и среднее раскрывают чужую зарплату
+    const min = await getSetting<number>('payroll_min_group', 3);
+    if (ids && r.rows[0].n < min) return { n: r.rows[0].n, hidden: true, min };
     return r.rows[0];
   });
 }

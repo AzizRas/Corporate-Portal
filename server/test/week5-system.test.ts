@@ -39,16 +39,18 @@ async function login(l: string, p = 'demo12345') {
 }
 const get = (who: any, url: string) => app.inject({ method: 'GET', url, ...who });
 
-test('Системный админ не размещается в структуре; админ-сотрудник остаётся', async () => {
-  // принудительно «поселим» админа в узел, как было раньше, и убедимся, что запуск структуры его убирает
+test('Служебная учётка (встроенный admin) вне структуры; админ-человек без роли сотрудника — в структуре', async () => {
+  // принудительно «поселим» служебного админа в узел и убедимся, что запуск структуры его убирает
   await pool.query(`UPDATE users SET node_id=(SELECT id FROM org_nodes WHERE kind='root') WHERE login='admin'`);
   await core.ensureOrg(); core.invalidateOrg();
-  const rows = (await pool.query(`SELECT login,node_id FROM users WHERE login IN ('admin','boss')`)).rows;
-  assert.equal(rows.find((r) => r.login === 'admin').node_id, null, 'системный админ вне структуры');
+  const rows = (await pool.query(`SELECT login,node_id,is_system FROM users WHERE login IN ('admin','boss')`)).rows;
+  assert.equal(rows.find((r) => r.login === 'admin').is_system, true, 'встроенный админ помечен служебным');
+  assert.equal(rows.find((r) => r.login === 'admin').node_id, null, 'служебная учётка вне структуры');
   assert.ok(rows.find((r) => r.login === 'boss').node_id, 'админ с ролью сотрудника — в штате');
+  // директор с ролями admin+head без роли employee — человек, а не служебная учётка (раньше его выкидывало из структуры)
   const seed = await import('../src/seed.js');
-  const id = await seed.createUser({ login: 'sys2', name: 'Служебный', roles: ['admin'], dept: 'call', password: 'demo12345' });
-  assert.equal((await pool.query(`SELECT node_id FROM users WHERE id=$1`, [id])).rows[0].node_id, null, 'новый системный пользователь не размещается');
+  const id = await seed.createUser({ login: 'sys2', name: 'Директор Без Роли', roles: ['admin', 'head'], dept: 'call', password: 'demo12345' });
+  assert.ok((await pool.query(`SELECT node_id FROM users WHERE id=$1`, [id])).rows[0].node_id, 'админ-человек размещается');
 });
 
 test('Админа нет в списках людей, поиске и графике; директор-сотрудник есть', async () => {
