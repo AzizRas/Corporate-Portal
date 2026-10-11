@@ -11,7 +11,7 @@ const ru: Record<string, string> = {
   // уведомления
   nt_today: 'Сегодня', nt_earlier: 'Раньше', nt_mark: 'Отметить прочитанным', nt_chat_unread: 'Непрочитанные сообщения', nt_close: 'Закрыть', nt_unread_n: 'Новых: {n}',
   // поиск
-  sr_open: 'Поиск', sr_ph: 'Поиск по порталу: ЧАВО, тесты, люди, чаты…', sr_sections: 'Разделы', sr_kb: 'ЧАВО и статьи', sr_tests: 'Тесты', sr_library: 'Библиотека', sr_people: 'Люди', sr_chats: 'Чаты',
+  sr_cands: 'Кандидаты', sr_open: 'Поиск', sr_ph: 'Поиск по порталу: ЧАВО, тесты, люди, чаты…', sr_sections: 'Разделы', sr_kb: 'ЧАВО и статьи', sr_tests: 'Тесты', sr_library: 'Библиотека', sr_people: 'Люди', sr_chats: 'Чаты',
   sr_none: 'Ничего не найдено', sr_ask: 'Спросить ИИ по базе знаний', sr_ask_hint: 'Нажмите Enter, чтобы спросить ИИ', sr_asking: 'Ищу ответ в базе знаний…', sr_answer: 'Ответ ИИ', sr_sources: 'Источники',
   sr_queued: 'Ответа в базе нет. Мы передали вопрос в очередь — руководитель ответит и дополнит базу.', sr_queued_dup: 'Такой вопрос уже в очереди — мы учли ещё один голос.', sr_ai_off: 'ИИ сейчас не подключён.', sr_err: 'Ошибка ИИ',
   sr_hint: 'Ctrl+K', sr_hint_keys: '↑↓ — выбор, Enter — открыть, Esc — закрыть', sr_person: 'Сотрудник', sr_msg_in: 'в канале',
@@ -73,7 +73,7 @@ const uz: Record<string, string> = {
   i_tasks: 'Vazifalar', i_assistant: 'Supervayzer yordamchisi', i_queue: 'Savollar navbati', i_editor: 'AI-muharrir', af_helpful: 'Foydali', af_not: 'Yordam bermadi', af_thanks: 'Bahoyingiz uchun rahmat',
   i_mydata: 'Mening ma’lumotlarim', i_settings: 'Sozlamalar', i_reports: 'Hisobotlar', i_growth: 'Rivojlanish',
   nt_today: 'Bugun', nt_earlier: 'Avvalroq', nt_mark: 'O‘qilgan deb belgilash', nt_chat_unread: 'O‘qilmagan xabarlar', nt_close: 'Yopish', nt_unread_n: 'Yangi: {n}',
-  sr_open: 'Qidiruv', sr_ph: 'Portal bo‘yicha qidiruv: savol-javob, testlar, odamlar, chatlar…', sr_sections: 'Bo‘limlar', sr_kb: 'Savol-javob va maqolalar', sr_tests: 'Testlar', sr_library: 'Kutubxona', sr_people: 'Odamlar', sr_chats: 'Chatlar',
+  sr_cands: 'Nomzodlar', sr_open: 'Qidiruv', sr_ph: 'Portal bo‘yicha qidiruv: savol-javob, testlar, odamlar, chatlar…', sr_sections: 'Bo‘limlar', sr_kb: 'Savol-javob va maqolalar', sr_tests: 'Testlar', sr_library: 'Kutubxona', sr_people: 'Odamlar', sr_chats: 'Chatlar',
   sr_none: 'Hech narsa topilmadi', sr_ask: 'Bilimlar bazasi bo‘yicha AIdan so‘rash', sr_ask_hint: 'AIdan so‘rash uchun Enter bosing', sr_asking: 'Bilimlar bazasidan javob qidiryapman…', sr_answer: 'AI javobi', sr_sources: 'Manbalar',
   sr_queued: 'Bazada javob yo‘q. Savolingiz navbatga yuborildi — rahbar javob beradi va bazani to‘ldiradi.', sr_queued_dup: 'Bunday savol navbatda bor — yana bir ovoz hisobga olindi.', sr_ai_off: 'AI hozir ulanmagan.', sr_err: 'AI xatosi',
   sr_hint: 'Ctrl+K', sr_hint_keys: '↑↓ — tanlash, Enter — ochish, Esc — yopish', sr_person: 'Xodim', sr_msg_in: 'kanalda',

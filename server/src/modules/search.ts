@@ -8,6 +8,7 @@ import { searchArticles } from './kb.js';
 import { channelsFor } from './social.js';
 import { takeAi } from './training.js';
 import { buildPlatform } from '../assist-data.js';
+import { urlAllowed } from '../access.js';
 
 const like = (s: string) => `%${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 const normText = (s: string) => [...new Set(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2))].sort().join(' ');
@@ -38,9 +39,10 @@ export async function searchRoutes(app: FastifyInstance) {
   app.get('/api/search', auth, async (req) => {
     const u = req.user!;
     const query = String((req.query as any).q ?? '').trim().slice(0, 100);
-    if (query.length < 2) return { kb: [], tests: [], library: [], people: [], chats: [] };
+    if (query.length < 2) return { kb: [], tests: [], library: [], people: [], candidates: [], chats: { channels: [], messages: [] } };
     const pat = like(query);
-    const kb = (await searchArticles(query, u.dept_id)).slice(0, 5).map((a) => ({ id: a.id, title_ru: a.title_ru, title_uz: a.title_uz, snippet_ru: a.snippet_ru, snippet_uz: a.snippet_uz }));
+    // статьи базы знаний — только тем, у кого раздел «ЧАВО» открыт (HR и редактор ведут её по роли); иначе поиск обходил бы закрытый раздел
+    const kb = !urlAllowed('/api/kb', u.sections, u.roles) ? [] : (await searchArticles(query, u.dept_id)).slice(0, 5).map((a) => ({ id: a.id, title_ru: a.title_ru, title_uz: a.title_uz, snippet_ru: a.snippet_ru, snippet_uz: a.snippet_uz }));
     const tests = (await q(`SELECT slug,title_ru,title_uz FROM tests WHERE active AND (title_ru ILIKE $1 OR title_uz ILIKE $1 OR descr_ru ILIKE $1) ORDER BY sort LIMIT 5`, [pat])).rows;
     const library = (await q(`SELECT id,kind,title,author FROM library_items WHERE active AND (title ILIKE $1 OR author ILIKE $1 OR tags ILIKE $1) ORDER BY id DESC LIMIT 5`, [pat])).rows;
     const people = (await q(`SELECT id,name,position,avatar_v FROM users WHERE active AND (name ILIKE $1 OR position ILIKE $1) ORDER BY name LIMIT 6`, [pat])).rows;
@@ -51,9 +53,13 @@ export async function searchRoutes(app: FastifyInstance) {
       `SELECT m.id,m.channel,left(m.body,140) AS snippet,m.created_at,us.name AS author
          FROM chat_messages m JOIN users us ON us.id=m.user_id
         WHERE m.channel = ANY($1::text[]) AND m.body ILIKE $2 ORDER BY m.id DESC LIMIT 5`, [ids, pat])).rows;
+    // кандидаты — рекрутёрам, HR и админу (заказчик видит только своих кандидатов в «Найме»)
+    const candidates = !hasRole(u, 'hr', 'recruiter')
+      ? []
+      : (await q(`SELECT id,first_name,last_name,position FROM hire_applicants WHERE NOT anonymized AND (first_name ILIKE $1 OR last_name ILIKE $1 OR position ILIKE $1 OR email ILIKE $1 OR phone ILIKE $1) ORDER BY id DESC LIMIT 5`, [pat])).rows;
     const lc = query.toLowerCase();
     const chatNames = chans.filter((c) => c.name_ru.toLowerCase().includes(lc) || c.name_uz.toLowerCase().includes(lc));
-    return { kb, tests, library, people, chats: { channels: chatNames, messages: msgs } };
+    return { kb, tests, library, people, candidates, chats: { channels: chatNames, messages: msgs } };
   });
 
   // ответ ИИ по базе знаний; если ответа нет (или ИИ выключен) — вопрос уходит в очередь
