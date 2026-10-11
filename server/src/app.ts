@@ -47,7 +47,7 @@ export const ASSET_CACHE = 'public, max-age=31536000, immutable';
 export function staticCache(file: string): string {
   const rel = path.relative(config.webDir, file).split(path.sep);
   if (rel[0] === 'assets') return ASSET_CACHE;
-  if (/\.html?$/i.test(file) || /[\/]sw\.js$/.test(file)) return INDEX_CACHE;     // service worker обязан обновляться сразу
+  if (/\.html?$/i.test(file) || path.basename(file) === 'sw.js') return INDEX_CACHE;     // service worker обязан обновляться сразу
   return 'public, max-age=3600';       // иконка, manifest: имена без хэша, час не страшен
 }
 
