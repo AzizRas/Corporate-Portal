@@ -3,6 +3,7 @@ import { q } from '../db.js';
 import { config } from '../config.js';
 import { COOKIE, audit, createSession, requireAuth, hasRole, type AuthUser } from '../auth.js';
 import { hashPassword, verifyPassword, sha256 } from '../security.js';
+import { IP_MAX, cooldownSec, ipFail, ipWait, streak } from '../login-guard.js';
 
 export const publicUser = (u: AuthUser) => ({
   id: u.id, name: u.name, login: u.login, tab_number: u.tab_number, position: u.position,
@@ -15,19 +16,22 @@ export const publicUser = (u: AuthUser) => ({
 export async function authRoutes(app: FastifyInstance) {
   app.post('/api/login', async (req, reply) => {
     const { login = '', password = '' } = (req.body ?? {}) as Record<string, string>;
+    // подбор с одного адреса: лимит неудачных попыток (проверяем раньше всего, до обращения к БД и хэширования пароля)
+    const wait = ipWait(req.ip);
+    if (wait) return reply.code(429).header('retry-after', String(wait)).send({ error: 'too_many', retry_after: wait });
     const r = await q('SELECT * FROM users WHERE (lower(login)=lower($1) OR tab_number=$1) AND active', [String(login).trim()]);
     const u = r.rows[0];
     if (u?.locked_until && new Date(u.locked_until) > new Date()) {
+      const left = Math.ceil((new Date(u.locked_until).getTime() - Date.now()) / 1000);
       await audit(req, 'login_locked', String(login), null, u.id);
-      return reply.code(429).send({ error: 'locked' });
+      return reply.code(429).header('retry-after', String(left)).send({ error: 'locked', retry_after: left });
     }
-    if (!u || !verifyPassword(String(password), u.pass_hash)) {
+    if (!u || !(await verifyPassword(String(password), u.pass_hash))) {
+      if (ipFail(req.ip) === IP_MAX) await audit(req, 'login_ip_limited', String(login));
       if (u) {
-        const n = u.failed_attempts + 1;
-        const lock = n >= config.maxFailedLogins;
-        await q('UPDATE users SET failed_attempts=$2, locked_until=$3 WHERE id=$1', [
-          u.id, lock ? 0 : n, lock ? new Date(Date.now() + config.lockMinutes * 60e3) : null,
-        ]);
+        const n = streak(u.failed_attempts, u.locked_until) + 1;
+        // locked_until всегда хранит конец паузы (до COOLDOWN_FROM-й ошибки он в прошлом и служит отметкой времени последней ошибки)
+        await q('UPDATE users SET failed_attempts=$2, locked_until=$3 WHERE id=$1', [u.id, n, new Date(Date.now() + cooldownSec(n) * 1000)]);
       }
       await audit(req, 'login_failed', String(login), null, u?.id);
       return reply.code(401).send({ error: 'bad_credentials' });
