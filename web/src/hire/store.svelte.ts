@@ -38,3 +38,19 @@ export const posName = (code: string | null | undefined) => {
   return p ? (app.lang === 'uz' ? p.uz : p.ru) : '';
 };
 export { ht, hg };
+
+// доп. данные кандидата: подписи и ссылки (только http, tel и mailto — чужой текст в href не попадает)
+export const EXTRA_KINDS = ['telegram', 'whatsapp', 'instagram', 'linkedin', 'website', 'phone2', 'email2', 'city', 'workplace', 'education', 'skills', 'languages', 'salary', 'other'] as const;
+export const extraLabel = (k: string) => ht(`x_${k}`);
+const web = (v: string) => (/^https?:\/\//i.test(v) ? v : `https://${v.replace(/^\/+/, '')}`);
+export function extraHref(kind: string, value: string): string | null {
+  const v = value.trim();
+  const handle = v.replace(/^@/, '').replace(/^(?:https?:\/\/)?(?:www\.)?(?:t\.me|instagram\.com)\//i, '').replace(/[/?#].*$/, '');
+  if (kind === 'telegram') return /^[A-Za-z0-9_]{4,32}$/.test(handle) ? `https://t.me/${handle}` : null;
+  if (kind === 'instagram') return /^[A-Za-z0-9_.]{2,40}$/.test(handle) ? `https://instagram.com/${handle}` : null;
+  if (kind === 'whatsapp') { if (/^(https?:\/\/)?(wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)/i.test(v)) return web(v); const d = v.replace(/\D/g, ''); return d.length >= 9 ? `https://wa.me/${d}` : null; }
+  if (kind === 'linkedin' || kind === 'website') return /^[^\s]+\.[^\s]+$/.test(v) ? web(v) : null;
+  if (kind === 'phone2') { const d = v.replace(/[^\d+]/g, ''); return d.length >= 7 ? `tel:${d}` : null; }
+  if (kind === 'email2') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? `mailto:${v}` : null;
+  return null;
+}

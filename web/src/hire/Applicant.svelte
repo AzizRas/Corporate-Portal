@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
+  import Extras from './Extras.svelte';
   import { hs, isRec, isAdm, toast, errText, ht, hg, fullName, fmtDT } from './store.svelte';
   import { hn } from './h18n';
   import Offer from './Offer.svelte';
@@ -83,8 +84,8 @@
           {#if rec}<button class="btn sm" onclick={startEdit}>{ht('hEdit')}</button>{/if}
         </div>
         <div class="row wrap" style="gap:8px;margin-top:12px">
-          {#each d.tags as t}<span class="chip sm2" style:border-color={t.color}>{t.name}</span>{/each}
-          {#if rec}<select class="mini" aria-label={ht('hTags')} onchange={(e) => { const v = Number(e.currentTarget.value); e.currentTarget.value = ''; if (v) toggleTag(v); }}><option value="">{ht('hTags')}…</option>{#each hs.meta!.tags as t}<option value={t.id}>{d.tags.some((x: any) => x.id === t.id) ? '✓ ' : ''}{t.name}</option>{/each}</select>{/if}
+          {#each d.tags as t (t.id)}<span class="chip sm2" style:border-color={t.color}>{t.name}{#if rec}<button type="button" class="tagx" aria-label={`× ${t.name}`} title="×" onclick={() => toggleTag(t.id)}>×</button>{/if}</span>{/each}
+          {#if rec}<select class="mini" aria-label={ht('hTags')} onchange={(e) => { const v = Number(e.currentTarget.value); e.currentTarget.value = ''; if (v) toggleTag(v); }}><option value="">{ht('hTags')}…</option>{#each hs.meta!.tags.filter((t) => !d.tags.some((x: any) => x.id === t.id)) as t}<option value={t.id}>{t.name}</option>{/each}</select>{/if}
         </div>
         {#if rec}<label class="f" style="margin-top:12px;max-width:260px">{ht('hConsent')}<select value={a.consent} onchange={(e) => setConsent(e.currentTarget.value)}>{#each ['none', 'pending', 'given'] as s}<option value={s}>{hg('hConsentV', s)}</option>{/each}</select></label>{/if}
       </section>
@@ -104,6 +105,8 @@
         {:else}<p class="muted">{ht('hNoItems')}</p>{/each}
         {#if rec && openVacs.length}<label class="f">{ht('hAddToVac')}<select onchange={(e) => { const v = e.currentTarget.value; e.currentTarget.value = ''; toVacancy(v); }}><option value="">{ht('hPick')}</option>{#each openVacs as v}<option value={v.id}>{v.title}</option>{/each}</select></label>{/if}
       </section>
+
+      <Extras applicantId={id} items={d.extras ?? []} editable={rec} onchange={load} />
 
       <section class="card stack">
         <h3 class="card-title">{ht('hTimeline')}</h3>
@@ -192,6 +195,8 @@
 {#if offerFor}<Offer pipelineId={offerFor} name={d ? fullName(d.applicant) : ''} onclose={() => (offerFor = null)} />{/if}
 
 <style>
+  .tagx { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 0 0 6px; }
+  .tagx:hover { color: var(--bad); }
   .grid.two { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
   .sm2 { padding: 3px 10px; font-size: 12px; }
   .mini { width: auto; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--chip); color: var(--text); font: inherit; font-size: 12px; }

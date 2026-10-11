@@ -355,9 +355,54 @@ test('Календарь встреч: диапазон дат, статусы, 
 });
 
 
+test('Резюме: всё нераспознанное возвращается кусками с подсказкой, рекрутер раскладывает по полям (Telegram, WhatsApp, работа…)', async () => {
+  const hr = await login('hr'), hm = await login('rustam'), adm = await admin();
+  const text = ['Сатторов Аскар', 'Мужчина, 26 лет, родился 9 февраля 2000', 'Ташкент (~12 км), не готов к переезду', 'Контакты', '+998 95 980-99-10', 'askar.s@example.com', '@azikra', 'https://wa.me/998959809910',
+    'Менеджер по работе с клиентами 700 $ на руки', 'Опыт работы: 1 год', 'Авг 2025 –', 'Янв 2026', '6 мес', 'СП ООО UNILAND', 'Оператор call-центра', 'Навыки', 'CRM', 'Работа с клиентами', 'Образование', 'Высшее', 'ЮКГУ, экономист'];
+  const r = (await upload(hr, '/api/hire/import', Buffer.from(text.join('\n'), 'utf8'), 'cv.txt')).json();
+  const f = r.fields;
+  assert.equal(f.last_name, 'Сатторов'); assert.equal(f.first_name, 'Аскар'); assert.equal(f.position, 'Менеджер по работе с клиентами'); assert.equal(f.company, 'СП ООО UNILAND');
+  assert.equal(f.birthday, '2000-02-09'); assert.equal(f.city, 'Ташкент');
+  const by = (t: string) => f.chunks.filter((c: any) => c.target === t).map((c: any) => c.text);
+  assert.deepEqual(by('telegram'), ['@azikra'], 'ник узнан по виду');
+  assert.equal(by('whatsapp').length, 1);
+  assert.deepEqual(by('salary'), ['700 $ на руки'], 'зарплата в долларах не попадает в поле в сумах, а остаётся подсказкой');
+  assert.ok(by('workplace')[0].includes('UNILAND') && by('workplace')[0].includes('Авг 2025'), 'место работы с периодом');
+  assert.ok(by('skills')[0].includes('CRM') && by('education')[0].includes('ЮКГУ'));
+  assert.ok(f.chunks.some((c: any) => c.target === '' && c.text.includes('Оператор call-центра')), 'непонятное тоже показывается, назначение выбирает человек');
+  assert.equal(f.salary_expect, null);
+
+  // создаём кандидата с разложенными данными
+  const extras = [{ kind: 'telegram', value: '@azikra' }, { kind: 'workplace', value: 'СП ООО UNILAND · Авг 2025 – Янв 2026 (6 мес)' }, { kind: 'nope', value: 'x' }, { kind: 'other', value: '' }];
+  const a = await send(hr, 'POST', '/api/hire/applicants', { first_name: f.first_name, last_name: f.last_name, phone: f.phone, email: f.email, position: f.position, extras, note: 'Готов выйти с 1 ноября' });
+  assert.equal(a.statusCode, 200, a.body);
+  const id = a.json().applicant.id;
+  const card = (await get(hr, `/api/hire/applicants/${id}`)).json();
+  assert.deepEqual(card.extras.map((x: any) => x.kind), ['telegram', 'workplace'], 'неверные виды и пустые значения отброшены');
+  assert.ok(card.timeline.some((t: any) => t.text === 'Готов выйти с 1 ноября'), 'заметка сохранена');
+  // добавить вручную и удалить
+  const add = await send(hr, 'POST', `/api/hire/applicants/${id}/extras`, { kind: 'whatsapp', value: 'https://wa.me/998959809910' });
+  assert.equal(add.statusCode, 200);
+  assert.equal((await send(hr, 'POST', `/api/hire/applicants/${id}/extras`, { kind: 'bad', value: 'x' })).statusCode, 400);
+  assert.equal((await send(hm, 'POST', `/api/hire/applicants/${id}/extras`, { kind: 'other', value: 'x' })).statusCode, 403, 'заказчик не правит');
+  // заказчику контакты (Telegram, WhatsApp) скрыты так же, как телефон, пока админ не откроет
+  const v = (await send(hr, 'POST', '/api/hire/vacancies', { title: 'Видимость' })).json().vacancy;
+  await send(hr, 'PUT', `/api/hire/vacancies/${v.id}/members/${await uid('rustam')}`, { role: 'hm' });
+  await send(hr, 'POST', `/api/hire/vacancies/${v.id}/applicants`, { applicant_id: id });
+  const hmCard = (await get(hm, `/api/hire/applicants/${id}`)).json();
+  assert.ok(!hmCard.extras.some((x: any) => x.kind === 'telegram' || x.kind === 'whatsapp'), 'контакты скрыты от заказчика');
+  assert.ok(hmCard.extras.some((x: any) => x.kind === 'workplace'), 'места работы заказчик видит');
+  assert.equal((await send(hr, 'DELETE', `/api/hire/extras/${add.json().extra.id}`)).statusCode, 200);
+  assert.equal((await send(hr, 'DELETE', `/api/hire/extras/${add.json().extra.id}`)).statusCode, 404);
+  // анонимизация стирает и доп. данные
+  assert.equal((await send(adm, 'POST', `/api/hire/applicants/${id}/anonymize`)).statusCode, 200);
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM hire_applicant_extra WHERE applicant_id=$1`, [id])).rows[0].n, 0);
+});
+
+
 test('Миграция найма ничего не меняет в существующих таблицах', async () => {
   const cols = (await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='users'`)).rows.map((r) => r.column_name);
   assert.ok(!cols.some((c: string) => c.startsWith('hire_')), 'в users нет колонок найма');
   const t = (await pool.query(`SELECT count(*)::int n FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'hire_%'`)).rows[0].n;
-  assert.equal(t, 21, 'создано 21 таблица найма');
+  assert.equal(t, 22, 'создано 22 таблицы найма');
 });

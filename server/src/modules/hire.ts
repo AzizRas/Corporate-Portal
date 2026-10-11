@@ -22,6 +22,12 @@ const I = (v: unknown): number | null => { const n = Number(v); return Number.is
 const dateOnly = (v: unknown): string | null => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : null);
 const inList = (ids: number[]) => (ids.length ? ids.map(Number).join(',') : '0');
 
+// доп. данные кандидата из резюме; контакты прячутся от заказчика так же, как телефон и почта
+const EXTRA_KINDS = ['telegram', 'whatsapp', 'instagram', 'linkedin', 'website', 'phone2', 'email2', 'city', 'workplace', 'education', 'skills', 'languages', 'salary', 'other'];
+const CONTACT_KINDS = ['telegram', 'whatsapp', 'instagram', 'linkedin', 'website', 'phone2', 'email2'];
+const cleanExtras = (list: unknown) => (Array.isArray(list) ? list : []).slice(0, 40)
+  .map((x: any) => ({ kind: String(x?.kind ?? ''), value: S(x?.value, 700) })).filter((x) => EXTRA_KINDS.includes(x.kind) && x.value);
+
 const STAGE_TYPES = ['new', 'work', 'interview', 'offer', 'hired', 'rejected'];
 
 interface CfgDef { table: string; cols: string[]; soft?: boolean; owner?: string; pk?: string }
@@ -469,6 +475,11 @@ export async function hireRoutes(app: FastifyInstance) {
     const r = await q(`INSERT INTO hire_applicants(first_name,last_name,middle_name,phone,email,birthday,position,company,salary_expect,source_id,name_key,phone_norm,email_norm,created_by)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [a.first_name, a.last_name, a.middle_name, a.phone, a.email, a.birthday, a.position, a.company, a.salary_expect, a.source_id, a.name_key, a.phone_norm, a.email_norm, req.user!.id]);
+    // то, что рекрутер разложил из резюме по полям: доп. данные и заметка
+    const aid = r.rows[0].id as number;
+    for (const x of cleanExtras(b.extras)) await q('INSERT INTO hire_applicant_extra(applicant_id,kind,value,created_by) VALUES($1,$2,$3,$4)', [aid, x.kind, x.value, req.user!.id]);
+    const note = S(b.note, 3000);
+    if (note) await q("INSERT INTO hire_logs(applicant_id,kind,body,author_id) VALUES($1,'note',$2,$3)", [aid, note, req.user!.id]);
     return { applicant: pubApplicant(r.rows[0]), duplicates: dupes };
   });
   app.get('/api/hire/applicants/:id', R_OR_H, async (req, reply) => {
@@ -492,7 +503,8 @@ export async function hireRoutes(app: FastifyInstance) {
     ].sort((x, y) => +new Date(y.at) - +new Date(x.at));
     const resumes = (await q(`SELECT id,filename,mime,size,created_at FROM hire_resumes WHERE applicant_id=$1 ORDER BY id DESC`, [id])).rows;
     const tags = (await q('SELECT t.id,t.name,t.color FROM hire_applicant_tags x JOIN hire_tags t ON t.id=x.tag_id WHERE x.applicant_id=$1', [id])).rows;
-    return { applicant: pubApplicant(stripContacts(a, cal.hmContacts, u)), pipelines: pipes, timeline, resumes, tags };
+    const extras = (await q('SELECT id,kind,value FROM hire_applicant_extra WHERE applicant_id=$1 ORDER BY id', [id])).rows.filter((x) => rec || cal.hmContacts || !CONTACT_KINDS.includes(x.kind));
+    return { applicant: pubApplicant(stripContacts(a, cal.hmContacts, u)), pipelines: pipes, timeline, resumes, tags, extras };
   });
   app.patch('/api/hire/applicants/:id', R_ONLY, async (req, reply) => {
     const cur = (await q('SELECT * FROM hire_applicants WHERE id=$1', [Number((req.params as any).id)])).rows[0];
@@ -511,6 +523,7 @@ export async function hireRoutes(app: FastifyInstance) {
       await c.query('DELETE FROM hire_resumes WHERE applicant_id=$1', [id]);
       await c.query('DELETE FROM hire_logs WHERE applicant_id=$1', [id]);
       await c.query('DELETE FROM hire_applicant_tags WHERE applicant_id=$1', [id]);
+      await c.query('DELETE FROM hire_applicant_extra WHERE applicant_id=$1', [id]);
       await c.query(`UPDATE hire_applicants SET first_name='Удалён',last_name='',middle_name='',phone='',email='',birthday=NULL,position='',company='',salary_expect=NULL,
         name_key='',phone_norm='',email_norm='',user_id=NULL,consent='none',consent_at=NULL,anonymized=true,updated_at=now() WHERE id=$1`, [id]);
     });
@@ -575,6 +588,19 @@ export async function hireRoutes(app: FastifyInstance) {
     reply.header('content-type', f.mime).header('content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(f.filename)}`)
       .header('content-security-policy', "default-src 'none'").header('cache-control', 'private, no-store');
     return reply.send(f.data);
+  });
+  app.post('/api/hire/applicants/:id/extras', R_ONLY, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    if (!(await q('SELECT 1 FROM hire_applicants WHERE id=$1 AND NOT anonymized', [id])).rows.length) return err(reply, 404, 'not_found');
+    const [x] = cleanExtras([req.body]);
+    if (!x) return err(reply, 400, 'invalid');
+    if ((await q('SELECT count(*)::int n FROM hire_applicant_extra WHERE applicant_id=$1', [id])).rows[0].n >= 60) return err(reply, 400, 'too_many');
+    const r = await q('INSERT INTO hire_applicant_extra(applicant_id,kind,value,created_by) VALUES($1,$2,$3,$4) RETURNING id,kind,value', [id, x.kind, x.value, req.user!.id]);
+    return { extra: r.rows[0] };
+  });
+  app.delete('/api/hire/extras/:id', R_ONLY, async (req, reply) => {
+    const r = await q('DELETE FROM hire_applicant_extra WHERE id=$1 RETURNING id', [Number((req.params as any).id)]);
+    return r.rows.length ? { ok: true } : err(reply, 404, 'not_found');
   });
   app.post('/api/hire/applicants/:id/notes', R_OR_H, async (req, reply) => {
     const id = Number((req.params as any).id);

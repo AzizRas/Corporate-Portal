@@ -7,9 +7,11 @@
   import Avatar from '../components/Avatar.svelte';
   import Modal from '../components/Modal.svelte';
   import Icon from '../components/Icon.svelte';
+  import OrgChart from './OrgChart.svelte';
+  import { ot } from './oc18n';
 
   let tree: any = $state(null), selected: number | null = $state(null), people: any[] = $state([]), noAccess = $state(false), loadingP = $state(false);
-  let tab = $state<'tree' | 'archive' | 'log' | 'deleg'>('tree');
+  let tab = $state<'chart' | 'tree' | 'archive' | 'log' | 'deleg'>('chart');
   let allPeople: any[] = $state([]), open: Record<number, boolean> = $state({});
   let dragId: number | null = $state(null), dropId: number | null = $state(null), toast = $state('');
 
@@ -108,10 +110,12 @@
   async function dropDeleg(id: number) { await api.del(`/api/org/delegations/${id}`); await loadDeleg(); }
   const LOG_RU: Record<string, string> = { org_node_create: 'Создан узел', org_node_rename: 'Узел изменён', org_head_set: 'Назначен руководитель узла', org_node_move: 'Узел перенесён', org_node_reorder: 'Порядок изменён', org_node_delete: 'Узел удалён',
     org_import: 'Импорт из Excel', org_export: 'Экспорт в Excel', emp_transfer: 'Перевод сотрудника', emp_to_staff: 'Перевод в штат', emp_leave: 'Отпуск / больничный', emp_leave_cancel: 'Отпуск отменён', emp_delegate: 'Права делегированы',
-    emp_delegate_cancel: 'Делегирование снято', emp_dismiss: 'Увольнение', emp_restore: 'Восстановление из архива', emp_delete: 'Полное удаление' };
+    emp_delegate_cancel: 'Делегирование снято', emp_dismiss: 'Увольнение', emp_restore: 'Восстановление из архива', emp_delete: 'Полное удаление',
+    org_ref_create: 'Добавлено справочное подразделение', org_ref_update: 'Справочное подразделение изменено', org_ref_delete: 'Справочное подразделение удалено', org_ref_person_add: 'Добавлен контакт справочного подразделения', org_ref_person_update: 'Контакт справочного подразделения изменён', org_ref_person_delete: 'Контакт справочного подразделения удалён' };
   const LOG_UZ: Record<string, string> = { org_node_create: 'Bo‘linma yaratildi', org_node_rename: 'Bo‘linma o‘zgardi', org_head_set: 'Bo‘linma rahbari tayinlandi', org_node_move: 'Bo‘linma ko‘chirildi', org_node_reorder: 'Tartib o‘zgardi', org_node_delete: 'Bo‘linma o‘chirildi',
     org_import: 'Exceldan import', org_export: 'Excelga eksport', emp_transfer: 'Xodim ko‘chirildi', emp_to_staff: 'Shtatga o‘tkazildi', emp_leave: 'Ta’til / kasallik', emp_leave_cancel: 'Ta’til bekor qilindi', emp_delegate: 'Huquqlar topshirildi',
-    emp_delegate_cancel: 'Topshirish bekor qilindi', emp_dismiss: 'Ishdan bo‘shatish', emp_restore: 'Arxivdan tiklash', emp_delete: 'Butunlay o‘chirish' };
+    emp_delegate_cancel: 'Topshirish bekor qilindi', emp_dismiss: 'Ishdan bo‘shatish', emp_restore: 'Arxivdan tiklash', emp_delete: 'Butunlay o‘chirish',
+    org_ref_create: 'Ma’lumot uchun bo‘lim qo‘shildi', org_ref_update: 'Ma’lumot uchun bo‘lim o‘zgardi', org_ref_delete: 'Ma’lumot uchun bo‘lim o‘chirildi', org_ref_person_add: 'Kontakt qo‘shildi', org_ref_person_update: 'Kontakt o‘zgardi', org_ref_person_delete: 'Kontakt o‘chirildi' };
   const logL = (a: string) => ((lang === 'uz' ? LOG_UZ : LOG_RU)[a] ?? a);
   const metaTxt = (m: any) => (m ? Object.entries(m).map(([k, v]) => `${k}: ${v}`).join(' · ').slice(0, 140) : '');
 
@@ -146,7 +150,8 @@
 {#if toast}<div class="alert" style="margin-bottom:14px">{toast}</div>{/if}
 
 <nav class="tabs">
-  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>{wt('o_tab_tree')}</button>
+  <button class:on={tab === 'chart'} onclick={() => (tab = 'chart')}>{ot('tabChart')}</button>
+  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>{ot('tabList')}</button>
   {#if canLife}<button class:on={tab === 'archive'} onclick={() => (tab = 'archive')}>{wt('o_tab_archive')}</button><button class:on={tab === 'log'} onclick={() => (tab = 'log')}>{wt('o_tab_log')}</button>{/if}
   {#if isLead || canEdit}<button class:on={tab === 'deleg'} onclick={() => (tab = 'deleg')}>{wt('o_tab_deleg')}</button>{/if}
 </nav>
@@ -169,7 +174,9 @@
   </section>
 {/if}
 
-{#if tab === 'tree'}
+{#if tab === 'chart'}
+  <OrgChart canManage={canLife || canEdit || isLead} onmanage={(id) => { tab = 'tree'; const n = byId.get(id); if (n) pick(n); }} />
+{:else if tab === 'tree'}
   {#if !tree}<span class="spin"></span>{:else}
   <div class="org-grid">
     <section class="card org-tree">

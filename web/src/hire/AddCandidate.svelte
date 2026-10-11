@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import Modal from '../components/Modal.svelte';
-  import { hs, toast, errText, ht, fullName } from './store.svelte';
+  import { hs, toast, errText, ht, fullName, EXTRA_KINDS, extraLabel } from './store.svelte';
 
   // vacancyId = 0: кандидат создаётся в общей базе, без вакансии
   let { vacancyId = 0, onclose, ondone }: { vacancyId?: number; onclose: () => void; ondone: (applicantId?: number) => void } = $props();
@@ -9,6 +9,14 @@
   let f = $state({ first_name: '', last_name: '', middle_name: '', phone: '', email: '', position: '', company: '', birthday: '', salary_expect: '' as string | number, source_id: '' });
   let file: File | null = $state(null), reading = $state(false), imp: any = $state(null), drag = $state(false), attach = $state(true);
   let tm: ReturnType<typeof setTimeout>;
+  // куски текста из файла: что узнали сами и что осталось; рекрутер выбирает, куда каждый положить
+  let chunks: { text: string; target: string; auto: boolean }[] = $state([]);
+  const FIELDS = ['first_name', 'last_name', 'middle_name', 'position', 'company'] as const;
+  const fieldLabel = (k: string) => ht(({ first_name: 'hFirst', last_name: 'hLast', middle_name: 'hMiddle', position: 'hPosition', company: 'hCompany' } as Record<string, string>)[k]);
+  const assign = (c: { text: string; target: string; auto: boolean }, t: string) => { c.target = t; if ((FIELDS as readonly string[]).includes(t)) (f as any)[t] = c.text; };
+  const picked = $derived(chunks.filter((c) => c.target).length);
+  const known = $derived(chunks.filter((c) => c.auto));
+  const rest = $derived(chunks.filter((c) => !c.auto));
 
   async function search() { try { found = (await api.get(`/api/hire/applicants?q=${encodeURIComponent(q)}`)).applicants; } catch { found = []; } }
   const onq = () => { clearTimeout(tm); tm = setTimeout(search, 250); };
@@ -31,6 +39,7 @@
       const x = imp.fields;
       f = { ...f, first_name: x.first_name, last_name: x.last_name, middle_name: x.middle_name, phone: x.phone, email: x.email, position: x.position, company: x.company, birthday: x.birthday ?? '', salary_expect: x.salary_expect ?? '' };
       if (imp.duplicates?.length) dupes = imp.duplicates;
+      chunks = (x.chunks ?? []).map((c: any) => ({ text: c.text, target: c.target, auto: !!c.target }));
     } catch (e) {
       if (e instanceof ApiError && e.code === 'bad_type') err = ht('iBadType'); else if (e instanceof ApiError && e.code === 'too_big') err = ht('iTooBig'); else err = errText(e);
       file = null;
@@ -42,7 +51,9 @@
   async function create(e: Event) {
     e.preventDefault(); busy = true; err = '';
     try {
-      const body = { ...f, birthday: f.birthday || null, salary_expect: f.salary_expect === '' ? null : Number(f.salary_expect), source_id: f.source_id || null, force };
+      const body = { ...f, birthday: f.birthday || null, salary_expect: f.salary_expect === '' ? null : Number(f.salary_expect), source_id: f.source_id || null, force,
+        extras: chunks.filter((c) => (EXTRA_KINDS as readonly string[]).includes(c.target) && c.text.trim()).map((c) => ({ kind: c.target, value: c.text })),
+        note: chunks.filter((c) => c.target === 'note').map((c) => c.text).join('\n\n') };
       const r = await api.post('/api/hire/applicants', body);
       if (tab === 'file' && file && attach) { try { const fd = new FormData(); fd.append('file', file); await api.upload(`/api/hire/applicants/${r.applicant.id}/resume`, fd); } catch (x) { toast(errText(x), true); } }
       await attachTo(r.applicant.id);
@@ -93,6 +104,23 @@
             <label class="f">{ht('iSalary')}<input type="number" min="0" bind:value={f.salary_expect} /></label>
             <label class="f">{ht('hSource')}<select bind:value={f.source_id}><option value="">{ht('hNone')}</option>{#each hs.meta!.sources.filter((s) => s.active) as s}<option value={s.id}>{s.name}</option>{/each}</select></label>
           </div>
+          {#snippet chunkRow(c: { text: string; target: string; auto: boolean })}
+            <div class="cr">
+              <input bind:value={c.text} maxlength="700" aria-label={ht('xRest')} />
+              <select value={c.target} aria-label={ht('xExtra')} onchange={(e) => assign(c, e.currentTarget.value)}>
+                <option value="">{ht('xSkip')}</option>
+                <optgroup label={ht('xFields')}>{#each FIELDS as k}<option value={k}>{fieldLabel(k)}</option>{/each}</optgroup>
+                <optgroup label={ht('xExtra')}>{#each EXTRA_KINDS as k}<option value={k}>{extraLabel(k)}</option>{/each}<option value="note">{ht('x_note')}</option></optgroup>
+              </select>
+            </div>
+          {/snippet}
+          {#if tab === 'file' && chunks.length}
+            <div class="chunks">
+              {#if known.length}<h4>{ht('xRecog')}</h4>{#each known as c}{@render chunkRow(c)}{/each}{/if}
+              {#if rest.length}<h4>{ht('xRest')} <span class="muted xs">{ht('xRestHint')}</span></h4><div class="restbox">{#each rest as c}{@render chunkRow(c)}{/each}</div>{/if}
+              <p class="muted xs">{ht('xCount', { n: picked })}</p>
+            </div>
+          {/if}
           {#if tab === 'file' && file}<label class="chk"><input type="checkbox" bind:checked={attach} /> {ht('vResumeFile')}: {file.name}</label>{/if}
           {#if dupes.length}
             <div class="alert info"><b>{ht('hDupes')}</b>
@@ -111,6 +139,11 @@
   .drop { border: 1.5px dashed var(--border); border-radius: 12px; padding: 36px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; cursor: pointer; }
   .drop:hover, .drop.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
   .drop:focus-within { border-color: var(--accent); }
+  .chunks h4 { margin: 14px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+  .restbox { max-height: 280px; overflow-y: auto; padding-right: 4px; }
+  .cr { display: grid; grid-template-columns: 1fr 200px; gap: 8px; margin-bottom: 6px; }
+  .cr input, .cr select { padding: 8px 10px; font-size: 14px; }
+  @media (max-width: 880px) { .cr { grid-template-columns: 1fr; } }
   .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   @media (max-width: 880px) { .g2 { grid-template-columns: 1fr; } }
 </style>

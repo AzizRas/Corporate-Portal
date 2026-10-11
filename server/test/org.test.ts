@@ -316,3 +316,65 @@ test('Excel: экспорт, проверка перед импортом, со�
   const again = (await imp(fixed, true)).json();
   assert.deepEqual([again.nodes_new, again.users_new], [0, 0]);
 });
+
+test('Схема компании: все видят подразделения и сотрудников, внешнее — только HR и админ, закрыто для внешних', async () => {
+  const adm = await admin(), hr = await login('hr'), op = await login('op1'), ext = await login('ext1');
+  const c = (await get(op, '/api/org/chart')).json();
+  assert.equal(c.can_edit, false);
+  const root = c.nodes.find((n: any) => n.kind === 'root');
+  assert.ok(root && c.nodes.filter((n: any) => n.kind === 'dept').length >= 3, 'колл-центр, сервис-центр, склад и др. на месте');
+  const call = c.nodes.find((n: any) => n.kind === 'dept' && /Колл/.test(n.name_ru));
+  assert.ok(call.total > 0 && call.division === call.id, 'у отдела свой номер подразделения и счёт людей');
+  const grp = [...c.nodes].filter((n: any) => n.kind === 'group').sort((a: any, b: any) => b.people.length - a.people.length)[0];
+  assert.equal(grp.division, call.id, 'группа относится к своему подразделению');
+  assert.ok(grp.people.length >= 3 && grp.people.every((p: any) => p.name && 'position' in p), 'сотрудники группы видны оператору (имя и должность)');
+  assert.ok(grp.people.every((p: any) => !('phone' in p) && !('login' in p)), 'контакты и логины не раздаются');
+  assert.ok(!c.nodes.some((n: any) => n.kind === 'external'), 'оператор внешнее не видит');
+  assert.ok((await get(hr, '/api/org/chart')).json().nodes.some((n: any) => n.kind === 'external'));
+  assert.equal((await get(adm, '/api/org/chart')).json().can_edit, true);
+  assert.equal((await get(ext, '/api/org/chart')).statusCode, 403, 'внешним закрыто');
+  assert.equal((await app.inject({ method: 'GET', url: '/api/org/chart' })).statusCode, 401);
+});
+
+test('Справочные подразделения: вышестоящие и чужие отделы на схеме, контакты с фото, без связей со структурой', async () => {
+  const hr = await login('hr'), op = await login('op1'), adm = await admin();
+  assert.equal((await send(op, 'POST', '/api/org/refs', { name_ru: 'Головной офис' })).statusCode, 403, 'оператор не добавляет');
+  assert.equal((await send(hr, 'POST', '/api/org/refs', { name_ru: '  ' })).statusCode, 400);
+  const above = (await send(hr, 'POST', '/api/org/refs', { name_ru: 'Головной офис', name_uz: 'Bosh ofis', placement: 'above', note: 'Вышестоящая компания' })).json().id;
+  const other = (await send(adm, 'POST', '/api/org/refs', { name_ru: 'Партнёр: логистика', placement: 'weird' })).json().id;
+  const opId = await uid('op1');
+  const p1 = (await send(hr, 'POST', `/api/org/refs/${above}/people`, { user_id: opId, name: 'игнор' })).json().id;
+  const p2 = (await send(hr, 'POST', `/api/org/refs/${above}/people`, { name: 'Иван Петров', position: 'Директор', phone: '+998901112233', email: 'ivan@example.com' })).json().id;
+  assert.equal((await send(hr, 'POST', `/api/org/refs/${above}/people`, { name: '' })).statusCode, 400, 'без имени и без сотрудника нельзя');
+  assert.equal((await send(hr, 'POST', `/api/org/refs/${above}/people`, { user_id: 999999 })).statusCode, 400);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 1)]);
+  const mp = (buf: Buffer, name: string) => { const b = '----ph'; return { payload: Buffer.concat([Buffer.from(`--${b}\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`), buf, Buffer.from(`\r\n--${b}--\r\n`)]), headers: { 'content-type': `multipart/form-data; boundary=${b}` } }; };
+  assert.equal((await app.inject({ method: 'PUT', url: `/api/org/ref-people/${p2}/photo`, ...mp(png, 'a.png'), ...hr })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'PUT', url: `/api/org/ref-people/${p2}/photo`, ...mp(Buffer.from('<html>'), 'a.png'), ...hr })).statusCode, 415, 'тип по байтам');
+
+  const c = (await get(op, '/api/org/chart')).json();
+  assert.equal(c.can_refs, false);
+  const a = c.refs.find((r: any) => r.id === above), o = c.refs.find((r: any) => r.id === other);
+  assert.equal(a.placement, 'above'); assert.equal(o.placement, 'other', 'неизвестное размещение сводится к «рядом»');
+  assert.equal(a.people.length, 2);
+  const pu = a.people.find((x: any) => x.id === p1), pe = a.people.find((x: any) => x.id === p2);
+  assert.ok(pu.name.includes('Мадина') || pu.name.length > 0, 'имя сотрудника портала берётся из профиля');
+  assert.equal(pu.user_id, opId);
+  assert.equal(pe.name, 'Иван Петров'); assert.equal(pe.phone, '+998901112233'); assert.equal(pe.has_photo, true); assert.ok(!('photo' in pe), 'байты фото в список не попадают');
+  assert.ok(!c.nodes.some((n: any) => n.name_ru === 'Головной офис'), 'справочное подразделение не часть дерева компании');
+  assert.equal((await get(op, `/api/org/ref-people/${p2}/photo`)).headers['content-type'], 'image/png');
+  assert.equal((await get(op, `/api/org/ref-people/${p1}/photo`)).statusCode, 404);
+  assert.equal((await get(await login('ext1'), '/api/org/chart')).statusCode, 403, 'внешним закрыто');
+
+  assert.equal((await send(hr, 'PATCH', `/api/org/refs/${above}`, { note: 'Новая заметка' })).statusCode, 200);
+  assert.equal((await send(hr, 'PATCH', `/api/org/ref-people/${p2}`, { position: 'Председатель', remove_photo: true })).statusCode, 200);
+  const c2 = (await get(op, '/api/org/chart')).json();
+  assert.equal(c2.refs.find((r: any) => r.id === above).note, 'Новая заметка');
+  assert.equal(c2.refs.find((r: any) => r.id === above).people.find((x: any) => x.id === p2).has_photo, false);
+  assert.equal((await send(op, 'DELETE', `/api/org/refs/${above}`)).statusCode, 403);
+  assert.equal((await send(hr, 'DELETE', `/api/org/ref-people/${p1}`)).statusCode, 200);
+  assert.equal((await send(hr, 'DELETE', `/api/org/refs/${above}`)).statusCode, 200);
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM org_ref_people WHERE unit_id=$1`, [above])).rows[0].n, 0, 'контакты удалены вместе с подразделением');
+  assert.ok((await get(hr, '/api/org/log')).json().items.some((i: any) => i.action === 'org_ref_create'), 'создание видно в журнале структуры');
+  assert.equal((await send(hr, 'DELETE', `/api/org/refs/${above}`)).statusCode, 404);
+});

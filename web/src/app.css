@@ -205,7 +205,7 @@ label.chk input { width: 18px; height: 18px; accent-color: var(--accent); }
 .alert.ok { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 .alert.info { background: var(--card-2); color: var(--text); }
 
-.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 70; padding: 16px; }
 .modal { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 26px; width: min(520px, 100%); max-height: 90vh; overflow: auto; }
 .modal.wide { width: min(860px, 100%); }
 .modal h2 { font-size: 22px; margin-bottom: 14px; }

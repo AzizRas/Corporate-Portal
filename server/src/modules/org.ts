@@ -52,6 +52,120 @@ export async function orgRoutes(app: FastifyInstance) {
     };
   });
 
+  /** Схема компании: все узлы с сотрудниками. Имя, должность и фото видны всем (как в /api/people); отпуск — только тем, кто открывает узел. Внешним подразделениям закрыто на входе, как и дерево. */
+  app.get('/api/org/chart', auth, async (req) => {
+    const u = req.user!, all = await orgNodes();
+    const visible = all.filter((n) => !n.archived && (n.kind !== 'external' || isHr(u)));
+    const vis = new Set(visible.map((n) => n.id));
+    const nodes = visible.filter((n) => n.parent_id == null || vis.has(n.parent_id));
+    const ids = nodes.map((n) => n.id);
+    const rows = (await q(
+      `SELECT u.id,u.name,u.position,u.employment,u.avatar_v,u.node_id,
+              EXISTS(SELECT 1 FROM user_leaves lv WHERE lv.user_id=u.id AND $2::date BETWEEN lv.from_date AND lv.to_date) AS on_leave
+         FROM users u WHERE u.active AND u.node_id = ANY($1::int[]) ORDER BY u.name`, [ids, tzDate()])).rows;
+    const heads = new Map<number, any>((await q(`SELECT id,name,position,avatar_v FROM users WHERE id = ANY($1::int[])`, [nodes.map((n) => n.head_user_id).filter((x) => x != null)])).rows.map((r) => [r.id, r]));
+    const byNode = new Map<number, any[]>();
+    for (const r of rows) { const { node_id, ...p } = r; if (!canOpenNode(u, node_id)) p.on_leave = false; byNode.set(node_id, [...(byNode.get(node_id) ?? []), p]); }
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const division = (n: OrgNode): number => { let c = n; while (c.parent_id != null && byId.get(c.parent_id) && byId.get(c.parent_id)!.kind !== 'root') c = byId.get(c.parent_id)!; return c.id; };
+    const refUnits = (await q('SELECT id,name_ru,name_uz,placement,note,sort FROM org_ref_units ORDER BY sort,id')).rows;
+    const refPeople = (await q(
+      `SELECT p.id,p.unit_id,p.user_id,p.sort,
+              COALESCE(u.name,p.name) AS name, CASE WHEN p.user_id IS NOT NULL THEN COALESCE(u.position,'') ELSE p.position END AS position,
+              CASE WHEN p.user_id IS NOT NULL THEN COALESCE(u.phone,'') ELSE p.phone END AS phone, p.email, p.note,
+              COALESCE(u.avatar_v,0) AS avatar_v, (p.photo IS NOT NULL) AS has_photo, COALESCE(octet_length(p.photo),0) AS photo_v
+         FROM org_ref_people p LEFT JOIN users u ON u.id=p.user_id AND u.active ORDER BY p.sort,p.id`)).rows;
+    return {
+      can_edit: hasRole(u, 'admin'), can_refs: isHr(u),
+      refs: refUnits.map((r) => ({ ...r, people: refPeople.filter((x) => x.unit_id === r.id).map(({ unit_id, ...x }) => x) })),
+      nodes: nodes.map((n) => {
+        const people = byNode.get(n.id) ?? [];
+        return {
+          id: n.id, parent_id: n.parent_id, kind: n.kind, name_ru: n.name_ru, name_uz: n.name_uz, sort: n.sort, division: division(n),
+          head: n.head_user_id != null ? heads.get(n.head_user_id) ?? null : null, people, direct: people.length,
+          total: subtreeIds(all, n.id).reduce((a, i) => a + (byNode.get(i)?.length ?? 0), 0), mine: u.node_id === n.id,
+        };
+      }),
+    };
+  });
+
+  /* ----- справочные подразделения: вышестоящие, партнёры, чужие отделы. Для понимания схемы; со структурой компании не связаны ----- */
+  const T = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n);
+  const refId = (req: any) => Number(req.params.id);
+  const placementOk = (v: unknown) => (v === 'above' ? 'above' : 'other');
+  app.post('/api/org/refs', hrAdm, async (req, reply) => {
+    const b = (req.body ?? {}) as any, name = T(b.name_ru, 120);
+    if (!name) return reply.code(400).send({ error: 'invalid' });
+    const sort = ((await q('SELECT COALESCE(max(sort),0)+1 AS n FROM org_ref_units')).rows[0].n as number);
+    const r = await q('INSERT INTO org_ref_units(name_ru,name_uz,placement,note,sort,created_by) VALUES($1,$2,$3,$4,$5,$6) RETURNING id', [name, T(b.name_uz, 120), placementOk(b.placement), T(b.note, 500), sort, req.user!.id]);
+    await audit(req, 'org_ref_create', String(r.rows[0].id), { name });
+    return { id: r.rows[0].id };
+  });
+  app.patch('/api/org/refs/:id', hrAdm, async (req, reply) => {
+    const id = refId(req), cur = (await q('SELECT * FROM org_ref_units WHERE id=$1', [id])).rows[0];
+    if (!cur) return reply.code(404).send({ error: 'not_found' });
+    const b = (req.body ?? {}) as any, name = b.name_ru === undefined ? cur.name_ru : T(b.name_ru, 120);
+    if (!name) return reply.code(400).send({ error: 'invalid' });
+    await q('UPDATE org_ref_units SET name_ru=$1,name_uz=$2,placement=$3,note=$4 WHERE id=$5',
+      [name, b.name_uz === undefined ? cur.name_uz : T(b.name_uz, 120), b.placement === undefined ? cur.placement : placementOk(b.placement), b.note === undefined ? cur.note : T(b.note, 500), id]);
+    await audit(req, 'org_ref_update', String(id), { name });
+    return { ok: true };
+  });
+  app.delete('/api/org/refs/:id', hrAdm, async (req, reply) => {
+    const r = await q('DELETE FROM org_ref_units WHERE id=$1 RETURNING name_ru', [refId(req)]);
+    if (!r.rows.length) return reply.code(404).send({ error: 'not_found' });
+    await audit(req, 'org_ref_delete', String(refId(req)), { name: r.rows[0].name_ru });
+    return { ok: true };
+  });
+  app.post('/api/org/refs/:id/people', hrAdm, async (req, reply) => {
+    const id = refId(req);
+    if (!(await q('SELECT 1 FROM org_ref_units WHERE id=$1', [id])).rows.length) return reply.code(404).send({ error: 'not_found' });
+    const b = (req.body ?? {}) as any, userId = b.user_id ? Number(b.user_id) : null, name = T(b.name, 120);
+    if (userId && !(await q('SELECT 1 FROM users WHERE id=$1 AND active', [userId])).rows.length) return reply.code(400).send({ error: 'invalid' });
+    if (!userId && !name) return reply.code(400).send({ error: 'invalid' });
+    if ((await q('SELECT count(*)::int n FROM org_ref_people WHERE unit_id=$1', [id])).rows[0].n >= 60) return reply.code(400).send({ error: 'too_many' });
+    const sort = ((await q('SELECT COALESCE(max(sort),0)+1 AS n FROM org_ref_people WHERE unit_id=$1', [id])).rows[0].n as number);
+    const r = await q('INSERT INTO org_ref_people(unit_id,user_id,name,position,phone,email,note,sort) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+      [id, userId, userId ? '' : name, userId ? '' : T(b.position, 120), userId ? '' : T(b.phone, 40), T(b.email, 120), T(b.note, 300), sort]);
+    await audit(req, 'org_ref_person_add', String(id), { person: r.rows[0].id });
+    return { id: r.rows[0].id };
+  });
+  app.patch('/api/org/ref-people/:id', hrAdm, async (req, reply) => {
+    const id = refId(req), cur = (await q('SELECT * FROM org_ref_people WHERE id=$1', [id])).rows[0];
+    if (!cur) return reply.code(404).send({ error: 'not_found' });
+    const b = (req.body ?? {}) as any, name = b.name === undefined ? cur.name : T(b.name, 120);
+    if (!cur.user_id && !name) return reply.code(400).send({ error: 'invalid' });
+    await q('UPDATE org_ref_people SET name=$1,position=$2,phone=$3,email=$4,note=$5,photo=CASE WHEN $7::boolean THEN NULL ELSE photo END,photo_mime=CASE WHEN $7::boolean THEN NULL ELSE photo_mime END WHERE id=$6',
+      [name, b.position === undefined ? cur.position : T(b.position, 120), b.phone === undefined ? cur.phone : T(b.phone, 40), b.email === undefined ? cur.email : T(b.email, 120), b.note === undefined ? cur.note : T(b.note, 300), id, b.remove_photo === true]);
+    await audit(req, 'org_ref_person_update', String(cur.unit_id), { person: id });
+    return { ok: true };
+  });
+  app.delete('/api/org/ref-people/:id', hrAdm, async (req, reply) => {
+    const r = await q('DELETE FROM org_ref_people WHERE id=$1 RETURNING unit_id', [refId(req)]);
+    if (!r.rows.length) return reply.code(404).send({ error: 'not_found' });
+    await audit(req, 'org_ref_person_delete', String(r.rows[0].unit_id), { person: refId(req) });
+    return { ok: true };
+  });
+  // фото контакта вне портала: JPEG или PNG до 1,5 МБ, тип по первым байтам
+  app.put('/api/org/ref-people/:id/photo', hrAdm, async (req, reply) => {
+    const id = refId(req);
+    if (!(await q('SELECT 1 FROM org_ref_people WHERE id=$1', [id])).rows.length) return reply.code(404).send({ error: 'not_found' });
+    const file = await (req as any).file().catch(() => undefined);
+    if (!file) return reply.code(400).send({ error: 'empty' });
+    const buf: Buffer = await file.toBuffer();
+    if (!buf.length) return reply.code(400).send({ error: 'empty' });
+    if (file.file?.truncated || buf.length > 1.5 * 1024 * 1024) return reply.code(413).send({ error: 'too_big' });
+    const mime = buf[0] === 0xff && buf[1] === 0xd8 ? 'image/jpeg' : buf[0] === 0x89 && buf.subarray(1, 4).toString('latin1') === 'PNG' ? 'image/png' : null;
+    if (!mime) return reply.code(415).send({ error: 'bad_type' });
+    await q('UPDATE org_ref_people SET photo=$1,photo_mime=$2 WHERE id=$3', [buf, mime, id]);
+    return { ok: true, photo_v: buf.length };
+  });
+  app.get('/api/org/ref-people/:id/photo', auth, async (req, reply) => {
+    const r = (await q('SELECT photo,photo_mime FROM org_ref_people WHERE id=$1 AND photo IS NOT NULL', [refId(req)])).rows[0];
+    if (!r) return reply.code(404).send({ error: 'not_found' });
+    return reply.header('content-type', r.photo_mime).header('x-content-type-options', 'nosniff').header('cache-control', 'private, max-age=3600').send(r.photo);
+  });
+
   app.get('/api/org/nodes/:id/people', auth, async (req, reply) => {
     const id = Number((req.params as any).id), u = req.user!;
     if (!canOpenNode(u, id)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }

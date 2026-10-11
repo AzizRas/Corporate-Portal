@@ -23,6 +23,7 @@ export const api = {
   patch: <T = any>(u: string, b?: unknown) => call<T>('PATCH', u, b ?? {}),
   del: <T = any>(u: string) => call<T>('DELETE', u),
   upload: <T = any>(u: string, form: FormData) => call<T>('POST', u, form),
+  uploadPut: <T = any>(u: string, form: FormData) => call<T>('PUT', u, form),
 };
 
 export function download(url: string) {
