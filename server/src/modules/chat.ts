@@ -8,12 +8,20 @@ import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
 import { bdaySql, notify } from '../notify.js';
 import { channelsFor, chatAccess, dmChannel, type Channel } from '../chat-core.js';
 import { externalRootOf, orgHooks, orgNodes, subtreeIds } from '../org-core.js';
+import { EventEmitter } from 'node:events';
+import { REACTIONS, STICKERS } from '../stickers.js';
+import { pushTo } from '../push.js';
+
+/** Шина событий чата: «в канале что-то изменилось». Содержимого в событии нет — клиент после него сам спрашивает свежие данные. Один экземпляр сервера. */
+export const chatBus = new EventEmitter();
+chatBus.setMaxListeners(0);
+export const chatChanged = (channel: string) => chatBus.emit('change', channel);
 
 const ALLOWED_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip', 'mp3', 'ogg', 'wav', 'mp4']);
 const IMAGE = /^image\/(jpeg|png|gif|webp)$/;
 const MIME: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', mp4: 'video/mp4', zip: 'application/zip' };
 
-const MSG_SELECT = `SELECT m.id,m.body,m.created_at,m.user_id,m.reply_to,m.mentions,m.system,(m.pinned_at IS NOT NULL) AS pinned,
+const MSG_SELECT = `SELECT m.id,m.body,m.created_at,m.edited_at,m.fwd_from,m.sticker,m.user_id,m.reply_to,m.mentions,m.system,(m.pinned_at IS NOT NULL) AS pinned,
        u.name AS author,u.avatar_v,u.status,u.position AS author_position,NOT u.active AS former,${bdaySql('u')} AS bday,
        rp.body AS reply_body, ru.name AS reply_author,
        CASE WHEN f.id IS NULL THEN NULL ELSE json_build_object('id',f.id,'name',f.name,'mime',f.mime,'size',f.size) END AS file
@@ -21,6 +29,18 @@ const MSG_SELECT = `SELECT m.id,m.body,m.created_at,m.user_id,m.reply_to,m.menti
   LEFT JOIN chat_messages rp ON rp.id=m.reply_to LEFT JOIN users ru ON ru.id=rp.user_id
   LEFT JOIN chat_files f ON f.message_id=m.id`;
 const shape = (m: any) => ({ ...m, reply_body: m.reply_body ? String(m.reply_body).slice(0, 140) : null });
+// «печатает…» и «в сети» держим в памяти: это живёт секунды и не стоит записи в базу
+const typing = new Map<string, Map<number, { name: string; at: number }>>();
+const seen = new Map<number, number>();
+export const seenAt = (uid: number) => seen.get(uid) ?? 0;
+async function withReactions(rows: any[], uid: number) {
+  if (!rows.length) return rows;
+  const r = (await q(`SELECT message_id, emoji, count(*)::int AS n, bool_or(user_id=$2) AS mine FROM chat_reactions WHERE message_id = ANY($1::bigint[]) GROUP BY message_id, emoji ORDER BY min(created_at)`, [rows.map((m) => m.id), uid])).rows;
+  const by = new Map<number, any[]>();
+  for (const x of r) { const a = by.get(Number(x.message_id)) ?? []; a.push({ emoji: x.emoji, n: x.n, mine: x.mine }); by.set(Number(x.message_id), a); }
+  for (const m of rows) m.reactions = by.get(Number(m.id)) ?? [];
+  return rows;
+}
 const markRead = (uid: number, ch: string, id: number) =>
   q(`INSERT INTO chat_reads(user_id,channel,last_id) VALUES($1,$2,$3) ON CONFLICT (user_id,channel) DO UPDATE SET last_id=GREATEST(chat_reads.last_id,$3)`, [uid, ch, id]);
 
@@ -49,7 +69,11 @@ export async function chatRoutes(app: FastifyInstance) {
     const list = await channelsFor(req.user!);
     const last = (await q(`SELECT channel, max(created_at) AS at FROM chat_messages WHERE channel = ANY($1::text[]) GROUP BY channel`, [list.map((c) => c.id)])).rows;
     const at = new Map(last.map((r) => [r.channel, r.at]));
-    return { channels: list.map((c) => ({ ...c, last_at: at.get(c.id) ?? null })) };
+    const lm = (await q(`SELECT DISTINCT ON (m.channel) m.channel, m.body, m.sticker, m.system IS NOT NULL AS sys, m.user_id, u.name, (f.id IS NOT NULL) AS has_file, f.name AS file_name
+                           FROM chat_messages m JOIN users u ON u.id=m.user_id LEFT JOIN chat_files f ON f.message_id=m.id
+                          WHERE m.channel = ANY($1::text[]) ORDER BY m.channel, m.id DESC`, [list.map((c) => c.id)])).rows;
+    const prev = new Map(lm.map((r) => [r.channel, { last_body: r.sys ? '' : r.sticker ? '🖼 Стикер' : (r.body || (r.has_file ? `📎 ${r.file_name}` : '')).slice(0, 80), last_author: r.sys ? null : String(r.name).split(' ')[0], last_user_id: r.user_id }]));
+    return { channels: list.map((c) => ({ ...c, last_at: at.get(c.id) ?? null, ...(prev.get(c.id) ?? {}), online: c.kind === 'dm' && !!c.peer && Date.now() - seenAt(c.peer.id) < 45_000 })) };
   });
 
   /* ----- сообщения ----- */
@@ -65,24 +89,31 @@ export async function chatRoutes(app: FastifyInstance) {
     let rows = r.rows;
     const more = !after && rows.length > limit;
     if (more) rows = rows.slice(1);
-    const msgs = rows.map(shape);
+    const msgs = await withReactions(rows.map(shape), u.id);
     if (msgs.length && !before && msgs[msgs.length - 1].id > after) await markRead(u.id, ch, msgs[msgs.length - 1].id);
+    seen.set(u.id, Date.now());
+    // правки и реакции на уже загруженные сообщения: клиент присылает since (время прошлого опроса)
+    const since = Number((req.query as any).since) || 0;
+    const updated = since && after ? await withReactions((await q(`${MSG_SELECT} WHERE m.channel=$1 AND m.id<=$2 AND m.touched_at > to_timestamp($3::double precision/1000)`, [ch, after, since])).rows.map(shape), u.id) : [];
+    const now = Date.now(), who = [...(typing.get(ch)?.entries() ?? [])].filter(([id, t]) => id !== u.id && now - t.at < 5000).map(([, t]) => t.name);
     // «прочитано»: в личных чатах и группах видно, до какого сообщения дочитал каждый участник
     let readers: { user_id: number; last_id: number }[] = [];
     if (c.kind === 'dm' || c.kind === 'group')
       readers = (await q(`SELECT m.user_id, COALESCE(r.last_id,0) AS last_id FROM chat_members m LEFT JOIN chat_reads r ON r.channel=m.channel AND r.user_id=m.user_id
                            WHERE m.channel=$1 AND m.left_at IS NULL AND m.user_id<>$2`, [ch, u.id])).rows;
-    return { messages: msgs, has_more: more, readers, channel: c, can_moderate: canModerate(u, c) };
+    const peer = c.kind === 'dm' && c.peer ? { online: now - seenAt(c.peer.id) < 45_000, seen_at: seenAt(c.peer.id) || null } : null;
+    return { messages: msgs, updated, now, typing: who, peer, has_more: more, readers, channel: c, can_moderate: canModerate(u, c) };
   });
 
-  async function post(req: any, reply: any, ch: string, fields: { body: string; reply_to?: number; mentions?: number[] }, file?: { name: string; mime: string; size: number; path: string }) {
+  async function post(req: any, reply: any, ch: string, fields: { body: string; reply_to?: number; mentions?: number[]; sticker?: string; fwd_from?: string }, file?: { name: string; mime: string; size: number; path: string }) {
     const u = req.user as AuthUser;
     const c = await chatAccess(u, ch);
     if (!c) return err(reply, 403, 'forbidden');
     if (c.archived) return err(reply, 409, 'archived');
     if (c.kind === 'dm' && c.peer && !c.peer.active) return err(reply, 409, 'peer_gone');
     const body = fields.body.trim().slice(0, 1000);
-    if (!body && !file) return err(reply, 400, 'empty');
+    const sticker = fields.sticker && (STICKERS as readonly string[]).includes(fields.sticker) ? fields.sticker : null;
+    if (!body && !file && !sticker) return err(reply, 400, 'empty');
     let replyTo: number | null = null, replyOwner: number | null = null;
     if (fields.reply_to) {
       const rp = (await q('SELECT id,user_id FROM chat_messages WHERE id=$1 AND channel=$2', [Number(fields.reply_to), ch])).rows[0];
@@ -94,17 +125,88 @@ export async function chatRoutes(app: FastifyInstance) {
       const mem = new Set((await q('SELECT user_id FROM chat_members WHERE channel=$1 AND left_at IS NULL', [ch])).rows.map((r) => r.user_id as number));
       mentions = mentions.filter((id) => mem.has(id));
     }
-    const id = Number((await q('INSERT INTO chat_messages(channel,user_id,body,reply_to,mentions) VALUES($1,$2,$3,$4,$5) RETURNING id', [ch, u.id, body, replyTo, mentions])).rows[0].id);
+    const id = Number((await q('INSERT INTO chat_messages(channel,user_id,body,reply_to,mentions,sticker,fwd_from) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id', [ch, u.id, body, replyTo, mentions, sticker, fields.fwd_from?.slice(0, 80) ?? null])).rows[0].id);
     if (file) await q('INSERT INTO chat_files(message_id,name,mime,size,path) VALUES($1,$2,$3,$4,$5)', [id, file.name, file.mime, file.size, file.path]);
     await markRead(u.id, ch, id);
-    const link = `#/chat/${encodeURIComponent(ch)}`, preview = (body || `📎 ${file?.name ?? ''}`).slice(0, 160);
+    chatChanged(ch);
+    const link = `#/chat/${encodeURIComponent(ch)}`, preview = (body || (sticker ? '🖼 стикер' : `📎 ${file?.name ?? ''}`)).slice(0, 160);
+    if (c.kind === 'dm' || c.kind === 'group') {   // push о личных сообщениях и группах (упоминания уйдут отдельным уведомлением)
+      const to = (await q('SELECT user_id FROM chat_members WHERE channel=$1 AND left_at IS NULL AND user_id<>$2', [ch, u.id])).rows.map((r) => r.user_id as number).filter((x) => !mentions.includes(x) && x !== replyOwner);
+      void pushTo(to, { title: c.kind === 'dm' ? u.name : `${u.name} · ${(c as any).name_ru ?? ''}`, body: preview, url: `/${link}` }, { kind: 'chat', channel: ch });
+    }
     await notify(mentions, 'mention', `@ ${u.name}`, preview, link);
     if (replyOwner && replyOwner !== u.id && !mentions.includes(replyOwner)) await notify([replyOwner], 'reply', `↩ ${u.name}`, preview, link);
     return { ok: true, id };
   }
   app.post('/api/chat/:ch', auth, async (req, reply) => {
-    const b = (req.body ?? {}) as { body?: string; reply_to?: number; mentions?: number[] };
-    return post(req, reply, (req.params as any).ch, { body: String(b.body ?? ''), reply_to: b.reply_to, mentions: b.mentions });
+    const b = (req.body ?? {}) as { body?: string; reply_to?: number; mentions?: number[]; sticker?: string };
+    return post(req, reply, (req.params as any).ch, { body: String(b.body ?? ''), reply_to: b.reply_to, mentions: b.mentions, sticker: b.sticker });
+  });
+
+  /* ----- правка, реакции, пересылка, «печатает…» ----- */
+  app.patch('/api/chat/message/:id', auth, async (req, reply) => editMessage(req, reply));
+  app.patch('/api/chat/messages/:id', auth, async (req, reply) => editMessage(req, reply));
+  async function editMessage(req: any, reply: any) {
+    const id = Number((req.params as any).id), u = req.user!;
+    const m = (await q('SELECT user_id,channel,system,sticker,body,created_at FROM chat_messages WHERE id=$1', [id])).rows[0];
+    if (!m || m.system) return err(reply, 404, 'not_found');
+    if (m.user_id !== u.id) return err(reply, 403, 'forbidden');
+    const c = await chatAccess(u, m.channel);
+    if (!c) return err(reply, 403, 'forbidden');
+    if (c.archived) return err(reply, 409, 'archived');
+    if (m.sticker) return err(reply, 400, 'sticker');
+    if (Date.now() - new Date(m.created_at).getTime() > 24 * 3600 * 1000) return err(reply, 409, 'too_old');   // править можно сутки
+    const b0 = (req.body as any) ?? {};
+    const body = String(b0.body ?? b0.text ?? '').trim().slice(0, 1000);
+    const hasFile = (await q('SELECT 1 FROM chat_files WHERE message_id=$1', [id])).rows.length > 0;
+    if (!body && !hasFile) return err(reply, 400, 'empty');
+    if (body === m.body) return { ok: true };
+    await q('UPDATE chat_messages SET body=$2, edited_at=now(), touched_at=now() WHERE id=$1', [id, body]);
+    chatChanged(m.channel);
+    return { ok: true };
+  }
+  for (const [method, url] of [['PUT', '/api/chat/message/:id/react'], ['POST', '/api/chat/messages/:id/react']] as const) app.route({ method, url, preHandler: requireAuth, handler: async (req: any, reply: any) => {
+    const id = Number((req.params as any).id), u = req.user!, emoji = String((req.body as any)?.emoji ?? '');
+    if (!(REACTIONS as readonly string[]).includes(emoji)) return err(reply, 400, 'bad_emoji');
+    const m = (await q('SELECT channel FROM chat_messages WHERE id=$1 AND system IS NULL', [id])).rows[0];
+    if (!m) return err(reply, 404, 'not_found');
+    const c = await chatAccess(u, m.channel);
+    if (!c) return err(reply, 403, 'forbidden');
+    if (c.archived) return err(reply, 409, 'archived');
+    const del = await q('DELETE FROM chat_reactions WHERE message_id=$1 AND user_id=$2 AND emoji=$3', [id, u.id, emoji]);
+    if (!del.rowCount) await q('INSERT INTO chat_reactions(message_id,user_id,emoji) VALUES($1,$2,$3)', [id, u.id, emoji]);
+    await q('UPDATE chat_messages SET touched_at=now() WHERE id=$1', [id]);
+    chatChanged(m.channel);
+    return { ok: true, on: !del.rowCount };
+  } });
+  app.post('/api/chat/message/:id/forward', auth, async (req, reply) => {
+    const id = Number((req.params as any).id), u = req.user!, to = String((req.body as any)?.to ?? '');
+    const m = (await q(`SELECT m.channel,m.body,m.sticker,m.fwd_from,u.name AS author FROM chat_messages m JOIN users u ON u.id=m.user_id WHERE m.id=$1 AND m.system IS NULL`, [id])).rows[0];
+    if (!m || !(await chatAccess(u, m.channel))) return err(reply, 404, 'not_found');
+    if (!m.body && !m.sticker) return err(reply, 400, 'no_text');   // файлы не пересылаем: у них свой доступ по чату
+    return post(req, reply, to, { body: m.body, sticker: m.sticker ?? undefined, fwd_from: m.fwd_from ?? m.author });
+  });
+  app.post('/api/chat/:ch/typing', auth, async (req, reply) => {
+    const ch = (req.params as any).ch, u = req.user!;
+    if (!(await chatAccess(u, ch))) return err(reply, 403, 'forbidden');
+    const m = typing.get(ch) ?? new Map();
+    m.set(u.id, { name: u.name.split(' ')[0], at: Date.now() });
+    typing.set(ch, m);
+    chatChanged(ch);
+    return { ok: true };
+  });
+
+  /* ----- поток событий (SSE): вместо опроса раз в 3,5 с ----- */
+  app.get('/api/chat/stream', auth, (req, reply) => {
+    const u = req.user!;
+    reply.hijack();
+    const res = reply.raw;
+    res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+    res.write('retry: 3000\n\n');
+    const onChange = async (ch: string) => { if (res.writableEnded) return; if (await chatAccess(u, ch).catch(() => null)) res.write(`data: ${JSON.stringify({ channel: ch })}\n\n`); };
+    chatBus.on('change', onChange);
+    const beat = setInterval(() => { if (!res.writableEnded) res.write(': ping\n\n'); }, 25_000);
+    req.raw.on('close', () => { clearInterval(beat); chatBus.off('change', onChange); });
   });
 
   // файл в чат: до 10 МБ, только безопасные типы; отдаётся лишь участникам переписки
@@ -145,6 +247,7 @@ export async function chatRoutes(app: FastifyInstance) {
     if (m.user_id !== u.id && !(c?.kind === 'group' && canModerate(u, c)) && !(isStaff(u) && c && (c.kind === 'company' || c.kind === 'dept' || c.kind === 'ext'))) return err(reply, 403, 'forbidden');
     const f = (await q('SELECT path FROM chat_files WHERE message_id=$1', [id])).rows[0];
     await q('DELETE FROM chat_messages WHERE id=$1', [id]);
+    chatChanged(m.channel);
     if (f) await deleteFile(f.path);
     await audit(req, 'chat_delete', String(id));
     return { ok: true };

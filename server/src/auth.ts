@@ -1,3 +1,4 @@
+import { totpEnforced, totpRequired } from './totp.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { q } from './db.js';
 import { config } from './config.js';
@@ -30,6 +31,7 @@ export interface AuthUser {
   lang: 'ru' | 'uz';
   theme: 'system' | 'light' | 'dark';
   must_change_password: boolean;
+  totp_enabled: boolean;
   roles: Role[];
   // структура компании
   node_id: number | null;
@@ -87,7 +89,7 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
 async function loadUserFromDb(token: string): Promise<AuthUser | null> {
   const r = await q(
     `SELECT u.id,u.name,u.login,u.tab_number,u.position,u.position_code,u.target_position_code,u.dept_id,
-            u.manager_id,u.node_id,u.employment,u.lang,u.theme,u.must_change_password,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
+            u.manager_id,u.node_id,u.employment,u.lang,u.theme,u.must_change_password,u.totp_enabled,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
             to_char(u.shift_start,'HH24:MI') AS shift_start,to_char(u.shift_end,'HH24:MI') AS shift_end,u.wellness,u.wellness_min,
             COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles,
             (SELECT code FROM departments d WHERE d.id=u.dept_id) AS dept_code
@@ -133,6 +135,8 @@ export function registerAuth(app: FastifyInstance) {
     else if (req.user) dropUserCache(req.user.id);
   });
   app.addHook('preHandler', async (req, reply) => {
+    // второй фактор обязателен для админа и бухгалтерии: пока не настроен, доступны только вход, выход и сама настройка (/api/me/2fa/*)
+    if (req.user && totpEnforced() && !req.user.totp_enabled && totpRequired(req.user.roles) && !externalAllowed(req.url, [])) return reply.code(403).send({ error: '2fa_required' });
     if (req.user?.external && !externalAllowed(req.url, req.user.external)) return reply.code(403).send({ error: 'external_forbidden' });
     // разделы, закрытые для подразделения: данные закрыты на сервере, а не только убраны из меню (см. GATES в access.ts)
     if (req.user && !urlAllowed(req.url, req.user.sections, req.user.roles)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'section_forbidden' }); }

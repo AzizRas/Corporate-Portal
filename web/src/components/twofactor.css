@@ -1,0 +1,6 @@
+.tf-head { justify-content: space-between; align-items: center; gap: 10px; }
+.tf-on { background: color-mix(in srgb, #22c55e 22%, transparent); color: #16a34a; }
+.tf-qr { background: #fff; border-radius: 12px; padding: 8px; align-self: flex-start; }
+.tf-key { display: block; padding: 8px 10px; border-radius: 10px; background: var(--card-2); word-break: break-all; letter-spacing: .08em; font-size: 14px; user-select: all; }
+.tf-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.tf-codes code { padding: 8px 10px; border-radius: 10px; background: var(--card-2); text-align: center; font-size: 15px; letter-spacing: .06em; user-select: all; }

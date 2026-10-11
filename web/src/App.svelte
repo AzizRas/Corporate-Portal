@@ -5,6 +5,7 @@
   import Login from './pages/Login.svelte';
   import Shell from './components/Shell.svelte';
   import Router from './Router.svelte';
+  import TwoFactor from './components/TwoFactor.svelte';
 
   applyTheme();
   loadMe();
@@ -40,6 +41,8 @@
       <button class="btn grad block" disabled={busy}>{t('save')}</button>
     </form>
   </div>
+{:else if app.user.must_setup_2fa}
+  <div class="center-screen"><div class="login-box"><TwoFactor forced /></div></div>
 {:else if !app.consents.includes('data')}
   <div class="center-screen">
     <div class="card login-box stack">

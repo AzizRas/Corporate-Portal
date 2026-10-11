@@ -1,3 +1,6 @@
+import { storageKind } from './storage.js';
+import { hrRequestRoutes } from './modules/hr-requests.js';
+import { pushRoutes } from './push.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
@@ -46,12 +49,12 @@ export const ASSET_CACHE = 'public, max-age=31536000, immutable';
 export function staticCache(file: string): string {
   const rel = path.relative(config.webDir, file).split(path.sep);
   if (rel[0] === 'assets') return ASSET_CACHE;
-  if (/\.html?$/i.test(file)) return INDEX_CACHE;
+  if (/\.html?$/i.test(file) || path.basename(file) === 'sw.js') return INDEX_CACHE;     // service worker обязан обновляться сразу
   return 'public, max-age=3600';       // иконка, manifest: имена без хэша, час не страшен
 }
 
 export async function buildApp() {
-  const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: process.env.TRUST_PROXY ? (process.env.TRUST_PROXY === 'true' ? true : process.env.TRUST_PROXY.split(',').map((x) => x.trim())) : !config.isProd, genReqId: () => Math.random().toString(36).slice(2, 10) });
+  const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: process.env.TRUST_PROXY ? (process.env.TRUST_PROXY === 'true' ? true : process.env.TRUST_PROXY.split(',').map((x) => x.trim())) : (!config.isProd || !!process.env.RAILWAY_ENVIRONMENT), genReqId: () => Math.random().toString(36).slice(2, 10) });
 
   await app.register(cookie);
   await app.register(compress);
@@ -68,9 +71,13 @@ export async function buildApp() {
   registerAuth(app);
 
   app.get('/healthz', async (_req, reply) => {
-    try { await q('SELECT 1'); return { ok: true }; } catch { return reply.code(503).send({ ok: false }); }
+    // ok оставлен для прежних проверок, остальное — для мониторинга (Railway, UptimeRobot)
+    try { await q('SELECT 1'); return { ok: true, status: 'ok', db: 'connected', storage: storageKind(), uptime: Math.round(process.uptime()), time: new Date().toISOString() }; }
+    catch { return reply.code(503).send({ ok: false, status: 'unhealthy', db: 'down', time: new Date().toISOString() }); }
   });
 
+  await app.register(pushRoutes);
+  await app.register(hrRequestRoutes);
   await app.register(authRoutes);
   await app.register(usersRoutes);
   await app.register(payrollRoutes);

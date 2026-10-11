@@ -30,7 +30,7 @@ export const HUBS: HubDef[] = [
   { id: 'know', icon: 'kb', items: ['kb', 'assist', 'assistant', 'queue', 'help'] },
   { id: 'learn', icon: 'training', items: ['plan', 'trainer', 'tests', 'library', 'ready'] },
   { id: 'grow', icon: 'growth', items: ['path', 'growth'] },
-  { id: 'work', icon: 'schedule', items: ['schedule', 'team', 'structure', 'hire', 'reports'] },
+  { id: 'work', icon: 'schedule', items: ['schedule', 'team', 'leaves', 'structure', 'hire', 'reports'] },
   { id: 'manage', icon: 'admin', items: ['admin', 'editor'] },
 ];
 export const PROFILE_HUB: HubDef = { id: 'profile', icon: 'user', items: ['profile', 'pay', 'settings'] };

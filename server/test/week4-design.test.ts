@@ -95,7 +95,7 @@ test('Классы u-… из перенесённых стилей: кажды�
 
 test('Иконки: в интерфейсе нет эмодзи-картинок (кроме опроса настроения, чата и напоминаний об отдыхе); значки берутся из Icon', () => {
   const rx = /[\u{1F300}-\u{1FAFF}✅✨➤⏳⏰]/u;
-  const allowed = ['MoodCard.svelte', 'Chat.svelte', 'WellnessAdmin.svelte', 'Wellness.svelte', 'WellnessSettings.svelte', 'w18n.ts', 'help-content.ts', 'tour.svelte.ts'];
+  const allowed = ['MoodCard.svelte', 'Chat.svelte', 'stickers.ts', 'WellnessAdmin.svelte', 'Wellness.svelte', 'WellnessSettings.svelte', 'w18n.ts', 'help-content.ts', 'tour.svelte.ts'];
   const bad: string[] = [];
   for (const f of walk(srcDir).filter((x) => /\.(svelte|ts)$/.test(x))) {
     const g = f.split(path.sep).join('/');

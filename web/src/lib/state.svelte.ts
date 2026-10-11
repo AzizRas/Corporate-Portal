@@ -3,6 +3,7 @@ import { applyDensity } from './density';
 
 export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'recruiter' | 'accountant' | 'editor' | 'admin';
 export interface User {
+  totp_enabled?: boolean; must_setup_2fa?: boolean;
   id: number; name: string; login: string; tab_number: string | null; position: string; position_code: string;
   dept_id: number | null; status: string; birthday: string | null; avatar_v: number; days_off: number[]; shift_start: string; shift_end: string;
   wellness: boolean; wellness_min: number; node_id: number | null; employment: 'intern' | 'staff' | 'dismissed'; external: string[] | null; acting: boolean; sections?: string[]; dept_code?: string | null; lang: 'ru' | 'uz'; theme: 'system' | 'light' | 'dark'; must_change_password: boolean; roles: Role[];
