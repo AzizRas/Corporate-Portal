@@ -1,7 +1,7 @@
 <script lang="ts">
   import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
-  import { app, has } from '../lib/state.svelte';
+  import { app, has, lead } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
   import { gt } from './g18n';
   import Ring from '../components/Ring.svelte';
@@ -44,7 +44,7 @@
   }
 </script>
 
-<a href={has('manager', 'head', 'hr') && id !== app.user!.id ? '#/growth/reserve' : '#/path'} class="small">← {t('back')}</a>
+<a href={(lead() || has('hr')) && id !== app.user!.id ? '#/growth/reserve' : '#/path'} class="small">← {t('back')}</a>
 {#if err}<div class="card u-d6f2af6"><p>{err}</p></div>
 {:else if !p || !c360}<div class="u-e60a353"><span class="spin"></span></div>
 {:else}

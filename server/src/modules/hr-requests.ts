@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, teamIds, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, teamIds, type AuthUser, isLead } from '../auth.js';
 import { getSetting, tzDate } from '../settings.js';
 import { notify } from '../notify.js';
 
@@ -147,7 +147,7 @@ ${ok ? `<h1 style="margin:0 0 8px;color:#15803d;font-size:22px">✔ Справк
   /** Кого видит человек в календаре: HR и админ — всех, руководитель — свою команду. */
   async function scope(u: AuthUser): Promise<number[] | null | 'none'> {
     if (isHr(u)) return null;
-    if (hasRole(u, 'manager', 'head')) return teamIds(u);
+    if (isLead(u)) return teamIds(u);
     return 'none';
   }
   app.get('/api/leaves/calendar', auth, async (req, reply) => {

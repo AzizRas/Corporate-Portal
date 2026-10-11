@@ -119,7 +119,14 @@ export function externalAllowed(url: string, allowed: string[]) {
 }
 
 /** Руководящая роль в иерархии: супервайзер или руководитель отдела. */
-export const isLead = (u: AuthUser | undefined) => hasRole(u, 'manager', 'head');
+/** Руководитель: возглавляет узел структуры (или замещает главу по делегированию — его узлы входят в branch_nodes).
+ *  Роли manager/head — должностные и оставлены как запасной признак; видимость команды всё равно идёт по ветке (teamIds). */
+export const isLead = (u: AuthUser | undefined) => !!u && (u.branch_nodes.length > 0 || u.roles.includes('manager') || u.roles.includes('head'));
+/** preHandler: руководитель по структуре или одна из перечисленных ролей (админ проходит всегда). */
+export const requireLead = (...roles: Role[]) => async (req: FastifyRequest, reply: FastifyReply) => {
+  if (!req.user) return reply.code(401).send({ error: 'auth' });
+  if (!isLead(req.user) && !hasRole(req.user, ...roles)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
+};
 export const hasRole = (u: AuthUser | undefined, ...roles: Role[]) =>
   !!u && (u.roles.includes('admin') || roles.some((r) => u.roles.includes(r)));
 

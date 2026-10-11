@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, teamIds } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, isLead, requireLead } from '../auth.js';
 import { getSetting, tzMonth } from '../settings.js';
 import { LADDER, POSITIONS, etaMonths, gaps as calcGaps, levelsAt, prevPeriod, readiness, type Comp } from '../model.js';
 
@@ -96,13 +96,13 @@ export async function syncBadges(userId: number, history?: { period: string; pct
 export async function pathRoutes(app: FastifyInstance) {
   app.get('/api/path/me', { preHandler: requireAuth }, async (req) => pathFor(req.user!.id, true));
 
-  app.get('/api/path/user/:id', { preHandler: requireRole('manager', 'head', 'hr') }, async (req, reply) => {
+  app.get('/api/path/user/:id', { preHandler: requireLead('hr') }, async (req, reply) => {
     const id = Number((req.params as any).id);
     if (!hasRole(req.user, 'hr') && !(await teamIds(req.user!)).includes(id)) return reply.code(403).send({ error: 'forbidden' });
     await audit(req, 'path_view', String(id));
     const p = await pathFor(id, false);
     // зоны роста видят супервайзер, руководитель отдела и админ; HR — нет
-    if (p && !hasRole(req.user, 'admin', 'manager', 'head')) p.growth = [];
+    if (p && !(hasRole(req.user, 'admin') || isLead(req.user))) p.growth = [];
     return p;
   });
 
@@ -143,7 +143,7 @@ export async function pathRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.get('/api/path/team', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
+  app.get('/api/path/team', { preHandler: requireLead('hr') }, async (req) => {
     const ids = hasRole(req.user, 'hr') ? (await q('SELECT id FROM users WHERE active')).rows.map((x) => x.id) : await teamIds(req.user!);
     const out = [];
     for (const id of ids) { const p = await pathFor(id, false, { badges: false }); if (p) out.push({ id, name: p.user.name, readiness: p.readiness, target: p.target.ru, delta: p.delta_month }); }

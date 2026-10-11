@@ -3,7 +3,7 @@
 // hr/admin — все). Старший оператор (senior) чужих результатов не видит.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser, isLead, requireLead } from '../auth.js';
 import { notify } from '../notify.js';
 import { SEED_TESTS } from '../tests-seed.js';
 
@@ -83,13 +83,29 @@ function publicTest(t: any) {
   return out;
 }
 
+/* ---------- кому виден результат (ТЗ №3, B6) ---------- */
+/** Тесты про самочувствие: по умолчанию результат видит только сам сотрудник. */
+export const SENSITIVE = new Set(['stress', 'burnout', 'who5', 'cbi', 'uwes', 'psysafe', 'enps']);
+export type Share = 'self' | 'lead' | 'lead_hr';
+export const defaultShare = (t: { slug: string; kind: string }): Share => (t.kind === 'prof' ? 'lead_hr' : SENSITIVE.has(t.slug) ? 'self' : 'lead');
+const okShare = (v: unknown): v is Share => v === 'self' || v === 'lead' || v === 'lead_hr';
+/** Виден ли чужой результат: профессиональные — руководителю и HR; психологические — по выбору сотрудника. Руководитель — по структуре. */
+async function canViewResult(v: AuthUser, r: { user_id: number; share: Share; kind: string }, lead?: Set<number>, hrScope?: Set<number>) {
+  if (r.user_id === v.id) return true;
+  const inLead = (lead ?? new Set(isLead(v) ? await teamIds(v) : [])).has(r.user_id);
+  const inHr = hasRole(v, 'hr') && (hrScope ? hrScope.has(r.user_id) : true);
+  if (r.kind === 'prof' || r.share === 'lead_hr') return inLead || inHr;
+  if (r.share === 'lead') return inLead;
+  return false;
+}
+
 const head = (r: any) => ({
   id: r.id, test_id: r.test_id, slug: r.slug, created_at: r.created_at,
   headline: r.result.headline, tone: r.result.tone, kind: r.result.kind, pct: r.result.pct ?? null,
 });
 
 /* ---------- видимость ---------- */
-const canTeam = (u: AuthUser) => hasRole(u, 'manager', 'head', 'hr');
+const canTeam = (u: AuthUser) => isLead(u) || hasRole(u, 'hr');
 
 /** Id сотрудников, чьи результаты вправе видеть руководитель (без него самого). */
 export async function teamScope(u: AuthUser): Promise<number[]> {
@@ -133,6 +149,7 @@ export async function testsRoutes(app: FastifyInstance) {
           title: { ru: t.title_ru, uz: t.title_uz }, descr: { ru: t.descr_ru, uz: t.descr_uz },
           last: l ? { id: l.id, created_at: l.created_at, headline: l.result.headline, tone: l.result.tone, attempts: l.attempts } : null,
           assigned: a ? { by: a.by, note: a.note, at: a.created_at } : null,
+          share_default: defaultShare(t), sensitive: SENSITIVE.has(t.slug),
         };
       }),
       can_team: canTeam(u),
@@ -148,24 +165,27 @@ export async function testsRoutes(app: FastifyInstance) {
   });
 
   /** Команда: таблица «сотрудник × последний результат» и сводка PAEI. Только руководители, hr, admin. */
-  app.get('/api/tests/team', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
+  app.get('/api/tests/team', { preHandler: requireLead('hr') }, async (req) => {
     const ids = await teamScope(req.user!);
     const tests = (await q(`SELECT id,slug,kind,title_ru,title_uz FROM tests WHERE active ORDER BY sort,id`)).rows;
     const testsOut = tests.map((t) => ({ slug: t.slug, kind: t.kind, title: { ru: t.title_ru, uz: t.title_uz } }));
     if (!ids.length) return { members: [], tests: testsOut, paei: null };
     const users = (await q(`SELECT id,name,position,avatar_v FROM users WHERE id=ANY($1::int[]) ORDER BY name`, [ids])).rows;
-    const last = (await q(
-      `SELECT DISTINCT ON (r.user_id, r.test_id) r.id,r.user_id,r.test_id,r.created_at,r.result
-         FROM test_results r WHERE r.user_id=ANY($1::int[]) ORDER BY r.user_id,r.test_id,r.created_at DESC,r.id DESC`, [ids])).rows;
+    const lead = new Set(isLead(req.user) ? await teamIds(req.user!) : []), hrSet = new Set(ids);
+    const raw = (await q(
+      `SELECT DISTINCT ON (r.user_id, r.test_id) r.id,r.user_id,r.test_id,r.created_at,r.result,r.share,t.kind
+         FROM test_results r JOIN tests t ON t.id=r.test_id WHERE r.user_id=ANY($1::int[]) ORDER BY r.user_id,r.test_id,r.created_at DESC,r.id DESC`, [ids])).rows;
+    const last: any[] = [];
+    for (const x of raw) last.push((await canViewResult(req.user!, x, lead, hrSet)) ? x : { ...x, hidden: true, result: { headline: null, tone: null, kind: null } });
     const pend = (await q(`SELECT user_id,test_id FROM test_assignments WHERE user_id=ANY($1::int[]) AND done_at IS NULL`, [ids])).rows;
     const slugOf: Record<number, string> = Object.fromEntries(tests.map((t) => [t.id, t.slug]));
     const members = users.map((m) => ({
       ...m,
-      results: Object.fromEntries(last.filter((x) => x.user_id === m.id && slugOf[x.test_id]).map((x) => [slugOf[x.test_id], head({ ...x, slug: slugOf[x.test_id] })])),
+      results: Object.fromEntries(last.filter((x) => x.user_id === m.id && slugOf[x.test_id]).map((x) => [slugOf[x.test_id], x.hidden ? { id: null, slug: slugOf[x.test_id], created_at: x.created_at, hidden: true } : head({ ...x, slug: slugOf[x.test_id] })])),
       pending: pend.filter((p) => p.user_id === m.id && slugOf[p.test_id]).map((p) => slugOf[p.test_id]),
     }));
     // PAEI команды: среднее по осям среди тех, кто проходил
-    const full = last.filter((x) => slugOf[x.test_id] === 'paei');
+    const full = last.filter((x) => slugOf[x.test_id] === 'paei' && !x.hidden);
     let paei: any = null;
     if (full.length) {
       const avg: Record<string, number> = {};
@@ -176,7 +196,7 @@ export async function testsRoutes(app: FastifyInstance) {
   });
 
   /** Назначить тест сотрудникам: manager, head, hr, admin. */
-  app.post('/api/tests/assign', { preHandler: requireRole('manager', 'head', 'hr') }, async (req, reply) => {
+  app.post('/api/tests/assign', { preHandler: requireLead('hr') }, async (req, reply) => {
     const u = req.user!;
     const b = (req.body ?? {}) as { test?: string | number; user_ids?: number[]; note?: string };
     const test = (await q(`SELECT id,title_ru,title_uz FROM tests WHERE active AND (slug=$1 OR id::text=$1)`, [String(b.test ?? '')])).rows[0];
@@ -213,7 +233,7 @@ export async function testsRoutes(app: FastifyInstance) {
          FROM test_results r JOIN tests t ON t.id=r.test_id JOIN users x ON x.id=r.user_id WHERE r.id=$1`, [Number((req.params as any).id)])).rows[0];
     if (!r) return reply.code(404).send({ error: 'not_found' });
     if (r.user_id !== u.id) {
-      if (!(await teamScope(u)).includes(r.user_id)) {
+      if (!(await teamScope(u)).includes(r.user_id) || !(await canViewResult(u, r))) {
         await audit(req, 'access_denied', req.url);
         return reply.code(403).send({ error: 'forbidden' });
       }
@@ -222,7 +242,7 @@ export async function testsRoutes(app: FastifyInstance) {
     return {
       result: { ...head(r), result: r.result, answers: r.answers },
       test: { id: r.test_id, slug: r.slug, kind: r.kind, scoring: r.scoring, title: { ru: r.title_ru, uz: r.title_uz }, config: r.config },
-      user: { id: r.user_id, name: r.user_name, avatar_v: r.avatar_v }, own: r.user_id === u.id,
+      user: { id: r.user_id, name: r.user_name, avatar_v: r.avatar_v }, own: r.user_id === u.id, share: r.share,
     };
   });
 
@@ -232,8 +252,16 @@ export async function testsRoutes(app: FastifyInstance) {
     if (!t) return reply.code(404).send({ error: 'not_found' });
     return {
       id: t.id, slug: t.slug, kind: t.kind, scoring: t.scoring, minutes: t.minutes,
-      title: { ru: t.title_ru, uz: t.title_uz }, descr: { ru: t.descr_ru, uz: t.descr_uz }, ...publicTest(t),
+      title: { ru: t.title_ru, uz: t.title_uz }, descr: { ru: t.descr_ru, uz: t.descr_uz }, ...publicTest(t), share_default: defaultShare(t),
     };
+  });
+
+  /** Изменить, кому виден свой результат психологического теста. */
+  app.patch('/api/tests/results/:id/share', auth, async (req, reply) => {
+    const share = (req.body as any)?.share;
+    if (!okShare(share)) return reply.code(400).send({ error: 'invalid' });
+    const r = await q(`UPDATE test_results r SET share=$3 FROM tests t WHERE t.id=r.test_id AND t.kind='psych' AND r.id=$1 AND r.user_id=$2`, [Number((req.params as any).id), req.user!.id, share]);
+    return r.rowCount ? { ok: true } : reply.code(404).send({ error: 'not_found' });
   });
 
   /** Отправить ответы: результат считается на сервере, хранится история прохождений. */
@@ -244,7 +272,9 @@ export async function testsRoutes(app: FastifyInstance) {
     const answers = (req.body as any)?.answers;
     const result = scoreTest(t, answers);
     if (!result) return reply.code(400).send({ error: 'invalid' });
-    const id = (await q('INSERT INTO test_results(user_id,test_id,answers,result) VALUES($1,$2,$3,$4) RETURNING id', [u.id, t.id, JSON.stringify(answers), JSON.stringify(result)])).rows[0].id;
+    const want = (req.body as any)?.share;
+    const share: Share = t.kind === 'psych' && okShare(want) ? want : defaultShare(t);
+    const id = (await q('INSERT INTO test_results(user_id,test_id,answers,result,share) VALUES($1,$2,$3,$4,$5) RETURNING id', [u.id, t.id, JSON.stringify(answers), JSON.stringify(result), share])).rows[0].id;
     const done = (await q(`UPDATE test_assignments SET done_at=now() WHERE user_id=$1 AND test_id=$2 AND done_at IS NULL RETURNING assigned_by`, [u.id, t.id])).rows;
     const by = [...new Set(done.map((d) => d.assigned_by).filter((x) => x && x !== u.id))] as number[];
     if (by.length) await notify(by, 'test', `Тест пройден: ${u.name}`, `«${t.title_ru}»`, '#/tests/team');

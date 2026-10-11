@@ -1,7 +1,7 @@
 <script lang="ts">
   import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
-  import { app, has, go } from '../lib/state.svelte';
+  import { app, has, go, lead } from '../lib/state.svelte';
   import { gt } from './g18n';
   import { fmtDate } from '../lib/format';
 
@@ -29,7 +29,7 @@
     nextAt = c?.next_at ?? '';
   }
   $effect(() => { id; load(); });
-  $effect(() => { if (has('manager', 'head', 'hr')) api.get('/api/growth/reserve').then((r) => (people = r.rows)).catch(() => {}); });
+  $effect(() => { if ((lead() || has('hr'))) api.get('/api/growth/reserve').then((r) => (people = r.rows)).catch(() => {}); });
 
   const cur = $derived(talks.find((x) => x.id === sel));
   const qs = $derived(cur ? tpl[cur.template] ?? [] : []);

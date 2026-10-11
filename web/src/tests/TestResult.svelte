@@ -5,6 +5,7 @@
   import Avatar from '../components/Avatar.svelte';
   import { tt, tl, tlist } from './t18n';
   import Radar from './Radar.svelte';
+  import ShareChoice from './ShareChoice.svelte';
 
   let { id }: { id: number } = $props();
   let d: any = $state(null), err = $state(0);
@@ -120,6 +121,7 @@
 
     {#if kind === 'categories' && c.note}<p class="muted small">{tl(c.note)}</p>{/if}
     <div class="t-note u-1169661"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b>{#if d.own}<small>{tt('r_repeat_hint')}</small>{/if}</div></div>
+    {#if d.own && d.test.kind === 'psych'}<ShareChoice value={d.share} onchange={(v) => api.patch(`/api/tests/results/${d.result.id}/share`, { share: v }).then(() => (d.share = v))} />{/if}
     {#if d.own}<div class="row wrap"><a class="btn grad" href="#/tests/take/{d.test.slug}">{tt('again')}</a><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>{/if}
   </div>
 {/if}

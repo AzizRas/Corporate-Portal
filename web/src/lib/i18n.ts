@@ -5,7 +5,7 @@ const ru = {
   save: 'Сохранить', cancel: 'Отмена', close: 'Закрыть', send: 'Отправить', back: 'Назад', loading: 'Загрузка…', error: 'Что-то пошло не так. Попробуйте ещё раз.',
   yes: 'Да', no: 'Нет', open: 'Открыть', edit: 'Править', delete: 'Удалить', add: 'Добавить', search: 'Поиск', today: 'Сегодня', all: 'Все', more: 'Ещё',
   // меню
-  nav_home: 'Главная', nav_path: 'Мой путь', nav_pay: 'ЗП и KPI', nav_att: 'Пришёл', nav_kb: 'ЧАВО', nav_assist: 'Помощник оператора', nav_team: 'Команда',
+  nav_home: 'Главная', nav_path: 'Мой путь', nav_pay: 'ЗП и KPI', nav_att: 'Пришёл', nav_kb: 'ЧАВО', nav_assist: 'Помощник оператора', nav_team: 'Моя команда',
   nav_admin: 'Админка', nav_profile: 'Профиль', nav_tools: 'Инструменты', nav_logout: 'Выйти', tab_path: 'Путь', tab_pay: 'ЗП', tab_att: 'Пришёл', tab_kb: 'ЧАВО',
   // вход
   login_title: 'Вход в Qadam', login_sub: 'Платформа роста сотрудников', login_id: 'Логин или табельный номер', login_pw: 'Пароль', login_btn: 'Войти',
@@ -38,7 +38,7 @@ export type Key = keyof typeof ru;
 const uz: Partial<Record<Key, string>> = {
   save: 'Saqlash', cancel: 'Bekor qilish', close: 'Yopish', send: 'Yuborish', back: 'Orqaga', loading: 'Yuklanmoqda…', error: 'Xatolik yuz berdi. Qayta urinib ko‘ring.',
   yes: 'Ha', no: 'Yo‘q', open: 'Ochish', edit: 'Tahrirlash', delete: 'O‘chirish', add: 'Qo‘shish', search: 'Qidiruv', today: 'Bugun', all: 'Hammasi', more: 'Yana',
-  nav_home: 'Bosh sahifa', nav_path: 'Mening yo‘lim', nav_pay: 'Maosh va KPI', nav_att: 'Keldim', nav_kb: 'Savol-javob', nav_assist: 'Operator yordamchisi', nav_team: 'Jamoa',
+  nav_home: 'Bosh sahifa', nav_path: 'Mening yo‘lim', nav_pay: 'Maosh va KPI', nav_att: 'Keldim', nav_kb: 'Savol-javob', nav_assist: 'Operator yordamchisi', nav_team: 'Mening jamoam',
   nav_admin: 'Boshqaruv', nav_profile: 'Profil', nav_tools: 'Vositalar', nav_logout: 'Chiqish', tab_path: 'Yo‘l', tab_pay: 'Maosh', tab_att: 'Keldim', tab_kb: 'Savol',
   login_title: 'Qadam’ga kirish', login_sub: 'Xodimlar o‘sishi platformasi', login_id: 'Login yoki tabel raqami', login_pw: 'Parol', login_btn: 'Kirish',
   login_bad: 'Login yoki parol noto‘g‘ri', login_locked: 'Urinishlar ko‘p. Biroz kutib, qayta urinib ko‘ring.',

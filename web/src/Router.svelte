@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { app, has, go, can } from './lib/state.svelte';
+  import { app, has, go, can, lead } from './lib/state.svelte';
   import { routeSection, landing } from './lib/nav';
   import { t } from './lib/i18n';
   import Home from './pages/Home.svelte';
@@ -146,7 +146,7 @@
     {:then m}
       <m.default />
     {/await}
-  {:else if head === 'hire' && has('hr', 'recruiter', 'manager', 'head')}
+  {:else if head === 'hire' && (lead() || has('hr', 'recruiter'))}
     {#await hireLoader()}
       <span class="spin"></span>
     {:then m}
@@ -180,7 +180,7 @@
     {#await teamLoader()}
       <span class="spin"></span>
     {:then m}
-      <m.default />
+      <m.default id={parts[1] ? Number(parts[1]) : null} />
     {/await}
   {:else if head === 'admin'}
     {#await adminLoader()}

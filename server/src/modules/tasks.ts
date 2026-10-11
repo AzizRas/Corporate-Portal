@@ -1,7 +1,7 @@
 // Задачи сотрудникам: ставит руководитель (или подтверждённый черновик ИИ), выполняет сотрудник. Просрочка учитывается в панели супервайзера.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, teamIds } from '../auth.js';
+import { audit, hasRole, requireAuth, teamIds, isLead } from '../auth.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
 import { dropPanelCache } from '../panel-cache.js';
@@ -40,7 +40,7 @@ export async function taskRoutes(app: FastifyInstance) {
   // поставить задачу своим сотрудникам: супервайзер и руководитель отдела — в своей ветке, HR и админ — любым
   app.post('/api/tasks', auth, async (req, reply) => {
     const u = req.user!, b = (req.body ?? {}) as { user_ids?: number[]; title?: string; note?: string; due?: string };
-    if (!hasRole(u, 'manager', 'head', 'hr')) return reply.code(403).send({ error: 'forbidden' });
+    if (!isLead(u) && !hasRole(u, 'hr')) return reply.code(403).send({ error: 'forbidden' });
     const title = String(b.title ?? '').trim();
     if (!title || !Array.isArray(b.user_ids) || !b.user_ids.length) return reply.code(400).send({ error: 'invalid' });
     const scope = hasRole(u, 'hr', 'admin') ? null : new Set(await teamIds(u));

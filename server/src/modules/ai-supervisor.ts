@@ -3,7 +3,7 @@
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { AiUnavailable, aiCall, aiStatus, parseJson } from '../ai.js';
-import { audit, requireAuth, requireRole } from '../auth.js';
+import { audit, requireAuth, requireRole, requireLead } from '../auth.js';
 import { SV_PLAN, SV_SCENARIOS, type SvScenario } from '../sv-seed.js';
 
 const DAILY_CAP = 40;
@@ -28,7 +28,7 @@ function builtIn(sc: SvScenario, answer: string, lang: 'ru' | 'uz') {
 }
 
 export async function aiSupervisorRoutes(app: FastifyInstance) {
-  const sv = { preHandler: requireRole('manager', 'head', 'hr') };
+  const sv = { preHandler: requireLead('hr') };
   const sc = (id: string) => SV_SCENARIOS.find((s) => s.id === id);
 
   app.get('/api/sv/overview', sv, async (req) => {

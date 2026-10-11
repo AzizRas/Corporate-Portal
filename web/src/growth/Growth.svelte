@@ -1,6 +1,6 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
-  import { app, has } from '../lib/state.svelte';
+  import { app, has, lead } from '../lib/state.svelte';
   import { gt } from './g18n';
   import Survey from './Survey.svelte';
   import Talk from './Talk.svelte';
@@ -13,7 +13,7 @@
   const tab = $derived(parts[0] || 'survey');
   const tabs = $derived([
     { id: 'survey', l: gt('tab_survey') }, { id: 'talk', l: gt('tab_talk') }, { id: 'mentor', l: gt('tab_mentor') },
-    ...(has('manager', 'head', 'hr') ? [{ id: 'reserve', l: gt('tab_reserve') }] : []),
+    ...((lead() || has('hr')) ? [{ id: 'reserve', l: gt('tab_reserve') }] : []),
   ]);
 </script>
 
@@ -27,6 +27,6 @@
 {#if tab === 'survey'}<Survey />
 {:else if tab === 'talk'}<Talk who={parts[1] ? Number(parts[1]) : null} />
 {:else if tab === 'mentor'}<Mentor />
-{:else if tab === 'reserve' && has('manager', 'head', 'hr')}<Reserve />
+{:else if tab === 'reserve' && (lead() || has('hr'))}<Reserve />
 {:else if tab === 'person'}<Person id={Number(parts[1])} />
 {:else}<div class="card"><p class="muted">404</p></div>{/if}

@@ -5,7 +5,7 @@ import { pool } from './db.js';
 import { ensureBase } from './seed.js';
 import { seedHireTemplates } from './hire-templates.js';
 import { cleanupPhotos } from './modules/attendance.js';
-import { applyDueTransfers } from './org-core.js';
+import { applyDueTransfers, syncAllManagers } from './org-core.js';
 import { hireDigest } from './modules/hire.js';
 import { recordUsageSnapshot, refreshWeeklyAi } from './modules/usage.js';
 
@@ -25,7 +25,8 @@ async function main() {
   const clean = () => cleanupPhotos().then((n) => n && console.log(`[portal] удалено фото: ${n}`)).catch((e) => console.error('[cleanup]', e));
   setTimeout(clean, 10_000);
   // переводы с датой вступают в силу в свой день
-  const transfers = () => applyDueTransfers().then((n) => n && console.log(`[portal] применено переводов: ${n}`)).catch((e) => console.error('[transfers]', e));
+  const transfers = () => applyDueTransfers().then((n) => n && console.log(`[portal] применено переводов: ${n}`))
+    .then(() => syncAllManagers()).then((n) => n && console.log(`[portal] руководитель пересчитан по структуре: ${n}`)).catch((e) => console.error('[transfers]', e));
   setTimeout(transfers, 15_000);
   setInterval(transfers, 3600_000).unref();
   setInterval(clean, 3600_000).unref();

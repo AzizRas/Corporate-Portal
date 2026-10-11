@@ -1,7 +1,7 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
-  import { app, has } from '../lib/state.svelte';
+  import { app, has, lead } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
   import { fmtDate, fmtDateTime } from '../lib/format';
   import Avatar from '../components/Avatar.svelte';
@@ -28,7 +28,7 @@
   });
   const sel = $derived(selected != null ? byId.get(selected) : null);
   const canEdit = $derived(!!tree?.can_edit), canLife = $derived(!!tree?.can_lifecycle);
-  const isLead = $derived(has('manager', 'head'));
+  const isLead = $derived(lead());
 
   const flash = (m: string) => { toast = m; setTimeout(() => (toast = ''), 3500); };
   async function loadTree() {
