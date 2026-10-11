@@ -4,7 +4,8 @@
   import { app, has, logout, go, can } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
   import { notif, startNotify } from '../lib/notify.svelte';
-  import { navGroups, activeItem } from '../lib/nav';
+  import { navGroups, activeItem, landing } from '../lib/nav';
+  import { MOBILE_TABS, MOBILE_TAB_IDS } from '../lib/nav-core';
   import Search from './Search.svelte';
   import AssistChat from './AssistChat.svelte';
   import Tour from './Tour.svelte';
@@ -18,7 +19,7 @@
 
   let { children }: { children: Snippet } = $props();
   const head = $derived(app.route.split('?')[0].split('/').filter(Boolean)[0] ?? '');
-  const key = $derived(head === '' ? 'chat' : head);
+  const key = $derived(head === '' ? landing() : head);
 
   let collapsed = $state(false);
   try { collapsed = localStorage.getItem('side-collapsed') === '1'; } catch { /* приватный режим */ }
@@ -37,16 +38,10 @@
   const toggleGroup = (id: string) => { explicit[id] = !isOpen(id); try { localStorage.setItem('nav-groups', JSON.stringify(explicit)); } catch { /* */ } };
   const groupBadge = (g: { items: { badge?: number }[] }) => g.items.reduce((n, i) => n + (i.badge ?? 0), 0);
 
-  // нижняя панель телефона: 5 пунктов и «Ещё»
-  const tabs = $derived([
-    { id: 'chat', l: st('n_chat'), i: 'chat', h: '#/chat', badge: notif.chat_total },
-    { id: 'news', l: st('n_news'), i: 'news', h: '#/news' },
-    { id: 'training', l: st('n_training'), i: 'training', h: '#/training' },
-    { id: 'kb', l: st('n_kb'), i: 'kb', h: '#/kb' },
-    { id: 'path', l: st('n_path'), i: 'path', h: '#/path' },
-    { id: 'more', l: st('n_more'), i: 'more', h: '#/more' },
-  ].filter((tb) => tb.id === 'more' || can(tb.id === 'training' ? 'plan' : tb.id)) as { id: string; l: string; i: string; h: string; badge?: number }[]);
-  const tabIds = ['chat', 'news', 'training', 'kb', 'path'];
+  // нижняя панель телефона: Главная, Чат, Обучение, График и «Ещё» (всё остальное — в «Ещё»)
+  const tabLabel: Record<string, string> = $derived({ home: st('n_home'), chat: st('n_chat'), training: st('n_training'), schedule: st('n_schedule'), more: st('n_more') });
+  const tabs = $derived(MOBILE_TABS.filter((tb) => !tb.section || can(tb.section)).map((tb) => ({ ...tb, l: tabLabel[tb.id], badge: tb.id === 'chat' ? notif.chat_total : 0 })));
+  const tabIds = MOBILE_TAB_IDS;
 </script>
 
 <svelte:window onkeydown={(e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && visitSearch()} />
@@ -102,8 +97,8 @@
 
   <nav class="tabbar" aria-label="menu">
     {#each tabs as tb}
-      <a href={tb.h} data-tour={'tab-' + tb.id} class:on={tb.id === 'more' ? !tabIds.includes(key) : key === tb.id}>
-        <i><Icon name={tb.i} />{#if tb.badge}<em>{tb.badge > 99 ? '99+' : tb.badge}</em>{/if}</i>{tb.l}
+      <a href={tb.href} data-tour={'tab-' + tb.id} class:on={tb.id === 'more' ? !tabIds.includes(key) : key === tb.id}>
+        <i><Icon name={tb.icon} />{#if tb.badge}<em>{tb.badge > 99 ? '99+' : tb.badge}</em>{/if}</i>{tb.l}
       </a>
     {/each}
   </nav>
