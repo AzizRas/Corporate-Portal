@@ -10,12 +10,15 @@
   import { monthLong } from '../lib/format';
   import Modal from '../components/Modal.svelte';
   import Avatar from '../components/Avatar.svelte';
+  import Skeleton from '../components/Skeleton.svelte';
+  import ErrorState from '../components/ErrorState.svelte';
+  import { friendlyError } from '../lib/errors';
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
   const tab = $derived(parts[1] === 'team' ? 'team' : 'my');
   const tz = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   let ym = $state(tz().slice(0, 7));
-  let my: any = $state(null), team: any = $state(null), err = $state(''), msg = $state('');
+  let my: any = $state(null), team: any = $state(null), err = $state(''), msg = $state(''), loadErr: unknown = $state(null);
   let reqDay: any = $state(null), note = $state(''), editPat: any = $state(null);
   let pat = $state({ days_off: [] as number[], shift_start: '09:00', shift_end: '19:00' });
 
@@ -29,8 +32,9 @@
   const dayWord = (d: string) => st('d' + dow(d));
 
   const shift = (d: number) => { const [y, m] = ym.split('-').map(Number); const x = new Date(Date.UTC(y, m - 1 + d, 1)); ym = `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, '0')}`; sel.clear(); };
-  const loadMy = () => api.get(`/api/schedule/me?month=${ym}`).then((r) => (my = r));
-  const loadTeam = () => api.get(`/api/schedule/team?month=${ym}`).then((r) => (team = r)).catch(() => (team = { rows: [], pending: [], days: [], policy: { start: '09:00', end: '19:00' }, today: tz() }));
+  const loadMy = () => { loadErr = null; return api.get(`/api/schedule/me?month=${ym}`).then((r) => (my = r)).catch((e) => (loadErr = e)); };
+  // раньше при сбое здесь молча показывался пустой график команды; теперь — понятная ошибка и «Повторить»
+  const loadTeam = () => { loadErr = null; return api.get(`/api/schedule/team?month=${ym}`).then((r) => (team = r)).catch((e) => (loadErr = e)); };
   $effect(() => { ym; tab; if (tab === 'my') loadMy(); else loadTeam(); });
   $effect(() => { if (!my) api.get(`/api/schedule/me?month=${ym}`).then((r) => (my = r)); });
   // сообщение внизу; undo — действие «Отменить» (даётся 12 секунд)
@@ -56,7 +60,7 @@
   async function sendReq() {
     err = '';
     try { await api.post('/api/schedule/off', { day: reqDay.day, note }); reqDay = null; note = ''; await loadMy(); }
-    catch (e) { err = e instanceof ApiError ? (({ past: st('s_past'), exists: st('s_exists'), already_off: st('s_already') } as any)[e.code] ?? e.code) : 'error'; }
+    catch (e) { err = e instanceof ApiError ? (({ past: st('s_past'), exists: st('s_exists'), already_off: st('s_already') } as any)[e.code] ?? friendlyError(e, app.lang)) : friendlyError(e, app.lang); }
   }
   async function cancel(day: string) { await api.del(`/api/schedule/off/${day}`); await loadMy(); }
   const statusText = (s: string) => ({ pending: st('s_pending'), rejected: st('s_rejected'), approved: st('s_approved') } as any)[s] ?? s;
@@ -359,7 +363,8 @@
       </div>
     </div>
   {/if}
-{:else}<span class="spin"></span>{/if}
+{:else if loadErr}<ErrorState error={loadErr} retry={() => (tab === 'my' ? loadMy() : loadTeam())} />
+{:else}<Skeleton card rows={6} />{/if}
 
 {#if reqDay}
   <Modal onclose={() => (reqDay = null)}>

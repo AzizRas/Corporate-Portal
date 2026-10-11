@@ -10,11 +10,15 @@
   import { st } from '../lib/s18n';
   import { gt } from '../growth/g18n';
   import '../growth/growth.css';
+  import Skeleton from '../components/Skeleton.svelte';
+  import ErrorState from '../components/ErrorState.svelte';
+  import EmptyState from '../components/EmptyState.svelte';
 
   let d: any = $state(null);
   let newStrength = $state(''), newGrowth = $state('');
 
-  const load = () => api.get('/api/path/me').then((r) => (d = r));
+  let loadErr: unknown = $state(null);
+  const load = () => { loadErr = null; return api.get('/api/path/me').then((r) => (d = r)).catch((e) => (loadErr = e)); };
   load();
 
   const name = (o: any, k = 'name') => pick(o, k);
@@ -33,8 +37,10 @@
   const pct4 = (v: number) => `${Math.min(v / 4, 1) * 100}%`;
 </script>
 
-{#if !d}
-  <span class="spin"></span>
+{#if loadErr && !d}
+  <ErrorState error={loadErr} retry={load} />
+{:else if !d}
+  <Skeleton card lines={4} />
 {:else}
   <header class="page-head">
     <div>
