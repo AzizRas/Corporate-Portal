@@ -10,6 +10,7 @@
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
   import Payroll from './Payroll.svelte';
   import NotifyPrefs from '../components/NotifyPrefs.svelte';
+  import HrRequests from './HrRequests.svelte';
   import { restartTour } from '../lib/tour.svelte';
 
   let { tab = 'me' }: { tab?: string } = $props();
@@ -52,9 +53,11 @@
 <nav class="tabs">
   <a href="#/profile" class:on={tab === 'me'}>{wt('i_mydata')}</a>
   <a href="#/profile/pay" class:on={tab === 'pay'}>{st('n_pay')}</a>
+  {#if app.user?.roles.includes('employee')}<a href="#/profile/docs" class:on={tab === 'docs'}>{app.lang === 'uz' ? 'Hujjatlar va ta’til' : 'Документы и отпуск'}</a>{/if}
   <a href="#/profile/settings" class:on={tab === 'settings'}>{wt('i_settings')}</a>
 </nav>
 {#if tab === 'pay'}<Payroll />
+{:else if tab === 'docs'}<HrRequests />
 {:else if tab === 'settings'}
 <div class="grid u-0e12b30">
   <section class="card stack">

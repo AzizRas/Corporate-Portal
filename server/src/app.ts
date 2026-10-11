@@ -1,3 +1,4 @@
+import { hrRequestRoutes } from './modules/hr-requests.js';
 import { pushRoutes } from './push.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
@@ -73,6 +74,7 @@ export async function buildApp() {
   });
 
   await app.register(pushRoutes);
+  await app.register(hrRequestRoutes);
   await app.register(authRoutes);
   await app.register(usersRoutes);
   await app.register(payrollRoutes);
