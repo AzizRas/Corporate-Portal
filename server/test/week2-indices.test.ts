@@ -234,3 +234,36 @@ test('S8: в ИИ уходят id, должность и показатели, �
     assert.ok(!/@|\+998|телефон|тел\./i.test(user));
   } finally { delete process.env.ANTHROPIC_API_KEY; }
 });
+
+/* ---------------- P2: сотрудник видит свою нагрузку; «поговорили» ---------------- */
+test('Сотрудник видит свой индекс нагрузки и советы; чужой — нет; на больничном и новичку карточки нет', async () => {
+  const o2 = await login('op2');            // у op2 высокая нагрузка (данные выше)
+  const r = (await get(o2, '/api/me/load')).json();
+  assert.equal(r.load.level, 'high'); assert.deepEqual(r.load.reasons.map((x: any) => x.code), ['overtime', 'no_days_off']);
+  assert.deepEqual(r.tips, ['finish_on_time', 'take_day_off'], 'советы под причины');
+  assert.equal(r.weeks.length, 8); assert.equal(r.engagement.falling, true);
+  // только свои данные: чужой id принять нельзя, это отдельный адрес без параметров
+  assert.equal((await get(o2, '/api/me/load?id=1')).json().load.score, r.load.score);
+  assert.equal((await get({}, '/api/me/load')).statusCode, 401);
+  const dil = (await get(await login('dilnoza'), '/api/me/load')).json();
+  assert.equal(dil.load.score, 0); assert.deepEqual(dil.tips, []);
+  const o2id = await uid('op2');
+  await pool.query(`INSERT INTO user_leaves(user_id,kind,from_date,to_date) VALUES($1,'sick',CURRENT_DATE - 1,CURRENT_DATE + 3)`, [o2id]);
+  assert.deepEqual((await get(o2, '/api/me/load')).json(), { skipped: 'leave' });
+  await pool.query(`DELETE FROM user_leaves`);
+});
+
+test('«Поговорили»: сигнал скрывается на 4 недели, отметка остаётся в журнале; чужой руководитель не может', async () => {
+  const [o2, sv] = [await uid('op2'), await login('rustam')];
+  const find = async (who: any) => (await get(who, '/api/panel?limit=100')).json().items.find((i: any) => i.id === o2);
+  await pool.query('DELETE FROM signal_dismissals');
+  assert.ok((await find(sv)).signal, 'сигнал есть');
+  assert.equal((await send(await login('head'), 'POST', `/api/panel/signal/${o2}/dismiss`, { talked: true })).statusCode, 403, 'не прямой руководитель');
+  assert.equal((await send(sv, 'POST', `/api/panel/signal/${o2}/dismiss`, { talked: true })).statusCode, 200);
+  assert.equal((await find(sv)).signal, null, 'после «поговорили» скрыт');
+  const until = (await pool.query(`SELECT (until - CURRENT_DATE)::int AS d FROM signal_dismissals WHERE user_id=$1`, [o2])).rows[0].d;
+  assert.equal(until, 28, 'на 4 недели');
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='signal_talked' AND target=$1`, [String(o2)])).rows[0].n, 1, 'в журнале отметка «поговорили»');
+  assert.ok((await find(await login('hr'))).signal, 'у HR сигнал остаётся');
+  await pool.query('DELETE FROM signal_dismissals');
+});

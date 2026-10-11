@@ -211,7 +211,7 @@
   <a href="#/schedule" class:on={tab === 'my'}>{st('s_my')}</a>
   {#if my?.can_team}<a href="#/schedule/team" class:on={tab === 'team'}>{st('s_team')}</a>{/if}
 </nav>
-{#if msg}<div class="alert ok row wrap" role="status" style="margin-bottom:14px;gap:10px;align-items:center"><span style="flex:1">{msg}</span>{#if undoFn}<button type="button" class="btn sm" onclick={doUndo}>{sc('undo')}</button>{/if}</div>{/if}
+{#if msg}<div class="alert ok row wrap flash-bar" role="status"><span style="flex:1">{msg}</span>{#if undoFn}<button type="button" class="btn sm" onclick={doUndo}>{sc('undo')}</button>{/if}</div>{/if}
 
 {#if tab === 'my' && my}
   <div class="my-grid">
@@ -271,7 +271,7 @@
     <div class="kpi" class:warn={team.pending.length}><span class="muted xs">{sc('kpiPending')}</span><b>{team.pending.length}</b></div>
     <div class="kpi" class:bad={noOffN}><span class="muted xs">{sc('kpiNoOff')}</span><b>{noOffN}</b></div>
     <div class="kpi"><span class="muted xs">{sc('kpiMin')}</span><b>{minCover ?? '—'}</b></div>
-    {#if team.can_policy}<button type="button" class="kpi pol" onclick={openHol}><span class="muted xs">{sc('holidays')}</span><b>🎉</b></button>{/if}
+    {#if team.can_policy}<button type="button" class="kpi pol" onclick={openHol}><span class="muted xs">{sc('holidays')}</span><b>★</b></button>{/if}
     <button type="button" class="kpi pol" onclick={() => team.can_policy && (pol = { ...cur })} disabled={!team.can_policy} title={team.can_policy ? sc('policy') : ''}>
       <span class="muted xs">{sc('std')}</span><b>{cur.start}–{cur.end}</b><span class="muted xs">{sc('oneOff')}</span>
     </button>

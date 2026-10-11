@@ -138,7 +138,7 @@
   <div class="grid" style="grid-template-columns:{meta.kind === 'value' || (items.length <= 1 && meta.kind === 'map') ? '1fr' : 'minmax(240px,320px) minmax(0,1fr)'};align-items:start">
     {#if meta.kind !== 'value' && !(items.length <= 1 && meta.kind === 'map')}
       <aside class="card" style="padding:16px;position:sticky;top:12px;max-height:calc(100vh - 40px);overflow:auto">
-        <div class="row" style="margin-bottom:10px"><input type="search" placeholder="Поиск" bind:value={q} /><button class="btn sm grad" onclick={addItem}>+</button></div>
+        <div class="row" style="margin-bottom:10px"><input type="search" placeholder="Поиск" bind:value={q} /><button class="btn sm grad" onclick={addItem} aria-label="Добавить элемент">+</button></div>
         <div class="stack" style="gap:4px">
           {#each shown as it}
             <button class="nav" class:on={sel === it.key} onclick={() => pick(it.key)} style="padding:8px 10px;font-size:14px"><span style="overflow:hidden;text-overflow:ellipsis">{label(it)}</span></button>

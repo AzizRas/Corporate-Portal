@@ -1,5 +1,6 @@
 import { mount } from 'svelte';
 import './app.css';
+import './tokens.css';
 import App from './App.svelte';
 
 // После выкладки у открытой вкладки файлы раздела могут быть уже заменены новыми: загрузка раздела падает.

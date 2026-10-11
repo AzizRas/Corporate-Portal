@@ -8,6 +8,7 @@
   import MoodCard from '../components/MoodCard.svelte';
   import Checklist from '../components/Checklist.svelte';
   import PageHelp from '../components/PageHelp.svelte';
+  import { wt } from '../lib/w18n';
   import Skeleton from '../components/Skeleton.svelte';
   import ErrorState from '../components/ErrorState.svelte';
   import EmptyState from '../components/EmptyState.svelte';
@@ -19,6 +20,9 @@
   function loadPay() { fail.pay = null; done.pay = false; api.get('/api/payroll/me').then((r) => (pay = r)).catch((e) => (fail.pay = e)).finally(() => (done.pay = true)); }
   function loadPath() { fail.path = null; done.path = false; api.get('/api/path/me').then((r) => (path = r)).catch((e) => (fail.path = e)).finally(() => (done.path = true)); }
   function loadSched() { fail.sched = null; done.sched = false; api.get('/api/schedule/me').then((r) => (sched = r)).catch((e) => (fail.sched = e)).finally(() => (done.sched = true)); }
+  // «Моя нагрузка»: сотрудник видит свой индекс и советы; для новичков и тех, кто в отпуске, карточки нет
+  let mine: any = $state(null);
+  api.get('/api/me/load').then((r) => (mine = r.skipped ? null : r)).catch(() => {});
   loadPay(); loadSched();
   if (can('path') || can('growth')) loadPath();           // закрытый раздел не запрашиваем
   const last = $derived(pay?.periods?.at(-1));
@@ -52,6 +56,14 @@
     {:else if !done.pay}<Skeleton lines={2} />
     {:else}<EmptyState title={t('pay_none')} />{/if}
   </section>
+
+  {#if mine && (mine.load.score > 0 || mine.load.reasons.length)}<section class="card">
+    <div class="card-head"><h3>{wt('ld_title')}</h3><span class="aside {mine.load.level === 'high' ? 'pill-bad' : mine.load.level === 'mid' ? 'pill-warn' : 'pill-ok'}">{wt(`ld_${mine.load.level}`)}</span></div>
+    <div class="ld-bar"><i class={mine.load.level} style:width={`${mine.load.score}%`}></i></div>
+    {#if mine.load.reasons.length}<ul class="small ld-list">{#each mine.load.reasons as r}<li>{wt(`ldr_${r.code}`, { n: r.n })}</li>{/each}</ul>{/if}
+    {#if mine.tips.length}<p class="small"><b>{wt('ld_tips')}</b> {mine.tips.map((x: string) => wt(`ldt_${x}`)).join(' ')}</p>{/if}
+    <p class="muted xs mt-2">{wt('ld_note')}</p>
+  </section>{/if}
 
   {#if can('path') || can('growth')}<section class="card">
     <div class="card-head"><h3>{t('home_path')}</h3></div>

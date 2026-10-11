@@ -1,3 +1,5 @@
+.ld-bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; margin: 10px 0; } .ld-bar i { display: block; height: 100%; border-radius: 99px; } .ld-bar i.low { background: var(--good); } .ld-bar i.mid { background: var(--warn); } .ld-bar i.high { background: var(--bad); }
+.ld-list { margin: 0 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 /* ============ Токены: фирменная палитра Hunter Black / Flow Blue / Electric Violet, тёмная и светлая темы ============ */
 :root, :root[data-theme='dark'] {
   --bg: #121214;
@@ -36,16 +38,16 @@
   --card-hl: #ffffff;
   --border: #e8e8eb;
   --text: #1d1d1f;
-  --muted: #6f6f78;
+  --muted: #686871;
   --accent: #25cfe8;
   --accent-ink: #08798c;
   --grad: #1d1d1f;
   --grad-ink: #ffffff;
   --grad-soft: #25cfe8;
   --track: #ececef;
-  --good: #0d8a43;
-  --warn: #9a6a00;
-  --bad: #d23b3b;
+  --good: #0a7a3a;
+  --warn: #8a5f00;
+  --bad: #c22f2f;
   --chip: #efeff1;
   --chip-on-bg: #1d1d1f;
   --chip-on-ink: #ffffff;
