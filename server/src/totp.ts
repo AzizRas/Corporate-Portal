@@ -82,5 +82,5 @@ export function useRecovery(hashed: string[], code: string): string[] | null {
 /** Для каких ролей второй фактор обязателен. */
 export const TOTP_REQUIRED_ROLES = ['admin', 'accountant'] as const;
 export const totpRequired = (roles: string[]) => TOTP_REQUIRED_ROLES.some((r) => roles.includes(r));
-/** Жёсткое требование на сервере: в боевом окружении или по TOTP_ENFORCE=1 (в тестах и на разработке выключено, чтобы не мешать входам). */
-export const totpEnforced = () => process.env.TOTP_ENFORCE === '1' || (process.env.TOTP_ENFORCE !== '0' && config.isProd);
+/** Жёсткое требование на сервере: включается только переменной TOTP_ENFORCE=1. По умолчанию выключено: 2FA можно включить сотруднику в профиле добровольно. */
+export const totpEnforced = () => process.env.TOTP_ENFORCE === '1';
