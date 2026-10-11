@@ -1,5 +1,5 @@
 // Кэш расчёта панели руководителя: расчёт по зоне в сотни людей — десятки запросов, поэтому он живёт 10 минут на руководителя.
-export interface PanelCache { at: string; ts: number; items: any[]; summary: any }
+export interface PanelCache { at: string; ts: number; items: any[]; summary: any; units: any[] }
 const cache = new Map<number, PanelCache>();
 
 /** Срок жизни расчёта, мс; PANEL_CACHE_MS=0 выключает кэш (так работают тесты, меняющие данные между запросами). */

@@ -6,12 +6,26 @@ import { q } from '../db.js';
 import { AiUnavailable, aiCall, aiStatus, parseJson } from '../ai.js';
 import { audit, hasRole, requireAuth, teamIds, type AuthUser } from '../auth.js';
 import { signalOf, workStats, type SignalReason, type WorkStats } from '../ai-context.js';
-import { orgNodes, pathName } from '../org-core.js';
+import { LOAD_HIGH, computeIndices, type Indices } from '../indices.js';
+import { chainOf, orgNodes, pathName } from '../org-core.js';
 import { tzDate } from '../settings.js';
 import { queueScopeSql } from './questions.js';
 import { dropPanelCache, panelCacheGet, panelCacheSet, type PanelCache } from '../panel-cache.js';
 
-const REASON_RU: Record<SignalReason, string> = { activity_drop: 'активность в портале заметно упала', late: 'частые опоздания', quality_drop: 'результаты в обучении снизились', tasks_overdue: 'просрочены задачи', mood_low: 'настроение ниже обычного' };
+const REASON_RU: Record<SignalReason, string> = { activity_drop: 'активность в портале заметно упала', late: 'частые опоздания', quality_drop: 'результаты в обучении снизились', tasks_overdue: 'просрочены задачи', mood_low: 'настроение ниже обычного', load_high: 'высокая нагрузка (переработки, работа без выходных, давно не было отпуска)', engagement_falling: 'вовлечённость снижается две недели подряд' };
+
+const LOAD_RU: Record<string, string> = { overtime: 'переработки', no_days_off: 'много дней подряд без выходных', no_vacation: 'давно не было отпуска', skipped_breaks: 'пропускает паузы', night: 'работа в портале ночью', questions_up: 'много вопросов к помощнику' };
+
+/** Сигнал «стоит поговорить»: прежние правила (два и больше мягких признака) ИЛИ новое — нагрузка высокая, а вовлечённость падает две недели подряд. */
+export function signalWith(s: WorkStats, idx: Indices | undefined): { level: 'none' | 'talk'; reasons: SignalReason[] } {
+  const base = signalOf(s);
+  if (!idx || idx.skipped || base.skipped) return base;
+  const extra: SignalReason[] = [];
+  if (idx.load.level === 'high') extra.push('load_high');
+  if (idx.engagement.falling) extra.push('engagement_falling');
+  if (base.level === 'talk') return { level: 'talk', reasons: [...base.reasons, ...extra] };
+  return idx.load.level === 'high' && idx.engagement.falling ? { level: 'talk', reasons: extra } : base;
+}
 
 /** Кого видит панель: админ и HR — всех, супервайзер и руководитель отдела — свою ветку, старший оператор — свою группу. */
 export async function panelScope(u: AuthUser): Promise<number[] | null> {
@@ -39,34 +53,62 @@ export function flagsOf(s: WorkStats): string[] {
   return f;
 }
 
-const line = (n: { id: number; name: string; position: string }, s: WorkStats, reasons: SignalReason[]) =>
-  `id=${n.id} | ${n.name} | ${n.position} | активность 14д: ${s.activity.now14} (раньше ${s.activity.prev14}) | уроков ${s.training.lessons_done}/${s.training.lessons_total} | тестов ${s.tests.taken}${s.tests.last?.pct != null ? `, последний ${s.tests.last.pct}%` : ''} | тренажёр ${s.trainer.avg_now ?? '—'} (раньше ${s.trainer.avg_prev ?? '—'}) | опозданий за 14д: ${s.late14} | просрочено задач: ${s.tasks.overdue} | ждут тестов: ${s.tests.pending_old}${reasons.length ? ` | признаки: ${reasons.map((r) => REASON_RU[r]).join(', ')}` : ''}`;
+/** Строка показателей для модели: только id и должность, без имени и других личных данных (модели имя не нужно). */
+const line = (n: { id: number; position: string }, s: WorkStats, reasons: SignalReason[], idx?: Indices) =>
+  `id=${n.id} | ${n.position} | активность 14д: ${s.activity.now14} (раньше ${s.activity.prev14}) | уроков ${s.training.lessons_done}/${s.training.lessons_total} | тестов ${s.tests.taken}${s.tests.last?.pct != null ? `, последний ${s.tests.last.pct}%` : ''} | тренажёр ${s.trainer.avg_now ?? '—'} (раньше ${s.trainer.avg_prev ?? '—'}) | опозданий за 14д: ${s.late14} | просрочено задач: ${s.tasks.overdue} | ждут тестов: ${s.tests.pending_old}${idx && !idx.skipped ? ` | нагрузка ${idx.load.score}/100${idx.load.reasons.length ? ` (${idx.load.reasons.map((x) => LOAD_RU[x.code]).join(', ')})` : ''}${idx.engagement.score != null ? ` | вовлечённость ${idx.engagement.score}/100${idx.engagement.falling ? ' (падает две недели подряд)' : ''}` : ''}` : ''}${reasons.length ? ` | признаки: ${reasons.map((r) => REASON_RU[r]).join(', ')}` : ''}`;
+
+/** Сводка для HR по подразделениям: сколько людей и какая доля в зоне риска (высокая нагрузка), сейчас и месяц назад. Имён здесь нет. */
+function unitSummary(people: { id: number; node_id: number | null }[], idxs: Map<number, Indices>, nodes: Awaited<ReturnType<typeof orgNodes>>) {
+  const by = new Map<string, { unit: string; people: number; counted: number; high_now: number; high_prev: number; low_eng: number }>();
+  for (const p of people) {
+    const idx = idxs.get(p.id);
+    const unit = chainOf(nodes, p.node_id).find((n) => n.kind !== 'root');
+    const name = unit ? unit.name_ru : 'Без подразделения';
+    const row = by.get(name) ?? { unit: name, people: 0, counted: 0, high_now: 0, high_prev: 0, low_eng: 0 };
+    row.people++;
+    if (idx && !idx.skipped) {
+      row.counted++;
+      if (idx.load.level === 'high') row.high_now++;
+      if (idx.weeks[idx.weeks.length - 5]?.load >= LOAD_HIGH) row.high_prev++;       // четыре недели назад
+      if (idx.engagement.level === 'low') row.low_eng++;
+    }
+    by.set(name, row);
+  }
+  const pct = (n: number, d: number) => (d ? Math.round((100 * n) / d) : 0);
+  return [...by.values()].map((r) => ({ unit: r.unit, people: r.people, counted: r.counted, high_load: r.high_now, high_load_pct: pct(r.high_now, r.counted), prev_pct: pct(r.high_prev, r.counted), low_engagement_pct: pct(r.low_eng, r.counted) }))
+    .sort((a, b) => b.high_load_pct - a.high_load_pct || b.people - a.people);
+}
 
 async function panelData(u: AuthUser, scope: number[]): Promise<PanelCache> {
   const hit = panelCacheGet(u.id);
   if (hit) return hit;
   const all = await orgNodes();
   const stats = await workStats(scope);
+  const idxs = await computeIndices(scope, stats);
   const people = (await q(`SELECT id,name,position,avatar_v,employment,node_id,manager_id,status FROM users WHERE id = ANY($1::int[])`, [scope])).rows;
   const dismissed = new Set<number>((await q(`SELECT user_id FROM signal_dismissals WHERE by_user=$1 AND until >= $2::date`, [u.id, tzDate()])).rows.map((r) => r.user_id));
   const items = people.map((p) => {
     const s = stats.get(p.id)!;
-    const sig = signalOf(s);
+    const idx = idxs.get(p.id), hear = mayHearSignal(u, p);
+    const sig = signalWith(s, idx);
     // сигнал считается правилами и от ИИ не зависит; ИИ нужен только для текста совета
-    const show = mayHearSignal(u, p) && sig.level === 'talk' && !dismissed.has(p.id);
+    const show = hear && sig.level === 'talk' && !dismissed.has(p.id);
     return {
       id: p.id, name: p.name, position: p.position, avatar_v: p.avatar_v, employment: p.employment, status: p.status, node_path: pathName(all, p.node_id),
       stats: { training: s.training, tests: s.tests, trainer: s.trainer, activity: s.activity, late14: s.late14, tasks: s.tasks, leave: s.leave, mood_trend: s.mood.n >= 2 ? trend(s.mood.now, s.mood.prev) : null },
       flags: flagsOf(s),
       signal: show ? { level: 'talk', reasons: sig.reasons } : null,
+      // индексы видит тот же круг, что и сигнал (прямой руководитель и HR): в них входят ответы опроса настроения
+      indices: hear && idx ? (idx.skipped ? { skipped: idx.skipped } : { load: idx.load, engagement: idx.engagement }) : null,
     };
   });
   // сначала те, у кого сигнал, потом по числу признаков, остальные по алфавиту (раньше брались первые 300 по алфавиту, и важные случаи могли не попасть в список)
   items.sort((a, b) => (b.signal ? 1 : 0) - (a.signal ? 1 : 0) || b.flags.length - a.flags.length || a.name.localeCompare(b.name));
   const queue = hasRole(u, 'manager', 'head', 'hr') ? queueScopeSql(u) : null;
   const open = queue ? (await q(`SELECT count(*)::int n FROM open_questions o WHERE o.status IN ('new','in_progress') AND ${queue.sql}`, queue.params)).rows[0].n : null;
-  const summary = { people: items.length, inactive: items.filter((i) => i.flags.includes('inactive')).length, overdue: items.reduce((n, i) => n + i.stats.tasks.overdue, 0), on_leave: items.filter((i) => i.stats.leave.now).length, with_signal: items.filter((i) => i.signal).length, open_questions: open };
-  const fresh: PanelCache = { at: new Date().toISOString(), ts: Date.now(), items, summary };
+  const summary = { high_load: items.filter((i) => i.indices?.load?.level === 'high').length, people: items.length, inactive: items.filter((i) => i.flags.includes('inactive')).length, overdue: items.reduce((n, i) => n + i.stats.tasks.overdue, 0), on_leave: items.filter((i) => i.stats.leave.now).length, with_signal: items.filter((i) => i.signal).length, open_questions: open };
+  const units = hasRole(u, 'hr', 'admin') ? unitSummary(people, idxs, all) : [];
+  const fresh: PanelCache = { at: new Date().toISOString(), ts: Date.now(), items, summary, units };
   panelCacheSet(u.id, fresh);
   return fresh;
 }
@@ -105,6 +147,16 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     };
   });
 
+  // сводка для HR по подразделениям: доля сотрудников в зоне риска и динамика; имён нет
+  app.get('/api/panel/units', auth, async (req, reply) => {
+    const u = req.user!;
+    if (!hasRole(u, 'hr', 'admin')) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
+    const scope = await panelScope(u);
+    if (!scope) return reply.code(403).send({ error: 'forbidden' });
+    const c = await panelData(u, scope);
+    return { computed_at: c.at, units: c.units };
+  });
+
   // подсказки по карточкам: один запрос на всю команду, одинаковые данные берутся из кэша
   app.post('/api/panel/hints', auth, async (req, reply) => {
     const u = req.user!, scope = await panelScope(u);
@@ -113,16 +165,17 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     if (!st.available) return { ai: { available: false, reason: hasRole(u, 'admin') ? st.reason : null }, hints: {} };
     const want = Array.isArray((req.body as any)?.ids) ? new Set<number>((req.body as any).ids.map(Number)) : null;
     const ids = scope.filter((id) => !want || want.has(id)).slice(0, 12);
-    const people = (await q(`SELECT id,name,position,manager_id FROM users WHERE id = ANY($1::int[])`, [ids])).rows;
+    const people = (await q(`SELECT id,position,manager_id FROM users WHERE id = ANY($1::int[])`, [ids])).rows;      // имена модели не нужны
     const stats = await workStats(ids);
+    const idxs = await computeIndices(ids, stats);
     const dismissed = new Set<number>((await q(`SELECT user_id FROM signal_dismissals WHERE by_user=$1 AND until >= $2::date`, [u.id, tzDate()])).rows.map((r) => r.user_id));
     const rows: string[] = [], withTalk = new Set<number>();
     for (const p of people) {
-      const s = stats.get(p.id)!, sig = signalOf(s);
-      const talk = mayHearSignal(u, p) && sig.level === 'talk' && !dismissed.has(p.id);
+      const s = stats.get(p.id)!, idx = idxs.get(p.id), sig = signalWith(s, idx), hear = mayHearSignal(u, p);
+      const talk = hear && sig.level === 'talk' && !dismissed.has(p.id);
       if (talk) withTalk.add(p.id);
       if (!flagsOf(s).length && !talk) continue;       // «всё в порядке» подсказки не требует
-      rows.push(line(p, s, talk ? sig.reasons : []));
+      rows.push(line(p, s, talk ? sig.reasons : [], hear ? idx : undefined));
     }
     if (!rows.length) return { ai: { available: true }, hints: {} };
     const system = 'Ты аналитик для руководителя колл-центра Darian. По каждому сотруднику дай 1–2 предложения: что руководителю стоит сделать (конкретный следующий шаг: беседа, задача, тест, тренажёр). Опирайся только на приведённые показатели. ' +
@@ -159,8 +212,11 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     const u = req.user!, id = Number((req.params as any).id), scope = await panelScope(u);
     if (!scope || !scope.includes(id)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
     const s = (await workStats([id])).get(id)!;
+    const t = (await q('SELECT manager_id FROM users WHERE id=$1', [id])).rows[0];
+    const idx = (await computeIndices([id], new Map([[id, s]]))).get(id);
+    const indices = t && idx && mayHearSignal(u, t) ? (idx.skipped ? { skipped: idx.skipped } : { load: idx.load, engagement: idx.engagement, weeks: idx.weeks }) : null;
     const tests = (await q(`SELECT t.title_ru AS title, (r.result->>'pct')::numeric AS pct, r.created_at FROM test_results r JOIN tests t ON t.id=r.test_id WHERE r.user_id=$1 ORDER BY r.created_at DESC LIMIT 8`, [id])).rows;
     const tasks = (await q(`SELECT id,title,to_char(due,'YYYY-MM-DD') AS due,done_at FROM tasks WHERE user_id=$1 ORDER BY done_at NULLS FIRST, due NULLS LAST LIMIT 10`, [id])).rows;
-    return { stats: s, flags: flagsOf(s), tests, tasks };
+    return { stats: s, flags: flagsOf(s), tests, tasks, indices };
   });
 }

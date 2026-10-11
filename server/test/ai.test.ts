@@ -312,7 +312,7 @@ test('Мягкий сигнал: прямому руководителю и HR; 
   const find = (r: any) => r.json().items.find((i: any) => i.id === o2);
   const mine = find(await get(sv1, '/api/panel'));
   assert.equal(mine.signal.level, 'talk'); assert.ok(mine.signal.reasons.length >= 2);
-  assert.ok(!JSON.stringify(mine).includes('"score"'), 'ответы опроса настроения руководителю не отдаются');
+  assert.ok(!JSON.stringify(mine.stats).includes('"score"') && !/mood/.test(JSON.stringify(mine.indices ?? {})), 'ответы опроса настроения руководителю не отдаются (индексы — это уже сводные баллы 0–100, не сами ответы)');
   assert.ok(find(await get(hr1, '/api/panel')).signal, 'HR сигнал видит');
   assert.equal(find(await get(head1, '/api/panel')).signal, null, 'руководитель отдела (не прямой) сигнал не видит');
   assert.equal(find(await get(adm, '/api/panel')).signal, null, 'админ сигнал не видит');
