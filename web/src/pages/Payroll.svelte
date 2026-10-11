@@ -119,7 +119,7 @@
         <div class="card-head"><h3>{t('pay_whatif')}</h3></div>
         <p class="muted small u-da12f28">{t('pay_whatif_hint')}</p>
         <label class="f">KPI, % — <b class="u-f045bbe">{pct}</b><input class="u-ea545dd" type="range" min="50" max="120" bind:value={pct} oninput={calc} onchange={calc} /></label>
-        {#if what != null}<p class="muted small">{t('pay_expected')}</p><div class="big-num u-f2d0bec" class:masked={!visible}>{maskedSum(what)}</div>{/if}
+        {#if what != null}<p class="muted small">{t('pay_expected')}</p><div class="big-num u-f2d0bec">{fmtSum(what)}</div>{/if}
       </section>
     {/if}
 

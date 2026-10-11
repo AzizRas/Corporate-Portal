@@ -338,8 +338,13 @@ async function streamWithChain(o: AiCallOpts, parts: SysParts, cfg: AiConfig, ma
 /** Достаёт JSON (объект или массив) из ответа модели. */
 export function parseJson<T = any>(text: string | null): T | null {
   if (!text) return null;
-  const a = Math.min(...['{', '['].map((c) => { const i = text.indexOf(c); return i < 0 ? Infinity : i; }));
-  const b = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
-  if (!Number.isFinite(a) || b < a) return null;
-  try { return JSON.parse(text.slice(a, b + 1)); } catch { return null; }
+  let s = text.trim();
+  const fence = /```(?:json)?\s*([\s\S]*?)\s*```/i.exec(s);
+  if (fence) s = fence[1].trim();
+  const o = s.indexOf('{'), l = s.indexOf('[');
+  if (o < 0 && l < 0) return null;
+  const arr = l >= 0 && (o < 0 || l < o);                    // корень — то, что открылось раньше; закрываем тем же видом скобки
+  const a = arr ? l : o, b = s.lastIndexOf(arr ? ']' : '}');
+  if (b <= a) return null;
+  try { return JSON.parse(s.slice(a, b + 1)); } catch { return null; }
 }

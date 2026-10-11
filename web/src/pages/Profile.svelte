@@ -14,11 +14,12 @@
 
   let { tab = 'me' }: { tab?: string } = $props();
 
-  let oldPw = $state(''), newPw = $state(''), msg = $state(''), ok = $state(false);
+  let oldPw = $state(''), newPw = $state(''), newPw2 = $state(''), msg = $state(''), ok = $state(false);
   async function change(e: Event) {
     e.preventDefault(); msg = '';
     if (newPw.length < 8) { msg = t('pw_weak'); ok = false; return; }
-    try { await api.patch('/api/me', { password: newPw, old_password: oldPw }); msg = t('pw_ok'); ok = true; oldPw = newPw = ''; }
+    if (newPw !== newPw2) { msg = app.lang === 'uz' ? 'Parollar mos kelmadi' : 'Пароли не совпадают'; ok = false; return; }
+    try { await api.patch('/api/me', { password: newPw, old_password: oldPw }); msg = t('pw_ok'); ok = true; oldPw = newPw = newPw2 = ''; }
     catch (x) { msg = x instanceof ApiError && x.code === 'bad_old' ? t('login_bad') : t('error'); ok = false; }
   }
   let dens: Density = $state(pickDensity((() => { try { return localStorage.getItem('density'); } catch { return null; } })(), app.user?.roles ?? []));
@@ -76,6 +77,7 @@
     <h3 class="card-title">{t('profile_pw')}</h3>
     <label class="f u-1169661">{t('pw_old')}<input type="password" bind:value={oldPw} autocomplete="current-password" required /></label>
     <label class="f u-1169661">{t('pw_new')}<input type="password" bind:value={newPw} autocomplete="new-password" required /></label>
+    <label class="f u-1169661">{app.lang === 'uz' ? 'Parolni takrorlang' : 'Повторите пароль'}<input type="password" bind:value={newPw2} autocomplete="new-password" required /></label>
     {#if msg}<div class="alert" class:ok>{msg}</div>{/if}
     <button class="btn grad">{t('save')}</button>
   </form>

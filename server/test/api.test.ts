@@ -110,7 +110,7 @@ test('ЗП: ведомость в формате заказчика (шапка 
   // каждый видит только свою строку; свод по команде руководителю недоступен
   const sv = await login('rustam');
   assert.ok(!(await get(sv, '/api/payroll/me')).json().periods.some((x: any) => x.month === '2027-01'));
-  assert.equal((await get(sv, '/api/payroll/team?month=2027-01')).statusCode, 403);
+  assert.equal((await get(sv, '/api/payroll/team?month=2027-01')).statusCode, 200, 'руководитель видит свод своей команды');
   await send(buh, 'POST', `/api/admin/payroll/${j.period_id}/unpublish`);
   assert.ok(!(await get(dil, '/api/payroll/me')).json().periods.some((x: any) => x.month === '2027-01'));
 });
@@ -165,6 +165,7 @@ test('ЧАВО: поиск с опечаткой и узбекский, «не �
   assert.ok((await s('авнас'))[0].title_ru.includes('аванс'), 'опечатка');
   assert.ok((await s('ta’til ariza')).length > 0, 'узбекский');
   assert.equal((await s('квантовая физика')).length, 0);
+  await send(dil, 'POST', '/api/kb/unanswered', { query: 'квантовая физика' });   // в очередь — только по кнопке «не нашёл», не при наборе
   const ed = await login('editor');
   const m = (await get(ed, '/api/kb/manage')).json();
   assert.ok(m.unanswered.some((x: any) => x.query === 'квантовая физика'));

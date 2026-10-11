@@ -15,7 +15,8 @@
   const ids = $derived(new Set<number>((data?.members ?? []).map((m: any) => m.id)));
   const candidates = $derived(people.filter((p) => !ids.has(p.id) && p.id !== app.user!.id && (!find || p.name.toLowerCase().includes(find.toLowerCase()))).slice(0, 40));
   const roleL = (r: string) => wt(`ch_role_${r}`);
-  const enc = encodeURIComponent(chan.id);
+  const enc = $derived(encodeURIComponent(chan.id));
+  $effect(() => { name = chan.name_ru; });
 </script>
 
 <Modal {onclose}>

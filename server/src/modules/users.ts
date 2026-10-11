@@ -149,6 +149,7 @@ export async function usersRoutes(app: FastifyInstance) {
       // хэши считаем заранее и асинхронно: пачка из сотен человек не должна останавливать сервер
       const hashes = new Map<string, string>();
       for (const r of rows) if (r.status === 'new') hashes.set(r.login, await hashPasswordAsync(r.password!));
+      const createdIds: number[] = [];
       await tx(async (c) => {
         for (const r of rows) {
           if (r.status !== 'new') continue;
@@ -156,8 +157,10 @@ export async function usersRoutes(app: FastifyInstance) {
             `INSERT INTO users(login,pass_hash,name,position,position_code,dept_id,hired_at,must_change_password) VALUES($1,$2,$3,$4,$5,$6,$7,true) RETURNING id`,
             [r.login, hashes.get(r.login), r.name, r.position, r.code, deptId, r.hired])).rows[0].id;
           for (const role of r.roles!) await c.query('INSERT INTO user_roles VALUES($1,$2)', [id, role]);
+          createdIds.push(id);
         }
       });
+      for (const uid of createdIds) { await placeUser(uid); await syncUserDept(uid); await membershipChanged(uid); }   // узел структуры, отдел и чат-группы
       await audit(req, 'users_import', null as any, { created: rows.filter((r) => r.status === 'new').length });
     }
     return { committed: commit, rows };

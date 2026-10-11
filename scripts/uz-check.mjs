@@ -1,7 +1,7 @@
 // Проверка переключателя RU/UZ и кириллицы в помощнике (в браузере)
 import { chromium } from 'playwright-core';
 const base = process.env.BASE || 'http://localhost:3000', out = process.argv[2] || '/tmp/shots';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+const b = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
 const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
 await p.goto(base);

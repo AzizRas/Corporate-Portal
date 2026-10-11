@@ -116,7 +116,6 @@ export async function kbRoutes(app: FastifyInstance) {
       return { items: r.rows };
     }
     const items = await searchArticles(query, req.user!.dept_id, false, section ? Number(section) : undefined);
-    if (!items.length) await q('INSERT INTO kb_unanswered(user_id,query) VALUES($1,$2)', [req.user!.id, query.slice(0, 300)]);
     return { items };
   });
 

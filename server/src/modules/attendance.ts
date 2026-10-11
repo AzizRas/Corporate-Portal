@@ -94,7 +94,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
     }
     if (s.wifi) {
       const ips: string[] = await getSetting('attendance_wifi_ips', []);
-      if (ips.includes(req.ip)) methods.push('wifi'); else problems.push('wifi_foreign');
+      if (ips.includes(req.ip || req.raw.socket.remoteAddress || '')) methods.push('wifi'); else problems.push('wifi_foreign');
     }
     let photoPath: string | null = null;
     if (s.selfie) {

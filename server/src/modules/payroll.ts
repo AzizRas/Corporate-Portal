@@ -273,7 +273,7 @@ export async function payrollRoutes(app: FastifyInstance) {
   }));
 
   // --- руководитель: свод по команде без имён
-  app.get('/api/payroll/team', { preHandler: requireRole('accountant') }, async (req) => {
+  app.get('/api/payroll/team', { preHandler: requireRole('accountant', 'manager', 'head') }, async (req) => {
     const month = String((req.query as any).month ?? '');
     const ids = hasRole(req.user, 'accountant') ? null : await teamIds(req.user!);
     const r = await q(

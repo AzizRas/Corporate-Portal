@@ -30,7 +30,7 @@
 
   const tgExtra = $derived(extras.find((x) => x.kind === 'telegram'));
   const waExtra = $derived(extras.find((x) => x.kind === 'whatsapp'));
-  const digits = (applicant.phone ?? '').replace(/\D/g, '');
+  const digits = $derived((applicant.phone ?? '').replace(/\D/g, ''));
   const text = () => (subject.trim() ? `${subject.trim()}\n\n${body.trim()}` : body.trim());
   async function log(ch: string) { try { await api.post(`/api/hire/applicants/${applicantId}/notes`, { kind: 'email', body: `${ht('mLog', { ch })}: ${subject.trim() || body.trim().slice(0, 60)}` }); onchange(); } catch (e) { toast(errText(e), true); } }
   async function copy() { try { await navigator.clipboard.writeText(text()); return true; } catch { return false; } }

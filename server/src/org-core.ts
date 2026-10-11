@@ -99,6 +99,7 @@ export async function dismissCleanup(userId: number) {
   await q('UPDATE users SET avatar_v=0 WHERE id=$1', [userId]);
   await q('UPDATE org_nodes SET head_user_id=NULL WHERE head_user_id=$1', [userId]);
   await q('UPDATE users SET manager_id=NULL WHERE manager_id=$1', [userId]);
+  await q('UPDATE hire_vacancies SET owner_id=NULL WHERE owner_id=$1', [userId]);
   await q('DELETE FROM delegations WHERE from_user_id=$1 OR to_user_id=$1', [userId]);
   invalidateOrg();
   await membershipChanged(userId);
