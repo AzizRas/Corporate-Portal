@@ -316,3 +316,22 @@ test('Excel: экспорт, проверка перед импортом, со�
   const again = (await imp(fixed, true)).json();
   assert.deepEqual([again.nodes_new, again.users_new], [0, 0]);
 });
+
+test('Схема компании: все видят подразделения и сотрудников, внешнее — только HR и админ, закрыто для внешних', async () => {
+  const adm = await admin(), hr = await login('hr'), op = await login('op1'), ext = await login('ext1');
+  const c = (await get(op, '/api/org/chart')).json();
+  assert.equal(c.can_edit, false);
+  const root = c.nodes.find((n: any) => n.kind === 'root');
+  assert.ok(root && c.nodes.filter((n: any) => n.kind === 'dept').length >= 3, 'колл-центр, сервис-центр, склад и др. на месте');
+  const call = c.nodes.find((n: any) => n.kind === 'dept' && /Колл/.test(n.name_ru));
+  assert.ok(call.total > 0 && call.division === call.id, 'у отдела свой номер подразделения и счёт людей');
+  const grp = [...c.nodes].filter((n: any) => n.kind === 'group').sort((a: any, b: any) => b.people.length - a.people.length)[0];
+  assert.equal(grp.division, call.id, 'группа относится к своему подразделению');
+  assert.ok(grp.people.length >= 3 && grp.people.every((p: any) => p.name && 'position' in p), 'сотрудники группы видны оператору (имя и должность)');
+  assert.ok(grp.people.every((p: any) => !('phone' in p) && !('login' in p)), 'контакты и логины не раздаются');
+  assert.ok(!c.nodes.some((n: any) => n.kind === 'external'), 'оператор внешнее не видит');
+  assert.ok((await get(hr, '/api/org/chart')).json().nodes.some((n: any) => n.kind === 'external'));
+  assert.equal((await get(adm, '/api/org/chart')).json().can_edit, true);
+  assert.equal((await get(ext, '/api/org/chart')).statusCode, 403, 'внешним закрыто');
+  assert.equal((await app.inject({ method: 'GET', url: '/api/org/chart' })).statusCode, 401);
+});

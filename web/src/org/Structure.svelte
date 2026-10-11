@@ -7,9 +7,11 @@
   import Avatar from '../components/Avatar.svelte';
   import Modal from '../components/Modal.svelte';
   import Icon from '../components/Icon.svelte';
+  import OrgChart from './OrgChart.svelte';
+  import { ot } from './oc18n';
 
   let tree: any = $state(null), selected: number | null = $state(null), people: any[] = $state([]), noAccess = $state(false), loadingP = $state(false);
-  let tab = $state<'tree' | 'archive' | 'log' | 'deleg'>('tree');
+  let tab = $state<'chart' | 'tree' | 'archive' | 'log' | 'deleg'>('chart');
   let allPeople: any[] = $state([]), open: Record<number, boolean> = $state({});
   let dragId: number | null = $state(null), dropId: number | null = $state(null), toast = $state('');
 
@@ -146,7 +148,8 @@
 {#if toast}<div class="alert" style="margin-bottom:14px">{toast}</div>{/if}
 
 <nav class="tabs">
-  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>{wt('o_tab_tree')}</button>
+  <button class:on={tab === 'chart'} onclick={() => (tab = 'chart')}>{ot('tabChart')}</button>
+  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>{ot('tabList')}</button>
   {#if canLife}<button class:on={tab === 'archive'} onclick={() => (tab = 'archive')}>{wt('o_tab_archive')}</button><button class:on={tab === 'log'} onclick={() => (tab = 'log')}>{wt('o_tab_log')}</button>{/if}
   {#if isLead || canEdit}<button class:on={tab === 'deleg'} onclick={() => (tab = 'deleg')}>{wt('o_tab_deleg')}</button>{/if}
 </nav>
@@ -169,7 +172,9 @@
   </section>
 {/if}
 
-{#if tab === 'tree'}
+{#if tab === 'chart'}
+  <OrgChart canManage={canLife || canEdit || isLead} onmanage={(id) => { tab = 'tree'; const n = byId.get(id); if (n) pick(n); }} />
+{:else if tab === 'tree'}
   {#if !tree}<span class="spin"></span>{:else}
   <div class="org-grid">
     <section class="card org-tree">

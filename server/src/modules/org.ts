@@ -52,6 +52,35 @@ export async function orgRoutes(app: FastifyInstance) {
     };
   });
 
+  /** Схема компании: все узлы с сотрудниками. Имя, должность и фото видны всем (как в /api/people); отпуск — только тем, кто открывает узел. Внешним подразделениям закрыто на входе, как и дерево. */
+  app.get('/api/org/chart', auth, async (req) => {
+    const u = req.user!, all = await orgNodes();
+    const visible = all.filter((n) => !n.archived && (n.kind !== 'external' || isHr(u)));
+    const vis = new Set(visible.map((n) => n.id));
+    const nodes = visible.filter((n) => n.parent_id == null || vis.has(n.parent_id));
+    const ids = nodes.map((n) => n.id);
+    const rows = (await q(
+      `SELECT u.id,u.name,u.position,u.employment,u.avatar_v,u.node_id,
+              EXISTS(SELECT 1 FROM user_leaves lv WHERE lv.user_id=u.id AND $2::date BETWEEN lv.from_date AND lv.to_date) AS on_leave
+         FROM users u WHERE u.active AND u.node_id = ANY($1::int[]) ORDER BY u.name`, [ids, tzDate()])).rows;
+    const heads = new Map<number, any>((await q(`SELECT id,name,position,avatar_v FROM users WHERE id = ANY($1::int[])`, [nodes.map((n) => n.head_user_id).filter((x) => x != null)])).rows.map((r) => [r.id, r]));
+    const byNode = new Map<number, any[]>();
+    for (const r of rows) { const { node_id, ...p } = r; if (!canOpenNode(u, node_id)) p.on_leave = false; byNode.set(node_id, [...(byNode.get(node_id) ?? []), p]); }
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const division = (n: OrgNode): number => { let c = n; while (c.parent_id != null && byId.get(c.parent_id) && byId.get(c.parent_id)!.kind !== 'root') c = byId.get(c.parent_id)!; return c.id; };
+    return {
+      can_edit: hasRole(u, 'admin'),
+      nodes: nodes.map((n) => {
+        const people = byNode.get(n.id) ?? [];
+        return {
+          id: n.id, parent_id: n.parent_id, kind: n.kind, name_ru: n.name_ru, name_uz: n.name_uz, sort: n.sort, division: division(n),
+          head: n.head_user_id != null ? heads.get(n.head_user_id) ?? null : null, people, direct: people.length,
+          total: subtreeIds(all, n.id).reduce((a, i) => a + (byNode.get(i)?.length ?? 0), 0), mine: u.node_id === n.id,
+        };
+      }),
+    };
+  });
+
   app.get('/api/org/nodes/:id/people', auth, async (req, reply) => {
     const id = Number((req.params as any).id), u = req.user!;
     if (!canOpenNode(u, id)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
