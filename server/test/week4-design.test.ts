@@ -80,3 +80,42 @@ test('Доступность: кнопки только с иконкой под
   const BASELINE = 813;
   assert.ok(inline <= BASELINE, `встроенных style="…" стало ${inline}, а было не больше ${BASELINE}: используйте классы и токены из tokens.css`);
 });
+
+test('Классы u-… из перенесённых стилей: каждый используемый класс описан в inline.css, лишних нет', () => {
+  const css = read('src/inline.css');
+  const defined = new Set([...css.matchAll(/^\.(u-[0-9a-f]{7}) \{/gm)].map((m) => m[1]));
+  const used = new Set<string>();
+  for (const f of walk(srcDir).filter((x) => x.endsWith('.svelte'))) for (const m of fs.readFileSync(f, 'utf8').matchAll(/\bu-[0-9a-f]{7}\b/g)) used.add(m[0]);
+  assert.ok(used.size > 200, `перенесено много стилей: ${used.size}`);
+  assert.deepEqual([...used].filter((c) => !defined.has(c)), [], 'класс используется, но не описан');
+  assert.deepEqual([...defined].filter((c) => !used.has(c)), [], 'класс описан, но не используется');
+  assert.ok(/!important/.test(css), 'объявления с !important, чтобы вести себя как встроенные');
+  assert.match(read('src/main.ts'), /import '\.\/inline\.css'/);
+});
+
+test('Иконки: в интерфейсе нет эмодзи-картинок (кроме опроса настроения, чата и напоминаний об отдыхе); значки берутся из Icon', () => {
+  const rx = /[\u{1F300}-\u{1FAFF}✅✨➤⏳⏰]/u;
+  const allowed = ['MoodCard.svelte', 'Chat.svelte', 'WellnessAdmin.svelte', 'Wellness.svelte', 'WellnessSettings.svelte', 'w18n.ts', 'help-content.ts', 'tour.svelte.ts'];
+  const bad: string[] = [];
+  for (const f of walk(srcDir).filter((x) => /\.(svelte|ts)$/.test(x))) {
+    const g = f.split(path.sep).join('/');
+    if (allowed.includes(path.basename(f)) || g.includes('/assist/') || g.includes('/wellness/')) continue;
+    fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => { if (rx.test(l)) bad.push(`${path.basename(f)}:${i + 1}`); });
+  }
+  assert.deepEqual(bad, [], 'эмодзи в интерфейсе: ' + bad.join(', '));
+  const icon = read('src/components/Icon.svelte');
+  for (const n of ['palm', 'cake', 'thumb-up', 'thumb-down', 'pin', 'hourglass', 'spark', 'lock', 'bot', 'video', 'link', 'file', 'image', 'heart', 'trophy', 'idea', 'send']) assert.match(icon, new RegExp(`['"]?${n}['"]?: '`), `значок ${n}`);
+  assert.match(icon, /class:ico=\{inline\}/);
+});
+
+test('Телефон: таблицы превращаются в карточки с подписями колонок; таблицы со слитыми ячейками не трогаются', async () => {
+  const { labelsFor } = await import('../../web/src/lib/table-cards.ts');
+  assert.deepEqual(labelsFor([' ФИО ', 'Должность'], 2, false), ['ФИО', 'Должность']);
+  assert.equal(labelsFor(['A', 'B'], 3, false), null, 'число колонок не совпало');
+  assert.equal(labelsFor(['A', 'B'], 2, true), null, 'есть colspan/rowspan');
+  assert.equal(labelsFor([], 2, false), null, 'нет заголовка');
+  const css = read('src/tokens.css');
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.table\.cardify td::before \{ content: attr\(data-label\)/);
+  assert.match(css, /\.table\.cardify thead \{ display: none; \}/);
+  assert.match(read('src/components/Shell.svelte'), /enhanceTables\(main\)/); assert.match(read('src/components/Shell.svelte'), /MutationObserver/);
+});

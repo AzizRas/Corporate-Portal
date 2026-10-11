@@ -1,6 +1,8 @@
+import crypto from 'node:crypto';
 // Найм: вакансии, воронка по этапам, кандидаты, заявки руководителей, встречи, офферы, отчёты.
 // Права: рекрутер = роль recruiter или hr (и admin), заказчик = manager или head.
 // Заказчик видит только свои вакансии (где он участник или автор заявки) и кандидатов на них.
+import { deleteFile, getFile, putFile, storageKind } from '../storage.js';
 import type { FastifyInstance } from 'fastify';
 import { q, tx } from '../db.js';
 import { audit, hasRole, requireRole, type AuthUser } from '../auth.js';
@@ -536,6 +538,7 @@ export async function hireRoutes(app: FastifyInstance) {
   app.post('/api/hire/applicants/:id/anonymize', ADMIN, async (req, reply) => {
     const id = Number((req.params as any).id);
     if (!(await q('SELECT 1 FROM hire_applicants WHERE id=$1', [id])).rows.length) return err(reply, 404, 'not_found');
+    const keys = (await q('SELECT storage_key FROM hire_resumes WHERE applicant_id=$1 AND storage_key IS NOT NULL', [id])).rows.map((r) => r.storage_key as string);
     await tx(async (c) => {
       await c.query('DELETE FROM hire_resumes WHERE applicant_id=$1', [id]);
       await c.query('DELETE FROM hire_logs WHERE applicant_id=$1', [id]);
@@ -546,12 +549,15 @@ export async function hireRoutes(app: FastifyInstance) {
       await c.query(`UPDATE hire_applicants SET first_name='Удалён',last_name='',middle_name='',phone='',email='',birthday=NULL,position='',company='',salary_expect=NULL,
         name_key='',phone_norm='',email_norm='',user_id=NULL,consent='none',consent_at=NULL,anonymized=true,updated_at=now() WHERE id=$1`, [id]);
     });
+    for (const k of keys) await deleteFile(k);          // и файлы резюме в хранилище
     await audit(req, 'hire_anonymize', String(id));
     return { ok: true };
   });
   app.delete('/api/hire/applicants/:id', ADMIN, async (req) => {
     const id = Number((req.params as any).id);
+    const keys = (await q('SELECT storage_key FROM hire_resumes WHERE applicant_id=$1 AND storage_key IS NOT NULL', [id])).rows.map((r) => r.storage_key as string);
     await q('DELETE FROM hire_applicants WHERE id=$1', [id]);
+    for (const k of keys) await deleteFile(k);          // файлы в хранилище удаляем вместе с кандидатом
     await audit(req, 'hire_delete_applicant', String(id));
     return { ok: true };
   });
@@ -583,7 +589,10 @@ export async function hireRoutes(app: FastifyInstance) {
     const mime = sniff(buf);
     if (!mime) return err(reply, 415, 'bad_type');
     const name = S(file.filename || 'resume', 120).replace(/[\\/\r\n"]/g, '_');
-    const r = await q('INSERT INTO hire_resumes(applicant_id,filename,mime,size,data,created_by) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,filename,mime,size,created_at', [id, name, mime, buf.length, buf, req.user!.id]);
+    // в режиме S3 файл уходит в хранилище, в базе остаётся ключ; иначе файл лежит в базе, как раньше
+    const key = storageKind() === 's3' ? `resume/${crypto.randomUUID()}` : null;
+    if (key) { try { await putFile(key, buf, mime); } catch (e) { req.log.error(e); return err(reply, 502, 'storage'); } }
+    const r = await q('INSERT INTO hire_resumes(applicant_id,filename,mime,size,data,storage_key,created_by) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,filename,mime,size,created_at', [id, name, mime, buf.length, key ? null : buf, key, req.user!.id]).catch(async (e) => { if (key) await deleteFile(key); throw e; });
     // текст файла сохраняем как профиль, если у кандидата его ещё нет (или он пустой)
     const have = (await q('SELECT data FROM hire_applicant_profile WHERE applicant_id=$1', [id])).rows[0];
     if (!have || !hasProfile(have.data)) {
@@ -610,9 +619,11 @@ export async function hireRoutes(app: FastifyInstance) {
     const f = (await q('SELECT * FROM hire_resumes WHERE id=$1', [Number((req.params as any).rid)])).rows[0];
     if (!f || !(await appVisible(req.user!, f.applicant_id))) return err(reply, 404, 'not_found');
     await audit(req, 'hire_resume_view', String(f.applicant_id));
+    const body = f.storage_key ? await getFile(f.storage_key).catch(() => null) : f.data;
+    if (!body) return err(reply, 404, 'not_found');
     reply.header('content-type', f.mime).header('content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(f.filename)}`)
       .header('content-security-policy', "default-src 'none'").header('cache-control', 'private, no-store');
-    return reply.send(f.data);
+    return reply.send(body);
   });
   // профиль резюме: правка исходного текста и повторный разбор; разбор ИИ для нестандартных резюме
   app.put('/api/hire/applicants/:id/profile', R_ONLY, async (req, reply) => {

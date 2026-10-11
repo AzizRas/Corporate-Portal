@@ -58,8 +58,8 @@
 
   <div class="path-grid">
     <section class="card hl a-ready ready">
-      <div class="card-head" style="width:100%"><h3>{t('path_ready')}</h3>
-        {#if d.delta_month != null}<span class="pill-ok small" style="font-weight:600">{d.delta_month >= 0 ? '+' : ''}{d.delta_month}% {t('path_month')}</span>{/if}
+      <div class="card-head u-0466783"><h3>{t('path_ready')}</h3>
+        {#if d.delta_month != null}<span class="pill-ok small u-eed0f8f">{d.delta_month >= 0 ? '+' : ''}{d.delta_month}% {t('path_month')}</span>{/if}
       </div>
       <Ring pct={d.readiness} label={`${t('path_threshold')} ${d.threshold}%`} />
       <div class="chips">
@@ -78,8 +78,8 @@
       <div class="card-head"><h3>{t('path_comps')}</h3><span class="aside">{t('path_levels')}</span></div>
       {#each d.competencies as c}
         <div class="comp">
-          <div class="top"><span style="font-weight:700">{name(c)}</span><span>{Math.round(c.cur)} / {c.req}</span></div>
-          <div class="bar"><i style="width:{pct4(c.cur)}"></i><b style="left:{pct4(c.req)}"></b></div>
+          <div class="top"><span class="u-e3ec02a">{name(c)}</span><span>{Math.round(c.cur)} / {c.req}</span></div>
+          <div class="bar"><i style:width={pct4(c.cur)}></i><b style:left={pct4(c.req)}></b></div>
         </div>
       {/each}
       <div class="legend"><i></i>{t('path_req_legend')}</div>
@@ -87,27 +87,27 @@
         <div class="goal">
           <div class="row"><span class="muted small">{t('path_goal')} · SMART</span><span class="sp"></span><span class="muted small">{d.goal.progress}%</span></div>
           <div class="t">{d.goal.title}</div>
-          <div class="bar good"><i style="width:{d.goal.progress}%"></i></div>
+          <div class="bar good"><i style:width={`${d.goal.progress}%`}></i></div>
         </div>
       {/if}
     </section>
 
-    <section class="card a-mentor" style="background:linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card) 60%)">
+    <section class="card a-mentor u-4f2c870">
       <span class="tag">{t('path_mentor')}</span>
       <p class="mentor-text">{d.rec ? d.rec.text : t('no_rec')}</p>
       {#if d.rec?.ai}<span class="muted small">{t('path_draft_ai')}</span>{/if}
-      <div class="row wrap" style="margin-top:14px"><a class="btn sm" href="#/growth/person/{app.user?.id}">{gt('p_360')}</a><a class="btn sm" href="#/growth/talk">{gt('tab_talk')}</a><a class="btn sm" href="#/growth/mentor">{gt('tab_mentor')}</a></div>
+      <div class="row wrap u-d6f2af6"><a class="btn sm" href="#/growth/person/{app.user?.id}">{gt('p_360')}</a><a class="btn sm" href="#/growth/talk">{gt('tab_talk')}</a><a class="btn sm" href="#/growth/mentor">{gt('tab_mentor')}</a></div>
     </section>
 
     <section class="card a-strengths">
       <div class="card-head"><h3>{t('path_strengths')}</h3><span class="aside">{t('public')}</span></div>
       <div class="list">
         {#each d.strengths as s}
-          <div><span style="font-weight:600">{s.text}</span>
-            <button class="heart" style="background:none;border:0;cursor:pointer;opacity:{s.voted ? 1 : .75}" onclick={() => vote(s.id)}>♥ {s.votes}</button></div>
+          <div><span class="u-eed0f8f">{s.text}</span>
+            <button class="heart btn-bare" style:opacity={s.voted ? 1 : .75} onclick={() => vote(s.id)}>♥ {s.votes}</button></div>
         {/each}
       </div>
-      <form class="row" style="margin-top:14px" onsubmit={(e) => { e.preventDefault(); addTrait('strength'); }}>
+      <form class="row u-d6f2af6" onsubmit={(e) => { e.preventDefault(); addTrait('strength'); }}>
         <input placeholder={gt('p_trait_ph')} maxlength="140" bind:value={newStrength} /><button class="btn sm grad" disabled={!newStrength.trim()}>{gt('add')}</button></form>
     </section>
 
@@ -115,19 +115,19 @@
       <div class="card-head"><h3>{t('path_growth')}</h3><span class="aside">{t('only_you')}</span></div>
       <div class="list">
         {#each d.growth as g}
-          <div><span style="font-weight:600">{g.text}</span><span class="amber">{g.votes} {t('confirmed')}</span></div>
+          <div><span class="u-eed0f8f">{g.text}</span><span class="amber">{g.votes} {t('confirmed')}</span></div>
         {/each}
       </div>
-      <form class="row" style="margin-top:14px" onsubmit={(e) => { e.preventDefault(); addTrait('growth'); }}>
+      <form class="row u-d6f2af6" onsubmit={(e) => { e.preventDefault(); addTrait('growth'); }}>
         <input placeholder={gt('p_trait_ph')} maxlength="140" bind:value={newGrowth} /><button class="btn sm grad" disabled={!newGrowth.trim()}>{gt('add')}</button></form>
     </section>
 
     <section class="card a-badges">
-      <div class="row wrap" style="gap:28px;align-items:flex-start">
-        <div><h3 class="card-title">{t('badges')}</h3><div class="big-num" style="margin-top:16px">{d.badges.filter((b: any) => b.have).length}/{d.badges.length}</div></div>
+      <div class="row wrap u-b77a87c">
+        <div><h3 class="card-title">{t('badges')}</h3><div class="big-num u-1b0f499">{d.badges.filter((b: any) => b.have).length}/{d.badges.length}</div></div>
         <div class="badges">
           {#each d.badges as b}
-            <div class="badge" class:off={!b.have} title={pick(b, 'descr')}><div class="ic">{b.icon}</div>{name(b)}{#if !b.have && b.auto}<div class="g-badge-prog"><i style="width:{(b.cur / b.goal) * 100}%"></i></div>{/if}</div>
+            <div class="badge" class:off={!b.have} title={pick(b, 'descr')}><div class="ic">{b.icon}</div>{name(b)}{#if !b.have && b.auto}<div class="g-badge-prog"><i style:width={`${(b.cur / b.goal) * 100}%`}></i></div>{/if}</div>
           {/each}
         </div>
       </div>
@@ -137,13 +137,13 @@
       <div class="card-head"><h3>{t('soon')}</h3></div>
       <div class="list">
         {#each d.events as e}
-          <div><span style="font-weight:600">{pick(e, 'title')}</span><span class="small" style="color:var(--accent-ink);font-weight:600">{e.at_text}</span></div>
+          <div><span class="u-eed0f8f">{pick(e, 'title')}</span><span class="small u-26efa9b">{e.at_text}</span></div>
         {/each}
       </div>
     </section>
   </div>
 
-  <div class="g-grid" style="margin-top:24px;align-items:start">
+  <div class="g-grid u-62402db">
     <section class="card">
       <div class="card-head"><h3>{st('rd_title')}</h3></div>
       <Radar items={d.competencies} />

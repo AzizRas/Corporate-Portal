@@ -207,7 +207,7 @@ test('S7: в markdown картинки только со своего сайта
   assert.match(html, /<img alt="лого" src="\/api\/files\/1"/);
   assert.match(html, /<img alt="своя" src="https:\/\/portal\.example\/a\.png"/);
   assert.ok(!html.includes('src="https://tracker.evil'), 'внешняя картинка не загружается');
-  assert.match(html, /<a href="https:\/\/tracker\.evil\/pixel\.gif\?u=1" target="_blank" rel="noopener noreferrer">🖼 чужая<\/a>/, 'вместо неё ссылка');
+  assert.match(html, /<a href="https:\/\/tracker\.evil\/pixel\.gif\?u=1" target="_blank" rel="noopener noreferrer">\[чужая\]<\/a>/, 'вместо неё ссылка');
   assert.ok(!/<img[^>]*evil\.com/.test(html), 'адрес без схемы тоже не картинка');
   assert.ok(!/<img[^>]*javascript:/.test(html));
   assert.ok(!html.includes('<script'));

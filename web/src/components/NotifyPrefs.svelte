@@ -23,7 +23,7 @@
     <label class="chk"><input type="checkbox" bind:checked={p.news} /> {wt('np_news')}</label>
     <label class="chk"><input type="checkbox" bind:checked={quiet} /> {wt('np_quiet')}</label>
     {#if quiet}
-      <div class="row" style="gap:10px"><label class="f" style="flex:1;margin:0">{wt('np_from')}<input type="time" bind:value={p.quiet_from} required /></label><label class="f" style="flex:1;margin:0">{wt('np_to')}<input type="time" bind:value={p.quiet_to} required /></label></div>
+      <div class="row u-f3d7ce7"><label class="f u-5d50d57">{wt('np_from')}<input type="time" bind:value={p.quiet_from} required /></label><label class="f u-5d50d57">{wt('np_to')}<input type="time" bind:value={p.quiet_to} required /></label></div>
     {/if}
     <p class="muted xs">{wt('np_hint')}</p>
     {#if msg}<div class="alert ok">{msg}</div>{/if}

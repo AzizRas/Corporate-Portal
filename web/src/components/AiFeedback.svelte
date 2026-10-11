@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { api } from '../lib/api';
   import { wt } from '../lib/w18n';
 
@@ -14,9 +15,9 @@
 
 <span class="aif" aria-live="polite">
   {#if vote === null}
-    <button type="button" onclick={() => rate(true)} title={wt('af_helpful')}>👍 {wt('af_helpful')}</button>
-    <button type="button" onclick={() => rate(false)} title={wt('af_not')}>👎 {wt('af_not')}</button>
-  {:else}<span class="muted xs">{vote ? '👍' : '👎'} {wt('af_thanks')}</span>{/if}
+    <button type="button" onclick={() => rate(true)} title={wt('af_helpful')}><Icon inline name="thumb-up" /> {wt('af_helpful')}</button>
+    <button type="button" onclick={() => rate(false)} title={wt('af_not')}><Icon inline name="thumb-down" /> {wt('af_not')}</button>
+  {:else}<span class="muted xs">{vote ? '' : ''} {wt('af_thanks')}</span>{/if}
 </span>
 
 <style>

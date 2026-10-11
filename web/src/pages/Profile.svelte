@@ -55,47 +55,47 @@
 </nav>
 {#if tab === 'pay'}<Payroll />
 {:else if tab === 'settings'}
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+<div class="grid u-0e12b30">
   <section class="card stack">
     <div><div class="muted small">{t('profile_lang')}</div>
-      <div class="tabs" style="margin:8px 0 0"><button class:on={app.lang === 'ru'} onclick={() => setLang('ru')}>Русский</button><button class:on={app.lang === 'uz'} onclick={() => setLang('uz')}>O‘zbekcha</button></div></div>
+      <div class="tabs u-c94d43e"><button class:on={app.lang === 'ru'} onclick={() => setLang('ru')}>Русский</button><button class:on={app.lang === 'uz'} onclick={() => setLang('uz')}>O‘zbekcha</button></div></div>
     <div><div class="muted small">{t('profile_theme')}</div>
-      <div class="tabs" style="margin:8px 0 0">
+      <div class="tabs u-c94d43e">
         {#each [['system', 'theme_system'], ['light', 'theme_light'], ['dark', 'theme_dark']] as [v, k]}
           <button class:on={app.theme === v} onclick={() => setTheme(v as any)}>{t(k as any)}</button>
         {/each}</div></div>
-    <div><div class="muted small">{wt('dn_title')}</div><div class="tabs" style="margin:8px 0 0">{#each ['normal', 'compact'] as d}<button class:on={dens === d} onclick={() => chooseDens(d as Density)}>{wt(d === 'normal' ? 'dn_normal' : 'dn_compact')}</button>{/each}</div><p class="muted xs" style="margin-top:6px">{wt('dn_hint')}</p></div>
-    <div><div class="muted small">{t('role')}</div><div class="row wrap" style="margin-top:8px">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
-    <div class="row wrap" style="gap:8px"><button class="btn danger" onclick={logout}>{t('nav_logout')}</button><button class="btn" onclick={logoutOthers}>{wt('lo_others')}</button></div>
+    <div><div class="muted small">{wt('dn_title')}</div><div class="tabs u-c94d43e">{#each ['normal', 'compact'] as d}<button class:on={dens === d} onclick={() => chooseDens(d as Density)}>{wt(d === 'normal' ? 'dn_normal' : 'dn_compact')}</button>{/each}</div><p class="muted xs u-fe7b497">{wt('dn_hint')}</p></div>
+    <div><div class="muted small">{t('role')}</div><div class="row wrap u-8a77e5a">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
+    <div class="row wrap u-33fcd4c"><button class="btn danger" onclick={logout}>{t('nav_logout')}</button><button class="btn" onclick={logoutOthers}>{wt('lo_others')}</button></div>
     <p class="muted xs">{loMsg || wt('lo_others_hint')}</p>
   </section>
-  <section class="card stack"><h3 class="card-title">{wt('tr_restart')}</h3><p class="muted small">{wt('tr_restart_hint')}</p><button class="btn grad" style="align-self:flex-start" onclick={restartTour}>{wt('tr_restart')}</button></section>
+  <section class="card stack"><h3 class="card-title">{wt('tr_restart')}</h3><p class="muted small">{wt('tr_restart_hint')}</p><button class="btn grad u-c9adc42" onclick={restartTour}>{wt('tr_restart')}</button></section>
   <NotifyPrefs />
   <section class="card stack"><h3 class="card-title">{st('pf_wellness')}</h3><WellnessSettings /></section>
   <form class="card stack" onsubmit={change}>
     <h3 class="card-title">{t('profile_pw')}</h3>
-    <label class="f" style="margin:0">{t('pw_old')}<input type="password" bind:value={oldPw} autocomplete="current-password" required /></label>
-    <label class="f" style="margin:0">{t('pw_new')}<input type="password" bind:value={newPw} autocomplete="new-password" required /></label>
+    <label class="f u-1169661">{t('pw_old')}<input type="password" bind:value={oldPw} autocomplete="current-password" required /></label>
+    <label class="f u-1169661">{t('pw_new')}<input type="password" bind:value={newPw} autocomplete="new-password" required /></label>
     {#if msg}<div class="alert" class:ok>{msg}</div>{/if}
     <button class="btn grad">{t('save')}</button>
   </form>
 </div>
 
 {:else}
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+<div class="grid u-0e12b30">
   <form class="card stack" onsubmit={saveProfile}>
     <h3 class="card-title">{st('pf_photo')}</h3>
-    <div class="row" style="gap:18px;flex-wrap:wrap">
+    <div class="row u-3c1a400">
       <Avatar u={{ ...app.user!, bday: false }} size={96} />
-      <div class="stack" style="gap:8px">
-        <label class="btn sm" style="cursor:pointer">{app.user?.avatar_v ? st('pf_photo_change') : st('pf_photo_add')}<input type="file" accept="image/*" class="sr" onchange={pickPhoto} disabled={busy} /></label>
+      <div class="stack u-33fcd4c">
+        <label class="btn sm u-3b6a3a6">{app.user?.avatar_v ? st('pf_photo_change') : st('pf_photo_add')}<input type="file" accept="image/*" class="sr" onchange={pickPhoto} disabled={busy} /></label>
         {#if app.user?.avatar_v}<button type="button" class="btn sm" onclick={dropPhoto}>{st('pf_photo_del')}</button>{/if}
         <span class="muted xs">{st('pf_crop')}</span>
       </div>
     </div>
     {#if perr}<div class="alert">{perr}</div>{/if}
-    <label class="f" style="margin:0">{st('pf_status')}<input maxlength="80" bind:value={status} placeholder={st('pf_status_ph')} /></label>
-    <label class="f" style="margin:0">{st('pf_birthday')}<input type="date" bind:value={birthday} /></label>
+    <label class="f u-1169661">{st('pf_status')}<input maxlength="80" bind:value={status} placeholder={st('pf_status_ph')} /></label>
+    <label class="f u-1169661">{st('pf_birthday')}<input type="date" bind:value={birthday} /></label>
     {#if pmsg}<div class="alert ok">{pmsg}</div>{/if}
     <button class="btn grad">{t('save')}</button>
   </form>

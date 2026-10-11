@@ -53,7 +53,7 @@
         <span class="s" class:op={s.who === 'op'} class:end={s.n.startsWith('Закрыто')}>{s.n}</span>{#if i < D.CRM.stages.length - 1}<span class="a" aria-hidden="true">→</span>{/if}
       {/each}
     </div>
-    <p class="as-hint"><span class="pill" style="background:color-mix(in srgb,var(--accent) 18%,transparent)">■</span> {at('crm_op')} · {at('crm_auto')}</p>
+    <p class="as-hint"><span class="pill u-181cb37">■</span> {at('crm_op')} · {at('crm_auto')}</p>
     <div class="tbl"><table>
       <thead><tr><th>{at('crm_stage')}</th><th>{at('crm_who')}</th><th>{at('crm_what')}</th></tr></thead>
       <tbody>{#each D.CRM.stages as s}<tr><td><b>{s.n}</b></td><td>{s.who === 'op' ? at('crm_op_s') : at('crm_auto_s')}</td><td>{s.d}</td></tr>{/each}</tbody>
@@ -94,8 +94,8 @@
 
   {:else if id === 'model'}
     <p class="as-sub">{at('model_sub')}</p>
-    <div style="max-width:520px" class="stack">
-      <label class="f" style="margin:0">{at('model_lbl')}<input autocomplete="off" placeholder="7GH4G60EBES2" bind:value={A.extras.model} /></label>
+    <div class="stack u-04391f0">
+      <label class="f u-1169661">{at('model_lbl')}<input autocomplete="off" placeholder="7GH4G60EBES2" bind:value={A.extras.model} /></label>
       <ModelRes raw={A.extras.model} />
     </div>
     <div class="tbl"><table>
@@ -112,17 +112,17 @@
     {#if brand.official}
       <p class="as-sub">{brand.note}</p>
       <div class="wcard">
-        <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><b style="font-size:20px">7TECH</b><span class="tag">{at('w_term')}</span></div>
-        <div class="say" style="margin:10px 0"><span class="who">{at('w_site')}</span><div class="t">«Гарантийный срок 1 год — мы берем на себя все расходы: работу и запчасти». «Бесплатное сервисное обслуживание 2 года — мы покрываем работу специалиста».</div></div>
-        <ul class="do" style="margin:0">
+        <div class="u-6cef43d"><b class="u-b9199e2">7TECH</b><span class="tag">{at('w_term')}</span></div>
+        <div class="say u-f4e719a"><span class="who">{at('w_site')}</span><div class="t">«Гарантийный срок 1 год — мы берем на себя все расходы: работу и запчасти». «Бесплатное сервисное обслуживание 2 года — мы покрываем работу специалиста».</div></div>
+        <ul class="do u-1169661">
           <li>{at('w_r1', { m: w7.full })}</li>
           <li>{at('w_r2', { a: w7.full, b: w7.labor, y: w7.yesMax > w7.full ? at('yes') : at('no') })}</li>
           <li>{at('w_r3', { m: w7.labor })}</li>
         </ul>
       </div>
       <h2 class="as-h2">{at('w_calc')}</h2>
-      <div style="max-width:520px" class="stack">
-        <label class="f" style="margin:0">{at('pdate_lbl')}<input type="date" max={isoDay(today())} bind:value={A.extras.pdate} /></label>
+      <div class="stack u-04391f0">
+        <label class="f u-1169661">{at('pdate_lbl')}<input type="date" max={isoDay(today())} bind:value={A.extras.pdate} /></label>
         {#if wres}
           <div class="box"><span class="pill {wres.cls}">{wres.head}</span> {wres.text}</div>
           {#if wres.say}<Say label={at('say_client')} ru={wres.say} uzText={wres.uz} />{/if}
@@ -185,7 +185,7 @@
     <p class="as-sub">{at('shops_sub')}</p>
     <ShopsTable />
     <h2 class="as-h2">{at('shops_service')}</h2>
-    <div class="tbl"><table style="min-width:0"><tbody>
+    <div class="tbl"><table class="u-3922d32"><tbody>
       <tr><td>{at('hotline')}</td><td><b>{D.CRM.hotline}</b><button class="cp" onclick={() => copy(D.CRM.hotline, at('copied'))}>{at('copy')}</button></td></tr>
       <tr><td>{at('hours')}</td><td>{D.CRM.hours}</td></tr>
       <tr><td>{at('s_addr')}</td><td>{D.SUPPORT.addr}</td></tr>

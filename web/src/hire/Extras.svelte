@@ -24,9 +24,9 @@
     </div>
   {:else}<p class="muted small">{ht('xNone')}</p>{/each}
   {#if editable}
-    <form class="row wrap" style="gap:8px" onsubmit={add}>
-      <select bind:value={kind} aria-label={ht('xExtra')} style="width:auto">{#each EXTRA_KINDS as k}<option value={k}>{extraLabel(k)}</option>{/each}</select>
-      <input bind:value maxlength="700" placeholder={ht('xAddPh')} aria-label={ht('xAddPh')} style="flex:1;min-width:140px" />
+    <form class="row wrap u-33fcd4c" onsubmit={add}>
+      <select class="u-30e741d" bind:value={kind} aria-label={ht('xExtra')}>{#each EXTRA_KINDS as k}<option value={k}>{extraLabel(k)}</option>{/each}</select>
+      <input class="u-4dc19cd" bind:value maxlength="700" placeholder={ht('xAddPh')} aria-label={ht('xAddPh')} />
       <button class="btn sm grad" disabled={busy || !value.trim()}>{ht('hAdd')}</button>
     </form>
   {/if}

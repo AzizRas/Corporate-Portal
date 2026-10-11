@@ -31,10 +31,10 @@
 </script>
 
 {#if !data}<span class="spin"></span>{:else}
-  <div class="card hl" style="margin-bottom:20px">
+  <div class="card hl u-49f14f8">
     <div class="card-head"><h3>{gt('sv_title')} · {monthLong(data.period)}</h3><span class="aside">{done} / {total}</span></div>
-    <div class="g-prog"><i style="width:{total ? (done / total) * 100 : 0}%"></i></div>
-    <p class="muted small" style="margin-top:12px">{gt('sv_hint')}</p>
+    <div class="g-prog"><i style:width={`${total ? (done / total) * 100 : 0}%`}></i></div>
+    <p class="muted small u-56f4356">{gt('sv_hint')}</p>
   </div>
 
   <div class="g-grid">
@@ -42,7 +42,7 @@
       <section class="card">
         <div class="card-head"><h3>{kindOf(r) === 'full' ? gt('sv_full') : `${gt('sv_short')} ${r}`}</h3>
           <span class="aside">{data.tasks.filter((x: any) => x.round === r && x.done).length} / {data.tasks.filter((x: any) => x.round === r).length}</span></div>
-        <p class="muted xs" style="margin-bottom:6px">{data.tasks.find((x: any) => x.round === r).comps.map((c: string) => nm(comp(c))).join(' · ')}</p>
+        <p class="muted xs u-4e420af">{data.tasks.find((x: any) => x.round === r).comps.map((c: string) => nm(comp(c))).join(' · ')}</p>
         <div>
           {#each data.tasks.filter((x: any) => x.round === r) as task}
             <div class="g-task">
@@ -60,7 +60,7 @@
 {#if open}
   <Modal onclose={() => (open = null)}>
     <h2>{open.type === 'self' ? gt('sv_self_h') : `${open.target.name}`}</h2>
-    <p class="muted small" style="margin-bottom:12px">{gt('sv_t_' + open.type)}{open.type !== 'self' ? ` · ${gt('sv_anon')}` : ''}</p>
+    <p class="muted small u-da12f28">{gt('sv_t_' + open.type)}{open.type !== 'self' ? ` · ${gt('sv_anon')}` : ''}</p>
     {#each open.comps as cid}
       {@const c = comp(cid)}
       <div class="g-q">{nm(c)}<small>{qs(c)}</small></div>
@@ -68,8 +68,8 @@
         {#each [1, 2, 3, 4] as n}<button class:on={answers[cid] === n} onclick={() => (answers[cid] = n)}><b>{n}</b>{t(lv[n - 1])}</button>{/each}
       </div>
     {/each}
-    {#if err}<div class="alert" style="margin-bottom:10px">{err}</div>{/if}
-    <div class="row" style="justify-content:flex-end">
+    {#if err}<div class="alert u-761d3ad">{err}</div>{/if}
+    <div class="row u-455f8cc">
       <button class="btn" onclick={() => (open = null)}>{t('cancel')}</button>
       <button class="btn grad" disabled={!ready || saving} onclick={send}>{t('send')}</button>
     </div>

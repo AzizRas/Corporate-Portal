@@ -38,11 +38,11 @@
 
 <div class="card">
   <div class="card-head"><h3>{wt('a_title')}</h3><span class="aside">{wt('a_total', { n: active, total: tips.length })}</span></div>
-  <p class="muted small" style="margin-bottom:16px">{wt('a_sub')}</p>
+  <p class="muted small u-87c136d">{wt('a_sub')}</p>
   <button class="btn grad sm" onclick={() => edit()}>＋ {wt('a_add')}</button>
 
-  {#if loading}<div style="margin-top:16px"><span class="spin"></span></div>
-  {:else if !tips.length}<p class="muted" style="margin-top:16px">{wt('a_empty')}</p>
+  {#if loading}<div class="u-1b0f499"><span class="spin"></span></div>
+  {:else if !tips.length}<p class="muted u-1b0f499">{wt('a_empty')}</p>
   {:else}
     <div class="wa-list">
       {#each tips as t (t.id)}
@@ -51,7 +51,7 @@
           <div class="wa-tx">
             <div>{t.text_ru}</div>
             <div class="muted small">{t.text_uz}</div>
-            <div class="wa-m"><span class="chip" style="padding:2px 10px;font-size:12px">{wt('k_' + t.kind)}</span>{#if t.exercise_sec}<span class="muted xs">⏱ {wt('a_timer', { n: t.exercise_sec })}</span>{/if}{#if !t.active}<span class="pill-warn xs">{wt('a_off')}</span>{/if}</div>
+            <div class="wa-m"><span class="chip u-145ea9c">{wt('k_' + t.kind)}</span>{#if t.exercise_sec}<span class="muted xs">⏱ {wt('a_timer', { n: t.exercise_sec })}</span>{/if}{#if !t.active}<span class="pill-warn xs">{wt('a_off')}</span>{/if}</div>
           </div>
           <div class="wa-act">
             <label class="chk" title={wt('a_active')}><input type="checkbox" checked={t.active} onchange={() => toggle(t)} /></label>
@@ -74,11 +74,11 @@
       </div>
       <label class="f">{wt('a_ru')}<textarea bind:value={form.text_ru} maxlength="300" rows="2" required></textarea></label>
       <label class="f">{wt('a_uz')}<textarea bind:value={form.text_uz} maxlength="300" rows="2" required></textarea></label>
-      <label class="chk" style="margin-bottom:12px"><input type="checkbox" bind:checked={form.ex} /><span>{wt('a_ex')}</span></label>
+      <label class="chk u-da12f28"><input type="checkbox" bind:checked={form.ex} /><span>{wt('a_ex')}</span></label>
       {#if form.ex}<label class="f">{wt('a_sec')}<input type="number" min="10" max="300" bind:value={form.exercise_sec} /></label>{/if}
-      <label class="chk" style="margin-bottom:14px"><input type="checkbox" bind:checked={form.active} /><span>{wt('a_active')}</span></label>
-      {#if err}<div class="alert" style="margin-bottom:12px">{err}</div>{/if}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (form = null)}>{wt('a_cancel')}</button><button class="btn grad" disabled={busy}>{wt('a_save')}</button></div>
+      <label class="chk u-2b583d7"><input type="checkbox" bind:checked={form.active} /><span>{wt('a_active')}</span></label>
+      {#if err}<div class="alert u-da12f28">{err}</div>{/if}
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (form = null)}>{wt('a_cancel')}</button><button class="btn grad" disabled={busy}>{wt('a_save')}</button></div>
     </form>
   </Modal>
 {/if}

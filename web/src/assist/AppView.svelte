@@ -19,7 +19,7 @@
     <div class="box gap"><b>{at('app_nocrm', { n: app.name })}</b> {at('app_nocrm_t')}</div>
   {/if}
   {#if !app.route}
-    <a class="as-rbtn red" href="#/assist/safety" style="padding:12px 18px"><b>{at('danger_q')}</b><span>{at('danger_t')}</span></a>
+    <a class="as-rbtn red u-9a878cb" href="#/assist/safety"><b>{at('danger_q')}</b><span>{at('danger_t')}</span></a>
   {/if}
   <p class="as-sub">{at('app_pick')}</p>
   <div class="as-sym">

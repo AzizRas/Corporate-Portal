@@ -26,13 +26,13 @@
     {:else}
       {#if chan.kind === 'dm'}<p class="muted small">{wt('ch_dm_info')}</p>{/if}
       {#if chan.kind === 'group' && canManage}
-        <div class="row" style="gap:8px"><input bind:value={name} maxlength="60" style="flex:1" /><button class="btn sm" disabled={busy || !name.trim() || name === chan.name_ru} onclick={() => run(() => api.patch(`/api/chat/${enc}`, { name }))}>{wt('ch_rename')}</button></div>
+        <div class="row u-33fcd4c"><input class="u-97445a8" bind:value={name} maxlength="60" /><button class="btn sm" disabled={busy || !name.trim() || name === chan.name_ru} onclick={() => run(() => api.patch(`/api/chat/${enc}`, { name }))}>{wt('ch_rename')}</button></div>
       {/if}
       <div class="mi-list">
         {#each data.members as m (m.id)}
           <div class="mi-row">
             <Avatar u={{ ...m, bday: false }} size={34} />
-            <span style="min-width:0;flex:1"><b>{m.name}</b> {#if m.former}<span class="chip">{wt('ch_former')}</span>{/if}<span class="muted xs" style="display:block">{m.position}</span></span>
+            <span class="u-829299a"><b>{m.name}</b> {#if m.former}<span class="chip">{wt('ch_former')}</span>{/if}<span class="muted xs u-2a1b75c">{m.position}</span></span>
             {#if chan.kind === 'group'}
               <span class="chip">{roleL(m.role)}</span>
               {#if mine === 'owner' && m.role !== 'owner'}<button class="btn sm" disabled={busy} onclick={() => run(() => api.post(`/api/chat/${enc}/role`, { user_id: m.id, role: m.role === 'admin' ? 'member' : 'admin' }))}>{m.role === 'admin' ? wt('ch_make_member') : wt('ch_make_admin')}</button>{/if}
@@ -42,24 +42,24 @@
         {/each}
       </div>
       {#if chan.kind === 'group' && canManage && !chan.archived}
-        {#if !adding}<button class="btn sm" style="align-self:flex-start" onclick={() => (adding = true)}>{wt('ch_add')}</button>
+        {#if !adding}<button class="btn sm u-c9adc42" onclick={() => (adding = true)}>{wt('ch_add')}</button>
         {:else}
           <input placeholder={wt('ch_search_ppl')} bind:value={find} />
           <div class="mi-list">{#each candidates as p (p.id)}
             <button class="mi-row mi-pick" class:on={picked.includes(p.id)} onclick={() => (picked = picked.includes(p.id) ? picked.filter((x) => x !== p.id) : [...picked, p.id])}>
-              <Avatar u={{ ...p, bday: false }} size={30} /><span style="flex:1;text-align:left"><b>{p.name}</b></span><span>{picked.includes(p.id) ? '✓' : ''}</span></button>{/each}</div>
-          <button class="btn grad sm" style="align-self:flex-start" disabled={busy || !picked.length} onclick={() => run(async () => { await api.post(`/api/chat/${enc}/members`, { user_ids: picked }); picked = []; adding = false; })}>{wt('ch_do_add')} ({picked.length})</button>
+              <Avatar u={{ ...p, bday: false }} size={30} /><span class="u-36a363f"><b>{p.name}</b></span><span>{picked.includes(p.id) ? '✓' : ''}</span></button>{/each}</div>
+          <button class="btn grad sm u-c9adc42" disabled={busy || !picked.length} onclick={() => run(async () => { await api.post(`/api/chat/${enc}/members`, { user_ids: picked }); picked = []; adding = false; })}>{wt('ch_do_add')} ({picked.length})</button>
         {/if}
       {/if}
       {#if chan.kind === 'group'}
-        <div class="row wrap" style="gap:8px;margin-top:6px">
+        <div class="row wrap u-a23404e">
           <button class="btn sm danger" disabled={busy} onclick={() => run(() => api.post(`/api/chat/${enc}/leave`), true)}>{wt('ch_leave')}</button>
           {#if mine === 'owner' || app.user!.roles.includes('admin')}<button class="btn sm" disabled={busy} onclick={() => run(() => api.post(`/api/chat/${enc}/archive`, { archived: !chan.archived }))}>{chan.archived ? wt('ch_unarchive') : wt('ch_archive_do')}</button>{/if}
         </div>
       {/if}
     {/if}
     {#if err}<div class="alert">{err}</div>{/if}
-    <div class="row" style="justify-content:flex-end"><button class="btn" onclick={onclose}>{wt('ch_close')}</button></div>
+    <div class="row u-455f8cc"><button class="btn" onclick={onclose}>{wt('ch_close')}</button></div>
   </div>
 </Modal>
 

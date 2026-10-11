@@ -24,14 +24,14 @@
 
 <header class="page-head"><div><h1>{t('nav_team')}<PageHelp topic="panel_team" /></h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a></div></header>
 <Panel />
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))">
+<div class="grid u-e3865e7">
   <section class="card">
     <div class="card-head"><h3>{t('path_ready')}</h3><a class="small" href="#/growth/reserve">{gt('tab_reserve')} →</a></div>
     {#if pathErr}<ErrorState error={pathErr} retry={loadPath} />
     {:else if !pathLoaded}<Skeleton rows={4} />
     {:else if !path.length}<EmptyState title={wt('tm_path_empty')} hint={wt('tm_path_hint')} />
     {:else}<div class="list">
-      {#each path as p}<div><a href="#/growth/person/{p.id}" style="font-weight:600;color:inherit">{p.name}<span class="muted xs"> → {p.target}</span></a>
+      {#each path as p}<div><a class="u-30279af" href="#/growth/person/{p.id}">{p.name}<span class="muted xs"> → {p.target}</span></a>
         <span><b>{p.readiness}%</b>{#if p.delta != null} <span class="small {p.delta >= 0 ? 'pill-ok' : 'pill-bad'}">{p.delta >= 0 ? '+' : ''}{p.delta}</span>{/if}</span></div>{/each}
     </div>{/if}
   </section>
@@ -42,9 +42,9 @@
     {:else if !marks.length}<EmptyState title={t('att_no_marks')} />
     {:else}<div class="list">
       {#each marks.slice(0, 40) as m}
-        <div style="align-items:flex-start"><span><b>{m.name}</b> · {m.kind === 'in' ? t('att_in') : t('att_out')} {fmtTime(m.at)}
+        <div class="u-0486f78"><span><b>{m.name}</b> · {m.kind === 'in' ? t('att_in') : t('att_out')} {fmtTime(m.at)}
           {#if m.reason}<br /><span class="muted xs">«{m.reason}»</span>{/if}
-          {#if m.has_photo}<br /><img src="/api/attendance/{m.id}/photo" alt="" style="height:64px;border-radius:10px;margin-top:6px" />{/if}</span>
+          {#if m.has_photo}<br /><img class="u-f2904c2" src="/api/attendance/{m.id}/photo" alt="" />{/if}</span>
           {#if m.status === 'pending'}<span class="row"><button class="btn sm grad" onclick={() => decide(m.id, true)}>{t('att_approve')}</button><button class="btn sm" onclick={() => decide(m.id, false)}>{t('att_reject')}</button></span>
           {:else if m.status !== 'ok'}<span class="chip">{m.status}</span>{/if}</div>
       {/each}

@@ -1,17 +1,17 @@
 <script lang="ts">
   import { logout } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
-  import { navGroups } from '../lib/nav';
+  import { navHubs, profileHub, hubLabel } from '../lib/nav';
   import { notif } from '../lib/notify.svelte';
   import Icon from '../components/Icon.svelte';
 
-  const groups = $derived(navGroups(notif.chat_total));
+  const groups = $derived([...navHubs(notif.chat_total), ...(profileHub(notif.chat_total) ? [profileHub(notif.chat_total)!] : [])]);
 </script>
 <header class="page-head"><div><h1>{t('more')}</h1></div></header>
 <div class="stack">
   {#each groups as g (g.id)}
     <section class="card more-g">
-      <h3 class="card-title" style="margin-bottom:10px">{g.label}</h3>
+      <h3 class="card-title u-761d3ad">{hubLabel(g.id)}</h3>
       <div class="more-items">
         {#each g.items as i (i.id)}
           <a class="more-i" href={'#' + i.href}><i><Icon name={i.icon} /></i><span>{i.label}</span>{#if i.badge}<em>{i.badge}</em>{/if}</a>

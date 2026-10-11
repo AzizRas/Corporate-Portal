@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { go } from '../lib/state.svelte';
@@ -36,20 +37,20 @@
 </script>
 
 <div class="t-run">
-  {#if err}<div class="alert">{tt('err')}</div><p style="margin-top:14px"><a class="btn" href="#/tests">{tt('r_catalog')}</a></p>
+  {#if err}<div class="alert">{tt('err')}</div><p class="u-d6f2af6"><a class="btn" href="#/tests">{tt('r_catalog')}</a></p>
   {:else if !test}<span class="spin"></span>
   {:else if !started}
     <div class="card hl t-intro">
       <div class="t-meta"><span class="t-pill {test.kind}">{tt(test.kind === 'psych' ? 'k_psych' : 'k_prof')}</span><span class="t-pill">~{test.minutes} {tt('min')}</span><span class="t-pill">{total} {tt('questions')}</span></div>
       <div class="big">{tl(test.title)}</div>
       <p>{tl(test.intro)}</p>
-      <div class="t-note" style="margin:0"><span aria-hidden="true">🤝</span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
+      <div class="t-note u-1169661"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
       {#if test.disclaimer}<div class="t-warn">{tl(test.disclaimer)}</div>{/if}
       <div class="row wrap"><button class="btn grad" onclick={() => (started = true)}>{tt('intro_start')}</button><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>
     </div>
   {:else}
     <div class="t-top"><span>{tt('q_of', { n: i + 1, total })}</span><button class="btn sm" onclick={leave}>{tt('leave')}</button></div>
-    <div class="t-prog" role="progressbar" aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100"><i style="width:{progress}%"></i></div>
+    <div class="t-prog" role="progressbar" aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100"><i style:width={`${progress}%`}></i></div>
     <div class="card">
       {#key i}
         <h2 class="t-q">{tl(q.q)}</h2>
@@ -75,7 +76,7 @@
           <button class="btn grad" disabled={!answered || busy} onclick={finish}>{busy ? tt('saving') : tt('finish')}</button>
         {/if}
       </div>
-      {#if sendErr}<div class="alert" style="margin-top:14px">{tt('send_err')}</div>{/if}
+      {#if sendErr}<div class="alert u-d6f2af6">{tt('send_err')}</div>{/if}
     </div>
   {/if}
 </div>

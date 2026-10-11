@@ -7,11 +7,11 @@
 </script>
 
 {#if p.has_photo}
-  <span class="ra" style="width:{size}px;height:{size}px"><img src="/api/org/ref-people/{p.id}/photo?v={p.photo_v}" alt={p.name} loading="lazy" /></span>
+  <span class="ra" style:width="{size}px" style:height="{size}px"><img src="/api/org/ref-people/{p.id}/photo?v={p.photo_v}" alt={p.name} loading="lazy" /></span>
 {:else if p.user_id}
   <Avatar u={{ id: p.user_id, name: p.name, avatar_v: p.avatar_v }} {size} />
 {:else}
-  <span class="ra ini" style="width:{size}px;height:{size}px;font-size:{Math.round(size * 0.36)}px" title={p.name}>{initials(p.name)}</span>
+  <span class="ra ini" style:width="{size}px" style:height="{size}px" style:font-size="{Math.round(size * 0.36)}px" title={p.name}>{initials(p.name)}</span>
 {/if}
 
 <style>

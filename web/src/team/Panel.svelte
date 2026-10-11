@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { api, ApiError } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { pt } from './p18n';
@@ -102,8 +103,8 @@
         <a class="card tile link" href="#/queue"><b>{sum.open_questions}</b><span>{pt('p_questions')} →</span></a>
       {/if}
     </div>
-    {#if isAdminNote}<p class="muted xs" style="margin:-6px 0 14px">{pt('p_ai_off')}: {data.ai.reason}</p>{/if}
-    {#if aiErr && aiDetail}<p class="muted xs" style="margin:-6px 0 14px">{pt('p_ai_err')}. {pt('p_ai_detail')}: {aiDetail}</p>{/if}
+    {#if isAdminNote}<p class="muted xs u-caf2c4d">{pt('p_ai_off')}: {data.ai.reason}</p>{/if}
+    {#if aiErr && aiDetail}<p class="muted xs u-caf2c4d">{pt('p_ai_err')}. {pt('p_ai_detail')}: {aiDetail}</p>{/if}
 
     {#if units.length}
       <section class="card units">
@@ -131,7 +132,7 @@
             <span class="chip st">{p.employment === 'intern' ? pt('p_intern') : pt('p_staff')}</span>
           </div>
 
-          {#if s.leave.now}<p class="small pill-warn">🌴 {pt('p_on_leave')}</p>{/if}
+          {#if s.leave.now}<p class="small pill-warn"><Icon inline name="palm" /> {pt('p_on_leave')}</p>{/if}
 
           <dl class="kv">
             <div><dt>{pt('p_learning')}</dt><dd>{s.training.enrolled ? pt('p_lessons', { a: s.training.lessons_done, b: s.training.lessons_total }) : pt('p_no_course')}</dd></div>
@@ -160,7 +161,7 @@
 
           {#if p.signal && !dismissed[p.id]}
             <div class="talk">
-              <b>💬 {pt('p_talk')}</b>
+              <b><Icon inline name="chat" /> {pt('p_talk')}</b>
               <p class="xs muted">{pt('p_talk_sub')}</p>
               <ul>{#each p.signal.reasons as r}<li>{pt(`r_${r}`)}</li>{/each}</ul>
               {#if h?.talk}<p class="small ai-t">{h.talk}</p>{/if}
@@ -181,7 +182,7 @@
         </article>
       {/each}
     </div>
-    {#if items.length < total}<div class="row" style="justify-content:center;margin-top:18px;gap:12px"><button class="btn" disabled={more} onclick={loadMore}>{pt('p_more', { n: total - items.length })}</button><span class="muted xs">{pt('p_shown', { a: items.length, b: total })}</span></div>{/if}
+    {#if items.length < total}<div class="row u-51c016c"><button class="btn" disabled={more} onclick={loadMore}>{pt('p_more', { n: total - items.length })}</button><span class="muted xs">{pt('p_shown', { a: items.length, b: total })}</span></div>{/if}
   {/if}
   {#if toast}<div class="alert ok toast-p">{toast}</div>{/if}
 </section>
@@ -189,23 +190,23 @@
 {#if tk}
   <Modal onclose={() => (tk = null)}>
     <h2>{pt('p_task_title')}</h2>
-    <p class="muted small" style="margin-bottom:12px">{pt('p_task_for')}: <b>{tk.name}</b></p>
+    <p class="muted small u-da12f28">{pt('p_task_for')}: <b>{tk.name}</b></p>
     <label class="f">{pt('p_task_name')}<input type="text" maxlength="200" bind:value={tf.title} /></label>
     <label class="f">{pt('p_task_note')}<textarea maxlength="1000" bind:value={tf.note}></textarea></label>
     <label class="f">{pt('p_task_due')}<input type="date" min={today} bind:value={tf.due} /></label>
-    {#if tErr}<p class="alert" style="margin-bottom:12px">{tErr}</p>{/if}
+    {#if tErr}<p class="alert u-da12f28">{tErr}</p>{/if}
     <div class="row wrap"><button class="btn grad" disabled={tBusy} onclick={sendTask}>{pt('p_task_send')}</button><button class="btn" onclick={() => (tk = null)}>{pt('p_cancel')}</button></div>
   </Modal>
 {/if}
 
 {#if det}
   <Modal onclose={() => (det = null)}>
-    <div class="who" style="margin-bottom:14px"><Avatar u={{ id: det.p.id, name: det.p.name, avatar_v: det.p.avatar_v }} size={44} /><div class="nm"><b>{det.p.name}</b><span class="muted xs">{det.p.position}</span></div></div>
+    <div class="who u-2b583d7"><Avatar u={{ id: det.p.id, name: det.p.name, avatar_v: det.p.avatar_v }} size={44} /><div class="nm"><b>{det.p.name}</b><span class="muted xs">{det.p.position}</span></div></div>
     {#if det.err}<p class="alert">{det.err}</p>
     {:else if !det.d}<p class="muted"><span class="spin"></span></p>
     {:else}
       {#if det.d.indices?.weeks}
-        <h3 class="card-title" style="margin-bottom:6px">{pt('i_trend')}</h3>
+        <h3 class="card-title u-4e420af">{pt('i_trend')}</h3>
         <div class="trend" role="img" aria-label={pt('i_trend')}>
           {#each det.d.indices.weeks as w, i}
             <div class="wk"><div class="cols"><i class="cl {lvCls(w.load >= 50 ? 'high' : w.load >= 25 ? 'mid' : 'low')}" style:height={`${Math.max(4, w.load)}%`} title={`${pt('i_load')} ${w.load}`}></i><i class="ce {w.engagement == null ? 'na' : lvCls(w.engagement < 40 ? 'low' : w.engagement < 65 ? 'mid' : 'high', true)}" style:height={`${Math.max(4, w.engagement ?? 0)}%`} title={`${pt('i_eng')} ${w.engagement ?? '—'}`}></i></div><span class="xs muted">{i === det.d.indices.weeks.length - 1 ? pt('i_week_now') : `−${det.d.indices.weeks.length - 1 - i}`}</span></div>
@@ -213,12 +214,12 @@
         </div>
         <p class="xs muted"><span class="dot l"></span>{pt('i_load')} · <span class="dot e"></span>{pt('i_eng')}. {pt('i_note')}</p>
       {/if}
-      <h3 class="card-title" style="margin:16px 0 6px">{pt('p_recent_tests')}</h3>
+      <h3 class="card-title u-cafd282">{pt('p_recent_tests')}</h3>
       <div class="list">
         {#each det.d.tests as t}<div><span>{t.title}<br /><span class="muted xs">{fmtDate(t.created_at)}</span></span><b>{t.pct != null ? Math.round(t.pct) + '%' : '—'}</b></div>
         {:else}<p class="muted small">{pt('p_no_tests')}</p>{/each}
       </div>
-      <h3 class="card-title" style="margin:16px 0 6px">{pt('p_recent_tasks')}</h3>
+      <h3 class="card-title u-cafd282">{pt('p_recent_tasks')}</h3>
       <div class="list">
         {#each det.d.tasks as t}
           <div><span>{t.title}{#if t.due}<br /><span class="muted xs">{t.due}</span>{/if}</span>
@@ -226,7 +227,7 @@
         {:else}<p class="muted small">{pt('p_no_tasks')}</p>{/each}
       </div>
     {/if}
-    <div class="row" style="margin-top:18px"><button class="btn" onclick={() => (det = null)}>{pt('p_close')}</button></div>
+    <div class="row u-86de7ac"><button class="btn" onclick={() => (det = null)}>{pt('p_close')}</button></div>
   </Modal>
 {/if}
 

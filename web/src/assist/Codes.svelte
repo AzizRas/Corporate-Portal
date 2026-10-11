@@ -37,12 +37,12 @@
 <p class="as-sub">{at('codes_sub', { n: eng.count, m: D.ZTAB.length })}</p>
 <Say label={at('ask_label')} ru={at('codes_ask')} uzText="Iltimos, ekranda qanday kod chiqyapti — harfma-harf ayting. Modelini yorliqdan o‘qib bering: konditsionerda ichki blokning yon tomonida, kir yuvish mashinasida orqa tomonida." />
 
-<div class="as-fields" style="max-width:760px">
-  <label class="f" style="margin:0">{at('z_model')}<input autocomplete="off" placeholder="BAC-M12AW · Monoca · T80-P12INW" value={A.z.m} oninput={(e) => { A.z.m = e.currentTarget.value; A.z.t = ''; }} /></label>
-  <label class="f" style="margin:0">{at('z_code')}<input autocomplete="off" placeholder="E6 · P1 · d3 · CL" bind:value={A.z.c} /></label>
+<div class="as-fields u-71e1793">
+  <label class="f u-1169661">{at('z_model')}<input autocomplete="off" placeholder="BAC-M12AW · Monoca · T80-P12INW" value={A.z.m} oninput={(e) => { A.z.m = e.currentTarget.value; A.z.t = ''; }} /></label>
+  <label class="f u-1169661">{at('z_code')}<input autocomplete="off" placeholder="E6 · P1 · d3 · CL" bind:value={A.z.c} /></label>
 </div>
 
-<div class="box" style="display:flex;flex-direction:column;gap:6px;empty-cells:hide" class:ok={false}>
+<div class="box u-98f60f3" class:ok={false}>
   {#if A.z.t}
     <div><span class="pill good">{at('z_chosen')}</span> {eng.byId(A.z.t)?.title} <button class="cp" onclick={() => (A.z.t = '')}>{at('z_reset')}</button></div>
   {:else if m}
@@ -58,8 +58,8 @@
 <details class="wcard" open={!A.z.t && !m}>
   <summary><b>{at('z_series')}</b></summary>
   {#each ['ac', 'wm'] as g}
-    <div class="as-lbl5" style="margin-top:12px">{ZTYPE[g]}</div>
-    <div class="zchips" style="margin-top:6px">
+    <div class="as-lbl5 u-56f4356">{ZTYPE[g]}</div>
+    <div class="zchips u-fe7b497">
       {#each D.ZTAB.filter((t: any) => t.type === g) as t}
         <button class="zchip" class:on={A.z.t === t.id} onclick={() => { A.z.t = A.z.t === t.id ? '' : t.id; }}>
           <b>{t.short}</b><small>{t.years ? `${t.years} · ` : ''}{t.codes.length} {plural(t.codes.length)}</small>
@@ -67,7 +67,7 @@
       {/each}
     </div>
   {/each}
-  <p class="as-hint" style="margin-top:12px">{at('z_nodisplay')}</p>
+  <p class="as-hint u-56f4356">{at('z_nodisplay')}</p>
 </details>
 
 {#if !c}

@@ -62,9 +62,9 @@
 <svelte:window onkeydown={onKey} />
 
 {#if A.status === 'loading' || A.status === 'idle'}
-  <div style="display:grid;place-items:center;padding:80px"><span class="spin"></span></div>
+  <div class="u-291ef5a"><span class="spin"></span></div>
 {:else if A.status === 'error'}
-  <div class="card"><p>{A.error === 'not_loaded' ? at('err_not_loaded') : at('err_load')}</p><button class="btn" style="margin-top:12px" onclick={() => loadAssist(true)}>{t('back')}</button></div>
+  <div class="card"><p>{A.error === 'not_loaded' ? at('err_not_loaded') : at('err_load')}</p><button class="btn u-56f4356" onclick={() => loadAssist(true)}>{t('back')}</button></div>
 {:else if D}
   <div class="as">
     <div class="as-bar">
@@ -76,7 +76,7 @@
       </div>
       <div>
         <span class="as-lbl">{at('client_lang')}</span>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div class="u-5ef1677">
           <div class="as-seg" role="group" aria-label={at('client_lang')}>
             <button class:on={A.cl === 'ru'} aria-pressed={A.cl === 'ru'} onclick={() => setClientLang('ru')}>RU</button>
             <button class:on={A.cl === 'uz'} aria-pressed={A.cl === 'uz'} onclick={() => setClientLang('uz')}>UZ</button>
@@ -94,7 +94,7 @@
           <optgroup label={at('brand_other')}>{#each brandOther as b}<option value={b.id}>{b.n}</option>{/each}</optgroup>
         </select>
       </div>
-      <button class="btn grad" style="margin-left:auto" onclick={newCall}>{at('new_call_btn')}</button>
+      <button class="btn grad u-6d00061" onclick={newCall}>{at('new_call_btn')}</button>
     </div>
 
     <div class="as-body">

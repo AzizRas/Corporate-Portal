@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   // Плавающее окно помощника оператора: ищет в базе знаний, иначе даёт готовый ответ ИИ, а нерешённое передаёт руководителю.
   import { tick } from 'svelte';
   import { api } from '../lib/api';
@@ -86,7 +87,7 @@
                 {/if}
                 {#if ai.queued}<p class="note small">{wt(ai.dup ? 'ac_queued_dup' : 'ac_queued')}</p>{/if}
                 {#if ai.limit}<p class="note small">{wt('ac_limit')}</p>{/if}
-                {#if ai.error}<p class="small" style="color:var(--bad)">{ai.error}</p>{/if}
+                {#if ai.error}<p class="small u-83ef854">{ai.error}</p>{/if}
               {/if}
             </div>
           {/if}
@@ -94,7 +95,7 @@
       </div>
       <footer>
         <textarea bind:this={inp} bind:value={text} onkeydown={key} rows="1" placeholder={wt('ac_ph')} maxlength="600"></textarea>
-        <button class="go" onclick={send} disabled={busy || text.trim().length < 3} aria-label={wt('ac_send')}>➤</button>
+        <button class="go" onclick={send} disabled={busy || text.trim().length < 3} aria-label={wt('ac_send')}><Icon inline name="send" /></button>
       </footer>
       <div class="priv small muted">{wt('ac_priv')}</div>
     </section>

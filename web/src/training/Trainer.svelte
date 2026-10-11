@@ -50,12 +50,12 @@
       <p class="small">{tt('tr_stats', { n: data.stats.tried, m: data.stats.total, b: data.stats.best })}</p>
     </div>
     <div class="tr-trai">{#if data.ai}<span class="tag">✦ {tt('ai_on')}</span>{:else}<span class="chip" title={tt('ai_off_note')}>{tt('ai_off')}</span>{/if}</div>
-    <div class="tr-bar"><i style="width:{data.stats.total ? (data.stats.best / data.stats.total) * 100 : 0}%"></i></div>
+    <div class="tr-bar"><i style:width={`${data.stats.total ? (data.stats.best / data.stats.total) * 100 : 0}%`}></i></div>
   </section>
   <div class="tr-sgrid">
     {#each data.scenarios as s}
       <button class="card tr-scard" class:best={s.best} onclick={() => open(s.id)}>
-        <div class="row" style="justify-content:space-between;gap:8px">
+        <div class="row u-5e64a42">
           <span class="tag">{tt(`area_${s.area}`)}</span>
           <span class="chip tr-lang">{s.client_lang === 'uz' ? 'UZ' : 'RU'}</span>
         </div>
@@ -71,7 +71,7 @@
   <button class="tr-back as-btn" onclick={() => (activeId = null)}>← {tt('tr_all')}</button>
   <article class="tr-scn">
     <header class="tr-lhead">
-      <div class="row wrap" style="gap:8px"><span class="tag">{tt(`area_${sc.area}`)}</span><span class="chip tr-lang">{cl === 'uz' ? 'UZ' : 'RU'}</span>
+      <div class="row wrap u-33fcd4c"><span class="tag">{tt(`area_${sc.area}`)}</span><span class="chip tr-lang">{cl === 'uz' ? 'UZ' : 'RU'}</span>
         <span class="muted small">{tt('tr_reply_in')}: {tt(cl === 'uz' ? 'tr_lang_uz' : 'tr_lang_ru')}</span></div>
       <h2>{lf(sc, 'title')}</h2>
     </header>
@@ -107,7 +107,7 @@
       {#if err}<div class="alert">{err}</div>{/if}
     {:else}
       <section class="card tr-result {result.rating}">
-        <div class="row wrap" style="gap:12px">
+        <div class="row wrap u-ed7b3d8">
           <span class="tr-badge {result.rating}">{result.rating === 'best' ? '✓' : result.rating === 'ok' ? '~' : '!'}</span>
           <div><b class="tr-rt">{rlabel(result.rating)}</b><div class="muted small">{tt(`r_${result.rating}_s`)}</div></div>
         </div>
@@ -152,7 +152,7 @@
           </ul>
         </details>
 
-        <div class="row wrap" style="margin-top:14px">
+        <div class="row wrap u-d6f2af6">
           <button class="btn" onclick={() => open(sc.id)}>{tt('tr_again')}</button>
           {#if nextId != null && nextId !== sc.id}<button class="btn grad" onclick={() => open(nextId!)}>{tt('tr_next')} →</button>{/if}
         </div>

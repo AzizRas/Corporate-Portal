@@ -93,73 +93,73 @@
   }
 </script>
 
-{#if toast}<div class="alert ok" style="position:sticky;top:8px;z-index:5;margin-bottom:14px">{toast}</div>{/if}
+{#if toast}<div class="alert ok u-68ea08b">{toast}</div>{/if}
 
 {#if !collection}
-  <div class="card hl stack" style="margin-bottom:24px">
-    <div class="row wrap"><div><h3 class="card-title">Активный выпуск</h3><div style="font-weight:700;font-size:18px;margin-top:4px">{active ? `№${active.id} · ${fmtDateTime(active.created_at)}` : '—'}</div><div class="muted small">{active?.note}</div></div>
+  <div class="card hl stack u-8677744">
+    <div class="row wrap"><div><h3 class="card-title">Активный выпуск</h3><div class="u-2dd05d2">{active ? `№${active.id} · ${fmtDateTime(active.created_at)}` : '—'}</div><div class="muted small">{active?.note}</div></div>
       <span class="sp"></span>
-      <div class="row wrap"><input placeholder="Что изменилось (заметка)" bind:value={note} style="min-width:240px" /><button class="btn grad" onclick={publish}>Опубликовать выпуск{changedTotal ? ` (${changedTotal} правок)` : ''}</button></div></div>
+      <div class="row wrap"><input class="u-5bd1668" placeholder="Что изменилось (заметка)" bind:value={note} /><button class="btn grad" onclick={publish}>Опубликовать выпуск{changedTotal ? ` (${changedTotal} правок)` : ''}</button></div></div>
     <p class="muted small">Операторы видят только опубликованный выпуск. Правки сохраняются в рабочую копию и не влияют на помощника, пока вы не опубликуете. Любой прошлый выпуск можно вернуть.</p>
   </div>
 
   {#each groups as [g, list]}
-    <h3 class="card-title" style="margin:20px 0 10px">{g}</h3>
-    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">
+    <h3 class="card-title u-57d9a22">{g}</h3>
+    <div class="grid u-222434f">
       {#each list as c}
-        <a class="card" href="#/admin/assist/{c.name}" style="padding:18px 20px;text-decoration:none;color:inherit">
-          <div style="font-weight:700">{c.title}</div><div class="muted xs" style="margin:4px 0 8px">{c.descr}</div>
-          <div class="row"><span class="chip" style="font-size:12px;padding:3px 10px">{c.kind === 'array' ? 'список' : c.kind === 'map' ? 'справочник' : 'значение'} · {c.n}</span>{#if c.changed}<span class="amber xs">● изменено: {c.changed}</span>{/if}</div></a>
+        <a class="card u-20cc3a0" href="#/admin/assist/{c.name}">
+          <div class="u-e3ec02a">{c.title}</div><div class="muted xs u-54eb290">{c.descr}</div>
+          <div class="row"><span class="chip u-8ea26a6">{c.kind === 'array' ? 'список' : c.kind === 'map' ? 'справочник' : 'значение'} · {c.n}</span>{#if c.changed}<span class="amber xs">● изменено: {c.changed}</span>{/if}</div></a>
       {/each}
     </div>
   {/each}
 
-  <h3 class="card-title" style="margin:28px 0 10px">Что операторы искали и не нашли (60 дней)</h3>
-  <div class="card" style="padding:8px 20px">
+  <h3 class="card-title u-855107b">Что операторы искали и не нашли (60 дней)</h3>
+  <div class="card u-34116c7">
     {#if report.misses.length}
       <div class="list">{#each report.misses as m}<div><span><b>{m.query}</b><div class="muted xs">последний раз {fmtDateTime(m.last)}</div></span><span class="chip">{m.n}×</span></div>{/each}</div>
-      <p class="muted xs" style="margin:6px 0 10px">Добавьте недостающие слова в «Деревья неисправностей» (поля tags и uz симптома) или новые сценарии — и опубликуйте выпуск.</p>
-    {:else}<p class="muted" style="padding:12px 0">Пока все запросы находили ответ.</p>{/if}
+      <p class="muted xs u-6926ebb">Добавьте недостающие слова в «Деревья неисправностей» (поля tags и uz симптома) или новые сценарии — и опубликуйте выпуск.</p>
+    {:else}<p class="muted u-2156831">Пока все запросы находили ответ.</p>{/if}
   </div>
 
-  <h3 class="card-title" style="margin:28px 0 10px">История выпусков</h3>
-  <div class="card" style="padding:8px 20px"><div class="list">
+  <h3 class="card-title u-855107b">История выпусков</h3>
+  <div class="card u-34116c7"><div class="list">
     {#each releases as r}<div><span><b>№{r.id}</b> · {fmtDateTime(r.created_at)} · {r.by_name ?? 'система'}<div class="muted xs">{r.note}</div></span>
       <span class="row">{#if r.active}<span class="chip on">активен</span>{:else}<button class="btn sm" onclick={() => activate(r, false)}>Сделать активным</button><button class="btn sm" onclick={() => activate(r, true)}>Вернуть всё</button>{/if}</span></div>{/each}
   </div></div>
 {:else if meta}
-  <div class="row wrap" style="margin-bottom:16px"><a href="#/admin/assist">← Все разделы</a><h2 style="font-size:22px">{meta.title}</h2><span class="sp"></span>
+  <div class="row wrap u-87c136d"><a href="#/admin/assist">← Все разделы</a><h2 class="u-881f70f">{meta.title}</h2><span class="sp"></span>
     <button class="btn sm" onclick={() => (window.location.href = `/api/admin/assist/${collection}/export.json`)}>Экспорт JSON</button>
     <label class="btn sm">Импорт JSON<input type="file" accept=".json" class="sr" onchange={importJson} /></label>
     {#if meta.kind !== 'value'}<button class="btn sm" onclick={() => (window.location.href = `/api/admin/assist/${collection}/export.xlsx`)}>Экспорт Excel</button>
       <label class="btn sm">Импорт Excel<input type="file" accept=".xlsx" class="sr" onchange={importXlsx} /></label>{/if}
   </div>
 
-  <div class="grid" style="grid-template-columns:{meta.kind === 'value' || (items.length <= 1 && meta.kind === 'map') ? '1fr' : 'minmax(240px,320px) minmax(0,1fr)'};align-items:start">
+  <div class="grid ai-start" style:grid-template-columns={meta.kind === 'value' || (items.length <= 1 && meta.kind === 'map') ? '1fr' : 'minmax(240px,320px) minmax(0,1fr)'}>
     {#if meta.kind !== 'value' && !(items.length <= 1 && meta.kind === 'map')}
-      <aside class="card" style="padding:16px;position:sticky;top:12px;max-height:calc(100vh - 40px);overflow:auto">
-        <div class="row" style="margin-bottom:10px"><input type="search" placeholder="Поиск" bind:value={q} /><button class="btn sm grad" onclick={addItem} aria-label="Добавить элемент">+</button></div>
-        <div class="stack" style="gap:4px">
+      <aside class="card u-0dc8493">
+        <div class="row u-761d3ad"><input type="search" placeholder="Поиск" bind:value={q} /><button class="btn sm grad" onclick={addItem} aria-label="Добавить элемент">+</button></div>
+        <div class="stack u-d767683">
           {#each shown as it}
-            <button class="nav" class:on={sel === it.key} onclick={() => pick(it.key)} style="padding:8px 10px;font-size:14px"><span style="overflow:hidden;text-overflow:ellipsis">{label(it)}</span></button>
+            <button class="nav u-dccf443" class:on={sel === it.key} onclick={() => pick(it.key)}><span class="u-bc65559">{label(it)}</span></button>
           {/each}
           {#if items.length > shown.length}<p class="muted xs">Показано {shown.length} из {items.length} — уточните поиск</p>{/if}
         </div>
       </aside>
     {/if}
 
-    <section class="card" style="min-width:0">
+    <section class="card u-3922d32">
       {#if draft === null}<p class="muted">Выберите элемент слева</p>
       {:else}
-        <div class="row wrap" style="margin-bottom:14px;position:sticky;top:0;background:var(--card);padding:6px 0;z-index:3">
-          <div class="tabs" style="margin:0"><button class:on={tab === 'form'} onclick={toForm}>Форма</button><button class:on={tab === 'json'} onclick={toJson}>JSON</button></div>
+        <div class="row wrap u-9e177fa">
+          <div class="tabs u-1169661"><button class:on={tab === 'form'} onclick={toForm}>Форма</button><button class:on={tab === 'json'} onclick={toJson}>JSON</button></div>
           <span class="muted xs">{meta.name}/{sel}</span><span class="sp"></span>
           {#if dirty}<span class="amber xs">● не сохранено</span>{/if}
           {#if meta.kind !== 'value'}<button class="btn sm danger" onclick={remove}>Удалить</button>{/if}
           <button class="btn sm grad" disabled={saving || (!dirty && tab === 'form')} onclick={save}>Сохранить</button>
         </div>
         {#if tab === 'form'}{#key sel}<FormNode bind:value={draft} />{/key}
-        {:else}<textarea bind:value={jsonText} spellcheck="false" style="min-height:60vh;font-family:ui-monospace,monospace;font-size:13px"></textarea>{#if jsonErr}<div class="alert" style="margin-top:8px">{jsonErr}</div>{/if}{/if}
+        {:else}<textarea class="u-ef85edd" bind:value={jsonText} spellcheck="false"></textarea>{#if jsonErr}<div class="alert u-8a77e5a">{jsonErr}</div>{/if}{/if}
       {/if}
     </section>
   </div>

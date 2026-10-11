@@ -106,7 +106,7 @@
     <p class="wl-text">{text(card)}</p>
     {#if card.exercise_sec}
       {#if phase === 'run'}
-        <div class="wl-run" aria-label={wt('running')}><div class="wl-bar"><i style="width:{total ? ((total - left) / total) * 100 : 0}%"></i></div><b>{left} {wt('sec')}</b></div>
+        <div class="wl-run" aria-label={wt('running')}><div class="wl-bar"><i style:width={`${total ? ((total - left) / total) * 100 : 0}%`}></i></div><b>{left} {wt('sec')}</b></div>
       {:else if phase === 'fin'}<p class="wl-fin">✨ {wt('finished')}</p>{/if}
     {/if}
     <div class="wl-act">

@@ -33,6 +33,6 @@
     {/each}
     <label class="f">{ht('hStatus')}<select bind:value={status}>{#each ['draft', 'sent', 'accepted', 'declined'] as s}<option value={s}>{hg('hOfferStatus', s)}</option>{/each}</select></label>
     {#if err}<p class="alert">{err}</p>{/if}
-    <div class="row wrap" style="justify-content:flex-end"><button type="button" class="btn" onclick={onclose}>{ht('hCancel')}</button><button type="button" class="btn" onclick={print}>{ht('hPrint')}</button><button class="btn grad">{ht('hSave')}</button></div>
+    <div class="row wrap u-455f8cc"><button type="button" class="btn" onclick={onclose}>{ht('hCancel')}</button><button type="button" class="btn" onclick={print}>{ht('hPrint')}</button><button class="btn grad">{ht('hSave')}</button></div>
   </form>
 </Modal>

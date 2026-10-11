@@ -3,13 +3,13 @@
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
   import { go } from '../lib/state.svelte';
-  import { fmtDateTime } from '../lib/format';
+  import { fmtDateTime, stripEmoji } from '../lib/format';
   import { portal } from '../lib/portal';
   import Icon from './Icon.svelte';
 
   let open = $state(false), btn: HTMLButtonElement | undefined = $state(), pos = $state('');
   const total = $derived(notif.unread + notif.chat_total);
-  const kindIcon = (k: string) => ({ news: '📢', mention: '＠', reply: '↩', dayoff: '📅', training: '🎓', test: '📝' } as Record<string, string>)[k] ?? '🔔';
+  const kindIcon = (k: string) => ({ news: 'news', mention: 'chat', reply: 'chat', dayoff: 'schedule', training: 'training', test: 'tests', task: 'tests' } as Record<string, string>)[k] ?? 'bell';
   let permState = $state(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
   async function enable() { await enableBrowserNotifications(); permState = Notification.permission; }
 
@@ -55,7 +55,7 @@
       </div>
       <div class="np-body">
         {#if notif.chat_total}
-          <a class="n-item chat" href="#/chat" onclick={() => (open = false)}><span class="ic">💬</span><div><b>{st('nt_new_msgs')}</b><div class="muted xs">+{notif.chat_total}</div></div></a>
+          <a class="n-item chat" href="#/chat" onclick={() => (open = false)}><span class="ic"><Icon inline name="chat" /></span><div><b>{st('nt_new_msgs')}</b><div class="muted xs">+{notif.chat_total}</div></div></a>
         {/if}
         {#each groups as g (g.label)}
           {#if g.list.length}
@@ -63,15 +63,15 @@
             {#each g.list as i (i.id)}
               <div class="n-row" class:unread={!i.read}>
                 <button class="n-item" onclick={() => openItem(i)}>
-                  <span class="ic">{kindIcon(i.kind)}</span>
-                  <div style="min-width:0"><b>{cleanTitle(i.title)}</b>{#if i.body && !i.body.startsWith('#')}<div class="muted small clip">{i.body}</div>{/if}<div class="muted xs">{fmtDateTime(i.created_at)}</div></div>
+                  <span class="ic"><Icon inline name={kindIcon(i.kind)} /></span>
+                  <div class="u-3922d32"><b>{cleanTitle(i.title)}</b>{#if i.body && !i.body.startsWith('#')}<div class="muted small clip">{i.body}</div>{/if}<div class="muted xs">{fmtDateTime(i.created_at)}</div></div>
                 </button>
                 {#if !i.read}<button class="n-mark" title={wt('nt_mark')} aria-label={wt('nt_mark')} onclick={(e) => markOne(e, i)}><Icon name="check" /></button>{/if}
               </div>
             {/each}
           {/if}
         {/each}
-        {#if !notif.items.length && !notif.chat_total}<p class="muted small" style="padding:18px 6px">{st('nt_none')}</p>{/if}
+        {#if !notif.items.length && !notif.chat_total}<p class="muted small u-3c84007">{st('nt_none')}</p>{/if}
       </div>
       {#if 'Notification' in window}
         <div class="np-foot">

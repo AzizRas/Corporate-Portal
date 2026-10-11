@@ -60,7 +60,7 @@
     {#if hasPrev}<span><i class="prev"></i>{st('rd_prev')}</span>{/if}
     <span><i class="req"></i>{st('rd_req')}</span>
   </div>
-  {#if empty}<p class="muted small" style="text-align:center">{st('rd_empty')}</p>{/if}
+  {#if empty}<p class="muted small u-91a8701">{st('rd_empty')}</p>{/if}
 </div>
 
 <style>

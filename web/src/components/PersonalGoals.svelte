@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
+  import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
@@ -14,18 +16,18 @@
   $effect(() => { userId; load(); });
   async function add() { const t = text.trim(); if (!t) return; text = ''; await api.post('/api/growth/personal', { text: t }); await load(); }
   async function toggle(g: any) { await api.patch(`/api/growth/personal/${g.id}`, { done: !g.done }); await load(); }
-  async function del(g: any) { await api.del(`/api/growth/personal/${g.id}`); await load(); }
+  function del(g: any) { const prev = items; deferDelete(st('pg_short'), { hide: () => (items = items.filter((x) => x.id !== g.id)), restore: () => (items = prev), commit: async () => { await api.del(`/api/growth/personal/${g.id}`); await load(); } }); }
 </script>
 
 {#if loaded && allowed}
-  <section class="card stack" style="gap:10px">
-    <div class="card-head" style="margin:0"><h3>🔒 {own ? st('pg_title') : st('pg_head_view')}</h3></div>
+  <section class="card stack u-f3d7ce7">
+    <div class="card-head u-1169661"><h3><Icon inline name="lock" /> {own ? st('pg_title') : st('pg_head_view')}</h3></div>
     {#if own}<p class="muted small">{st('pg_hint')}</p>{/if}
     {#each items as g (g.id)}
-      <div class="row" style="gap:10px;align-items:flex-start">
-        {#if own}<input type="checkbox" checked={g.done} onchange={() => toggle(g)} style="width:20px;height:20px;margin-top:2px;accent-color:var(--accent)" aria-label={st('pg_done')} />
-        {:else}<span>{g.done ? '✅' : '◻︎'}</span>{/if}
-        <span style="flex:1;min-width:0;{g.done ? 'text-decoration:line-through;opacity:.6' : ''}">{g.text}</span>
+      <div class="row u-1593348">
+        {#if own}<input class="u-6f57ccc" type="checkbox" checked={g.done} onchange={() => toggle(g)} aria-label={st('pg_done')} />
+        {:else}<span>{g.done ? '' : '◻︎'}</span>{/if}
+        <span class="pg-text" class:pg-done={g.done}>{g.text}</span>
         {#if own}<button class="g-act" onclick={() => del(g)} aria-label="×">✕</button>{/if}
       </div>
     {:else}<p class="muted small">{st('pg_none')}</p>{/each}

@@ -35,10 +35,10 @@
 
 <header class="page-head"><div><h1>{wt('hp_title')}</h1><p class="sub">{wt('hp_sub')}</p></div><div class="head-actions"><AskLeader /></div></header>
 
-<section class="card stack" style="margin-bottom:20px">
+<section class="card stack u-49f14f8">
   <h3 class="card-title">{wt('hp_q_title')}</h3>
-  <form class="row" style="gap:8px" onsubmit={ask}>
-    <input style="flex:1" bind:value={q} placeholder={wt('hp_ask_ph')} />
+  <form class="row u-33fcd4c" onsubmit={ask}>
+    <input class="u-97445a8" bind:value={q} placeholder={wt('hp_ask_ph')} />
     <button class="btn grad" disabled={asking || q.trim().length < 3}>{wt('hp_ask')}</button>
   </form>
   {#if asking}<span class="spin"></span>{/if}
@@ -46,31 +46,31 @@
     {#if res.topic}
       {@const t = topicById(res.topic.id)}
       <div class="hp-res">
-        {#if res.answer}<p class="small">{res.ai ? '✨ ' : ''}{res.answer}</p>{/if}
+        {#if res.answer}<p class="small">{res.ai ? '' : ''}{res.answer}</p>{/if}
         <b>{title(res.topic)}</b>
         <ol class="hp-steps">{#each steps(res.topic.id) as s}<li>{s}</li>{/each}</ol>
-        <div class="row wrap" style="gap:8px">{#if t}<button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button>{/if}<a class="btn sm" href={'#' + res.topic.route}>{wt('hp_where')}</a></div>
+        <div class="row wrap u-33fcd4c">{#if t}<button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button>{/if}<a class="btn sm" href={'#' + res.topic.route}>{wt('hp_where')}</a></div>
         {#if res.alternatives?.length}<div class="muted xs">{#each res.alternatives as a}<button class="g-act" onclick={() => (openId = a.id)}>{title(a)}</button> {/each}</div>{/if}
       </div>
     {:else}<p class="muted small">{wt('hp_none')}</p>{/if}
   {/if}
 </section>
 
-<div class="row" style="gap:10px;margin-bottom:12px"><h3 class="card-title" style="margin:0">{wt('hp_topics')}</h3><span class="sp"></span></div>
-<input placeholder={wt('hp_search_ph')} bind:value={q} style="margin-bottom:16px" />
+<div class="row u-0fb9216"><h3 class="card-title u-1169661">{wt('hp_topics')}</h3><span class="sp"></span></div>
+<input class="u-87c136d" placeholder={wt('hp_search_ph')} bind:value={q} />
 
 <div class="stack">
   {#each GROUPS as g}
     {#if groupOf(g).length}
       <section class="card">
-        <h3 class="card-title" style="margin-bottom:8px">{gname(g)}</h3>
+        <h3 class="card-title u-fdf33f2">{gname(g)}</h3>
         <div class="hp-list">
           {#each groupOf(g) as t (t.id)}
             <div class="hp-item" class:open={openId === t.id} id={t.id}>
               <button class="hp-q" onclick={() => (openId = openId === t.id ? '' : t.id)} aria-expanded={openId === t.id}><span>{title(t)}</span><span class="hp-c">{openId === t.id ? '−' : '+'}</span></button>
               {#if openId === t.id}
                 <ol class="hp-steps">{#each steps(t.id) as s}<li>{s}</li>{/each}</ol>
-                <div class="row wrap" style="gap:8px;margin:6px 0 10px"><button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button><a class="btn sm" href={'#' + t.route}>{wt('hp_where')}</a></div>
+                <div class="row wrap u-baca9a4"><button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button><a class="btn sm" href={'#' + t.route}>{wt('hp_where')}</a></div>
               {/if}
             </div>
           {/each}

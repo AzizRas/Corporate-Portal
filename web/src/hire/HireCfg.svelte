@@ -34,15 +34,15 @@
   async function saveGeneral() { try { await api.patch('/api/hire/settings', { hm_contacts: hm }); await loadMeta(); toast(ht('hSaved')); } catch (e) { err = errText(e); } }
 </script>
 
-{#if err}<p class="alert" style="margin-bottom:14px">{err}</p>{/if}
-<div class="stack" style="gap:20px">
+{#if err}<p class="alert u-2b583d7">{err}</p>{/if}
+<div class="stack u-cd289ae">
   <section class="card stack"><h3 class="card-title">{ht('hGeneral')}</h3>
     <p class="muted small">{ht('hTz')}: {hs.meta!.settings.tz}</p>
-    <label class="row" style="gap:8px"><input type="checkbox" bind:checked={hm} /> {ht('hHmC')}</label>
+    <label class="row u-33fcd4c"><input type="checkbox" bind:checked={hm} /> {ht('hHmC')}</label>
     <div><button class="btn grad" onclick={saveGeneral}>{ht('hSave')}</button></div></section>
 
   {#each DEFS as d (d.key)}
-    <section class="card stack" style="overflow-x:auto"><h3 class="card-title">{ht(d.title)}</h3>
+    <section class="card stack u-0ddf068"><h3 class="card-title">{ht(d.title)}</h3>
       <table class="table">
         <thead><tr>{#each d.cols as c}<th>{ht(c[1])}</th>{/each}<th></th></tr></thead>
         <tbody>
@@ -53,13 +53,13 @@
                   {#if d.pk === k}{String(r[k]).slice(0, 10)}
                   {:else if type === 'check'}<input type="checkbox" aria-label={ht(lab)} bind:checked={r[k]} />
                   {:else if type === 'type'}<select aria-label={ht(lab)} bind:value={r[k]}>{#each STAGE_TYPES as s}<option value={s}>{hg('hStageT', s)}</option>{/each}</select>
-                  {:else if type === 'area'}<textarea aria-label={ht(lab)} bind:value={r[k]} style="min-height:48px"></textarea>
-                  {:else if type === 'number'}<input type="number" aria-label={ht(lab)} bind:value={r[k]} style="width:90px" />
-                  {:else if type === 'color'}<input type="color" aria-label={ht(lab)} bind:value={r[k]} style="width:56px;padding:2px" />
+                  {:else if type === 'area'}<textarea class="u-fdd09d8" aria-label={ht(lab)} bind:value={r[k]}></textarea>
+                  {:else if type === 'number'}<input class="u-581be41" type="number" aria-label={ht(lab)} bind:value={r[k]} />
+                  {:else if type === 'color'}<input class="u-05f85aa" type="color" aria-label={ht(lab)} bind:value={r[k]} />
                   {:else}<input aria-label={ht(lab)} bind:value={r[k]} />{/if}
                 </td>
               {/each}
-              <td style="white-space:nowrap">
+              <td class="u-86abdab">
                 <button class="btn sm" onclick={() => save(d, r)}>{ht('hSave')}</button>
                 {#if d.key === 'statuses'}<button class="btn sm" aria-label={ht('hUp')} onclick={() => move(r, -1)}>↑</button><button class="btn sm" aria-label={ht('hDown')} onclick={() => move(r, 1)}>↓</button>{/if}
                 <button class="btn sm danger" onclick={() => remove(d, r)}>{ht('hDel')}</button>
@@ -71,9 +71,9 @@
               <td>
                 {#if type === 'check'}<input type="checkbox" aria-label={ht(lab)} bind:checked={fresh[d.key][k]} />
                 {:else if type === 'type'}<select aria-label={ht(lab)} bind:value={fresh[d.key][k]}>{#each STAGE_TYPES as s}<option value={s}>{hg('hStageT', s)}</option>{/each}</select>
-                {:else if type === 'area'}<textarea aria-label={ht(lab)} bind:value={fresh[d.key][k]} style="min-height:48px"></textarea>
-                {:else if type === 'number'}<input type="number" aria-label={ht(lab)} bind:value={fresh[d.key][k]} style="width:90px" />
-                {:else if type === 'color'}<input type="color" aria-label={ht(lab)} bind:value={fresh[d.key][k]} style="width:56px;padding:2px" />
+                {:else if type === 'area'}<textarea class="u-fdd09d8" aria-label={ht(lab)} bind:value={fresh[d.key][k]}></textarea>
+                {:else if type === 'number'}<input class="u-581be41" type="number" aria-label={ht(lab)} bind:value={fresh[d.key][k]} />
+                {:else if type === 'color'}<input class="u-05f85aa" type="color" aria-label={ht(lab)} bind:value={fresh[d.key][k]} />
                 {:else if type === 'date'}<input type="date" aria-label={ht(lab)} bind:value={fresh[d.key][k]} />
                 {:else}<input aria-label={ht(lab)} bind:value={fresh[d.key][k]} />{/if}
               </td>

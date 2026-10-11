@@ -1,19 +1,20 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { lt, ln } from './l18n';
   import { parseEmbed } from './embed';
 
   let { it, canEdit = false, onstatus, onplay, onedit, onhide }: {
     it: any; canEdit?: boolean; onstatus: (id: number, s: string | null) => void; onplay: (it: any) => void; onedit: (it: any) => void; onhide: (it: any) => void;
   } = $props();
-  const ICONS: Record<string, string> = { book: '📖', video: '🎬', link: '🔗', article: '📰', course: '🎓' };
+  const ICONS: Record<string, string> = { book: 'library', video: 'video', link: 'link', article: 'news', course: 'training' };
   const e = $derived(parseEmbed(it.url));
   const tags = $derived(String(it.tags || '').split(',').map((x: string) => x.trim()).filter(Boolean).slice(0, 4));
 </script>
 
 <article class="card l-card" class:off={!it.active}>
   <div class="l-top">
-    <div class="l-ic" aria-hidden="true">{ICONS[it.kind] ?? '📄'}</div>
-    <div style="min-width:0">
+    <div class="l-ic" aria-hidden="true"><Icon name={ICONS[it.kind] ?? 'file'} /></div>
+    <div class="u-3922d32">
       <h3>{it.title}</h3>
       {#if it.author}<div class="au">{it.author}</div>{/if}
     </div>

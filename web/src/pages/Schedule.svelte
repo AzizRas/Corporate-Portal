@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import PageHelp from '../components/PageHelp.svelte';
@@ -211,7 +212,7 @@
   <a href="#/schedule" class:on={tab === 'my'}>{st('s_my')}</a>
   {#if my?.can_team}<a href="#/schedule/team" class:on={tab === 'team'}>{st('s_team')}</a>{/if}
 </nav>
-{#if msg}<div class="alert ok row wrap flash-bar" role="status"><span style="flex:1">{msg}</span>{#if undoFn}<button type="button" class="btn sm" onclick={doUndo}>{sc('undo')}</button>{/if}</div>{/if}
+{#if msg}<div class="alert ok row wrap flash-bar" role="status"><span class="u-97445a8">{msg}</span>{#if undoFn}<button type="button" class="btn sm" onclick={doUndo}>{sc('undo')}</button>{/if}</div>{/if}
 
 {#if tab === 'my' && my}
   <div class="my-grid">
@@ -226,15 +227,15 @@
             <button class="cell {d.kind}" class:today={d.day === my.today} class:pending={d.source === 'pending'} class:rejected={d.source === 'rejected'} class:leave={d.source === 'leave'} class:past
               disabled={past || d.kind === 'off'} onclick={() => { reqDay = d; err = ''; note = ''; }}>
               <b>{num(d.day)}</b>
-              {#if d.kind === 'work'}<small>{d.shift_start}–{d.shift_end}</small>{:else}<small>{d.source === 'leave' ? '🌴' : st('s_off')}</small>{/if}
-              {#if d.source === 'pending'}<i title={st('s_pending')}>⏳</i>{:else if d.source === 'rejected'}<i title={st('s_rejected')}>✖</i>{/if}
+              {#if d.kind === 'work'}<small>{d.shift_start}–{d.shift_end}</small>{:else}<small>{d.source === 'leave' ? '' : st('s_off')}</small>{/if}
+              {#if d.source === 'pending'}<i title={st('s_pending')}><Icon inline name="hourglass" /></i>{:else if d.source === 'rejected'}<i title={st('s_rejected')}>✖</i>{/if}
             </button>
           {/each}
           {#if wi === myWeeks.length - 1}{#each Array(Math.max(0, 7 - ((lead + my.days.length) % 7 || 7))) as _}<div class="empty"></div>{/each}{/if}
         {/each}
       </div>
-      <p class="muted small" style="margin-top:14px">{floatingMe ? sc('pickDay') : st('s_req_hint')}</p>
-      <div class="row wrap small" style="margin-top:8px;gap:16px"><span><i class="dot w"></i>{sc('legendWork')}</span><span><i class="dot o"></i>{sc('legendOff')}</span><span><i class="dot p"></i>{sc('legendPending')}</span></div>
+      <p class="muted small u-d6f2af6">{floatingMe ? sc('pickDay') : st('s_req_hint')}</p>
+      <div class="row wrap small u-9b334c5"><span><i class="dot w"></i>{sc('legendWork')}</span><span><i class="dot o"></i>{sc('legendOff')}</span><span><i class="dot p"></i>{sc('legendPending')}</span></div>
     </section>
     <aside class="stack">
       <section class="card std">
@@ -244,7 +245,7 @@
         {:else}<div class="row wrap">{#each dayNames as d}<span class="chip sm" class:on={my.pattern.days_off.includes(d)}>{st('d' + d)}</span>{/each}</div><span class="muted xs">{sc('fixedDays')}</span>{/if}
       </section>
       {#if floatingMe}
-        <section class="card stack" style="gap:6px">
+        <section class="card stack u-f0abc1d">
           <h3 class="card-title">{sc('myWeeks')}</h3>
           {#each myWeeks as w}
             <div class="wk-row" class:cur={w.start === weekStart(my.today)}>
@@ -255,7 +256,7 @@
           {/each}
         </section>
       {/if}
-      <section class="card stack" style="gap:8px">
+      <section class="card stack u-33fcd4c">
         <h3 class="card-title">{st('s_request')}</h3>
         {#each my.upcoming.filter((u: any) => u.kind === 'off') as u}
           <div class="row small"><b>{shortDate(u.day)}</b><span class="chip sm" class:grad={u.status === 'approved'}>{statusText(u.status)}</span><span class="sp"></span>
@@ -278,13 +279,13 @@
   </div>
 
   {#if team.pending.length}
-    <section class="card stack" style="margin-bottom:16px">
-      <div class="row wrap" style="gap:10px"><h3 class="card-title" style="flex:1">{sc('requests')} · {team.pending.length}</h3>
+    <section class="card stack u-87c136d">
+      <div class="row wrap u-f3d7ce7"><h3 class="card-title u-97445a8">{sc('requests')} · {team.pending.length}</h3>
         {#if decidable.length > 1}<button class="btn sm grad" onclick={() => decideAll(true)}>{sc('approveAll')}</button><button class="btn sm" onclick={() => decideAll(false)}>{sc('rejectAll')}</button>{/if}</div>
       {#each team.pending as p}
         <div class="row wrap req">
           <Avatar u={{ id: p.uid, name: p.name, avatar_v: p.avatar_v }} size={36} />
-          <div style="flex:1;min-width:160px"><b>{p.name}</b> · {dayWord(p.day)}, {shortDate(p.day)}{#if p.note}<div class="muted small">«{p.note}»</div>{/if}
+          <div class="u-4ec147c"><b>{p.name}</b> · {dayWord(p.day)}, {shortDate(p.day)}{#if p.note}<div class="muted small">«{p.note}»</div>{/if}
             {#if p.off_that_day}<div class="small pill-warn">{st('s_off_that_day')}: {p.off_that_day}</div>{/if}</div>
           {#if p.can_decide}<button class="btn sm grad" onclick={() => decide(p, true)}>{st('s_approve')}</button><button class="btn sm" onclick={() => decide(p, false)}>{st('s_reject')}</button>{/if}
         </div>
@@ -300,7 +301,7 @@
       <span class="legend"><i class="dot w"></i>{sc('legendWork')}</span><span class="legend"><i class="dot o"></i>{sc('legendOff')}</span><span class="legend"><i class="dot l"></i>{sc('legendLeave')}</span><span class="legend"><i class="dot p"></i>{sc('legendPending')}</span><span class="legend"><i class="dot m"></i>{sc('legendNoOff')}</span>
     </div>
     {#if !rows.length}<p class="muted">{st('s_no_team')}</p>{:else}
-      <p class="muted xs" style="margin:0 0 8px">{sc('selHint')}</p>
+      <p class="muted xs u-df67184">{sc('selHint')}</p>
       <div class="gscroll">
         <table class="tg">
           <thead>
@@ -329,7 +330,7 @@
                   <td class="c" class:we={dow(days[i]) >= 6} class:today={days[i] === today} class:ws={dow(days[i]) === 1 && i > 0}>
                     <button type="button" class="cb {c.k}" class:leave={c.s === 'leave'} class:pending={c.s === 'pending'} class:rejected={c.s === 'rejected'} class:picked={sel.has(k)} class:ro={!r.can_edit}
                       aria-pressed={sel.has(k)} aria-label={tip(r, i)} title={tip(r, i)} onclick={(e) => toggleCell(r, i, e)}>
-                      {#if sel.has(k)}✓{:else if c.s === 'leave'}🌴{:else if c.k === 'o'}<small>{st('s_off').slice(0, 3)}</small>{/if}
+                      {#if sel.has(k)}✓{:else if c.s === 'leave'}<Icon inline name="palm" />{:else if c.k === 'o'}<small>{st('s_off').slice(0, 3)}</small>{/if}
                     </button>
                   </td>
                 {/each}
@@ -368,22 +369,22 @@
 
 {#if reqDay}
   <Modal onclose={() => (reqDay = null)}>
-    <h3 style="font-size:20px;color:var(--text);font-weight:700">{st('s_request')}: {dayWord(reqDay.day)}, {shortDate(reqDay.day)}</h3>
-    {#if floatingMe && weekOffOf(reqDay.day)}<p class="alert info" style="margin-top:12px">{sc('reqExtra', { d: `${dayWord(weekOffOf(reqDay.day).day)}, ${shortDate(weekOffOf(reqDay.day).day)}` })}</p>{/if}
-    <label class="f" style="margin-top:14px">{st('s_note')}<input maxlength="200" bind:value={note} /></label>
+    <h3 class="u-ef0e8f9">{st('s_request')}: {dayWord(reqDay.day)}, {shortDate(reqDay.day)}</h3>
+    {#if floatingMe && weekOffOf(reqDay.day)}<p class="alert info u-56f4356">{sc('reqExtra', { d: `${dayWord(weekOffOf(reqDay.day).day)}, ${shortDate(weekOffOf(reqDay.day).day)}` })}</p>{/if}
+    <label class="f u-d6f2af6">{st('s_note')}<input maxlength="200" bind:value={note} /></label>
     {#if err}<div class="alert">{err}</div>{/if}
-    <div class="row" style="margin-top:12px"><button class="btn grad" onclick={sendReq}>{st('s_send')}</button><button class="btn" onclick={() => (reqDay = null)}>{st('c_cancel')}</button></div>
+    <div class="row u-56f4356"><button class="btn grad" onclick={sendReq}>{st('s_send')}</button><button class="btn" onclick={() => (reqDay = null)}>{st('c_cancel')}</button></div>
   </Modal>
 {/if}
 
 {#if editPat}
   <Modal onclose={() => (editPat = null)}>
-    <h3 style="font-size:20px;color:var(--text);font-weight:700">{editPat.name}</h3>
-    <div class="stack" style="margin-top:14px">
+    <h3 class="u-ef0e8f9">{editPat.name}</h3>
+    <div class="stack u-d6f2af6">
       <button class="btn" onclick={stdPat}>{sc('setStd')}: {cur.start}–{cur.end}, {sc('floating')}</button>
       <div class="row wrap">{#each dayNames as d}<button class="chip" class:on={pat.days_off.includes(d)} onclick={() => toggleDow(d)}>{st('d' + d)}</button>{/each}</div>
       <span class="muted xs">{sc('fixedDays')} ({st('s_days_off')})</span>
-      <div class="row"><label class="f" style="margin:0;flex:1">{st('s_from')}<input type="time" bind:value={pat.shift_start} /></label><label class="f" style="margin:0;flex:1">{st('s_to')}<input type="time" bind:value={pat.shift_end} /></label></div>
+      <div class="row"><label class="f u-0935c1f">{st('s_from')}<input type="time" bind:value={pat.shift_start} /></label><label class="f u-0935c1f">{st('s_to')}<input type="time" bind:value={pat.shift_end} /></label></div>
       <button class="btn grad" onclick={savePat}>{st('s_save')}</button>
     </div>
   </Modal>
@@ -392,18 +393,18 @@
 {#if auto}
   <Modal onclose={() => (auto = null)}>
     <div class="stack">
-      <h3 style="font-size:20px;color:var(--text);font-weight:700">{sc('autoTitle')}</h3>
+      <h3 class="u-ef0e8f9">{sc('autoTitle')}</h3>
       <p class="muted small">{sc('autoHint')}</p>
-      <div class="row" style="gap:10px"><label class="f" style="margin:0;flex:1">{sc('from')}<input type="date" bind:value={auto.from} onchange={() => (auto.preview = null)} /></label><label class="f" style="margin:0;flex:1">{sc('to')}<input type="date" bind:value={auto.to} onchange={() => (auto.preview = null)} /></label></div>
+      <div class="row u-f3d7ce7"><label class="f u-0935c1f">{sc('from')}<input type="date" bind:value={auto.from} onchange={() => (auto.preview = null)} /></label><label class="f u-0935c1f">{sc('to')}<input type="date" bind:value={auto.to} onchange={() => (auto.preview = null)} /></label></div>
       {#if auto.preview}
         {#if auto.preview.planned}
           <div class="alert info"><b>{sc('willAssign', { n: auto.preview.planned, p: auto.preview.people })}</b>
-            <div class="small" style="margin-top:6px">{sc('byDay')}: {perDayList(auto.preview).map(([d, n]) => `${dayWord(d)} ${num(d)}: ${n}`).slice(0, 14).join(' · ')}</div></div>
+            <div class="small u-fe7b497">{sc('byDay')}: {perDayList(auto.preview).map(([d, n]) => `${dayWord(d)} ${num(d)}: ${n}`).slice(0, 14).join(' · ')}</div></div>
         {:else}<div class="alert info">{sc('nothingToDo')}</div>{/if}
         {#if auto.preview.skipped_fixed}<p class="muted xs">{sc('fixedSkipped', { n: auto.preview.skipped_fixed })}</p>{/if}
       {/if}
       {#if auto.err}<div class="alert">{auto.err}</div>{/if}
-      <div class="row wrap" style="gap:8px;justify-content:flex-end">
+      <div class="row wrap u-9990cea">
         <button class="btn" onclick={() => (auto = null)}>{sc('cancel')}</button>
         <button class="btn" disabled={auto.busy} onclick={() => previewAuto(true)}>{sc('preview')}</button>
         <button class="btn grad" disabled={auto.busy || !auto.preview?.planned} onclick={() => previewAuto(false)}>{sc('apply')}</button>
@@ -415,13 +416,13 @@
 {#if copy}
   <Modal onclose={() => (copy = null)}>
     <div class="stack">
-      <h3 style="font-size:20px;color:var(--text);font-weight:700">{sc('copyTitle')}</h3>
+      <h3 class="u-ef0e8f9">{sc('copyTitle')}</h3>
       <p class="muted small">{sc('copyHint')}</p>
       <label class="f">{sc('copyFrom')}<select bind:value={copy.src}>{#each weeks as w}<option value={w.start}>{sc('wk')} {w.n} · {shortDate(w.start)}</option>{/each}</select></label>
       <div><div class="muted small">{sc('copyTo')}</div>
-        <div class="stack" style="gap:6px;margin-top:6px">{#each weeks.filter((w) => w.start !== copy.src && addDays(w.start, 6) >= today) as w}
+        <div class="stack u-48807bc">{#each weeks.filter((w) => w.start !== copy.src && addDays(w.start, 6) >= today) as w}
           <label class="chk"><input type="checkbox" checked={copy.dst.has(w.start)} onchange={() => (copy.dst.has(w.start) ? copy.dst.delete(w.start) : copy.dst.add(w.start))} /> {sc('wk')} {w.n} · {shortDate(w.start)}</label>{/each}</div></div>
-      <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" onclick={() => (copy = null)}>{sc('cancel')}</button><button class="btn grad" disabled={copy.busy || !copy.dst.size} onclick={doCopy}>{sc('apply')}</button></div>
+      <div class="row u-9990cea"><button class="btn" onclick={() => (copy = null)}>{sc('cancel')}</button><button class="btn grad" disabled={copy.busy || !copy.dst.size} onclick={doCopy}>{sc('apply')}</button></div>
     </div>
   </Modal>
 {/if}
@@ -429,12 +430,12 @@
 {#if hol}
   <Modal onclose={() => (hol = null)}>
     <div class="stack">
-      <h3 style="font-size:20px;color:var(--text);font-weight:700">{sc('holidays')}</h3>
+      <h3 class="u-ef0e8f9">{sc('holidays')}</h3>
       <p class="muted small">{sc('holidaysHint')}</p>
       <p class="muted xs">{sc('holidaysFixed')}{hol.fixed.map((d: string) => d.split('-').reverse().join('.')).join(', ')}</p>
-      {#each hol.custom as d}<div class="row" style="gap:8px"><span style="flex:1">{d.split('-').reverse().join('.')}</span><button type="button" class="btn sm" aria-label="×" onclick={() => (hol.custom = hol.custom.filter((x: string) => x !== d))}>×</button></div>{:else}<p class="muted small">{sc('holidaysNone')}</p>{/each}
-      <div class="row" style="gap:8px"><input type="date" bind:value={hol.add} /><button type="button" class="btn" disabled={!hol.add} onclick={() => { if (hol.add && !hol.custom.includes(hol.add)) hol.custom = [...hol.custom, hol.add].sort(); hol.add = ''; }}>{sc('holidaysAdd')}</button></div>
-      <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" onclick={() => (hol = null)}>{sc('cancel')}</button><button class="btn grad" disabled={hol.busy} onclick={saveHol}>{sc('save')}</button></div>
+      {#each hol.custom as d}<div class="row u-33fcd4c"><span class="u-97445a8">{d.split('-').reverse().join('.')}</span><button type="button" class="btn sm" aria-label="×" onclick={() => (hol.custom = hol.custom.filter((x: string) => x !== d))}>×</button></div>{:else}<p class="muted small">{sc('holidaysNone')}</p>{/each}
+      <div class="row u-33fcd4c"><input type="date" bind:value={hol.add} /><button type="button" class="btn" disabled={!hol.add} onclick={() => { if (hol.add && !hol.custom.includes(hol.add)) hol.custom = [...hol.custom, hol.add].sort(); hol.add = ''; }}>{sc('holidaysAdd')}</button></div>
+      <div class="row u-9990cea"><button class="btn" onclick={() => (hol = null)}>{sc('cancel')}</button><button class="btn grad" disabled={hol.busy} onclick={saveHol}>{sc('save')}</button></div>
     </div>
   </Modal>
 {/if}
@@ -442,10 +443,10 @@
 {#if pol}
   <Modal onclose={() => (pol = null)}>
     <div class="stack">
-      <h3 style="font-size:20px;color:var(--text);font-weight:700">{sc('policy')}</h3>
+      <h3 class="u-ef0e8f9">{sc('policy')}</h3>
       <p class="muted small">{sc('policyHint')}</p>
-      <div class="row" style="gap:10px"><label class="f" style="margin:0;flex:1">{st('s_from')}<input type="time" bind:value={pol.start} /></label><label class="f" style="margin:0;flex:1">{st('s_to')}<input type="time" bind:value={pol.end} /></label></div>
-      <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" onclick={() => (pol = null)}>{sc('cancel')}</button><button class="btn grad" onclick={savePol}>{sc('save')}</button></div>
+      <div class="row u-f3d7ce7"><label class="f u-0935c1f">{st('s_from')}<input type="time" bind:value={pol.start} /></label><label class="f u-0935c1f">{st('s_to')}<input type="time" bind:value={pol.end} /></label></div>
+      <div class="row u-9990cea"><button class="btn" onclick={() => (pol = null)}>{sc('cancel')}</button><button class="btn grad" onclick={savePol}>{sc('save')}</button></div>
     </div>
   </Modal>
 {/if}

@@ -50,7 +50,7 @@
   }
 </script>
 
-<div class="card g-box" style="max-width:860px">
+<div class="card g-box u-330ce2f">
   <div class="row"><span class="tag">{gt('ai_tag')}</span><span class="muted small">{gt('ai_note')}</span></div>
   {#if !configured}<div class="alert info">{reason === 'budget' ? at('mn_reason_budget') : reason === 'role_off' ? at('mn_reason_role_off') : gt('ai_off_msg')}</div>{/if}
   <div class="g-scroll" bind:this={box}>
@@ -58,7 +58,7 @@
       <div class="g-msg" class:me={m.role === 'user'}>
         <div class="b">{m.body}</div>
         <small>{m.role === 'ai' ? `${gt('ai_label')} · ` : ''}{fmtDateTime(m.created_at)}</small>
-        {#if m.role === 'ai' && (m.ref || m.id > 0)}<div style="margin-top:4px"><AiFeedback role="mentor" refId={m.ref ?? `mentor:${m.id}`} /></div>{/if}
+        {#if m.role === 'ai' && (m.ref || m.id > 0)}<div class="u-96ad609"><AiFeedback role="mentor" refId={m.ref ?? `mentor:${m.id}`} /></div>{/if}
       </div>
     {:else}<p class="muted">{gt('ai_empty')}</p>{/each}
     {#if busy}<span class="spin"></span>{/if}

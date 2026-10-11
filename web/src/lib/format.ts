@@ -16,3 +16,6 @@ export const fmtDateTime = (iso: string) => `${fmtDate(iso)} ${fmtTime(iso)}`;
 export const initials = (n: string) => n.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 export const nowMonth = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date()).slice(0, 7);
 export const pick = <T extends Record<string, any>>(o: T, base: string) => (app.lang === 'uz' && o[`${base}_uz`]) || o[`${base}_ru`];
+
+/** Уведомления с сервера могут начинаться с эмодзи (например, значок календаря перед именем): в интерфейсе значки линейные, поэтому эмодзи в начале убираем. */
+export const stripEmoji = (t: string) => t.replace(/^[\p{Extended_Pictographic}️\s]+/u, '') || t;

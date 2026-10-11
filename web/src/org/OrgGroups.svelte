@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import Avatar from '../components/Avatar.svelte';
   import { wt } from '../lib/w18n';
   import { ot } from './oc18n';
@@ -43,7 +44,7 @@
                 <Avatar u={p} size={34} />
                 <span class="pi"><b>{p.name}</b><span class="muted xs">{p.position}</span></span>
                 {#if p.employment === 'intern'}<span class="chip sm">{ot('intern')}</span>{/if}
-                {#if p.on_leave}<span class="chip sm">🌴 {ot('onLeave')}</span>{/if}
+                {#if p.on_leave}<span class="chip sm"><Icon inline name="palm" /> {ot('onLeave')}</span>{/if}
               </div>
             {/each}
           </div>

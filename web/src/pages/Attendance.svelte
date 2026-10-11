@@ -76,10 +76,10 @@
 <header class="page-head"><div><h1>{t('att_title')}</h1><p class="sub">{t('att_time_server')}</p></div></header>
 
 {#if !st}<span class="spin"></span>{:else}
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+  <div class="grid u-0e12b30">
     <section class="card hl">
       <div class="stack">
-        <button class="btn grad block" style="padding:34px;font-size:26px;border-radius:28px" disabled={busy} onclick={() => mark()}>
+        <button class="btn grad block u-34e16dc" disabled={busy} onclick={() => mark()}>
           {busy ? '…' : st.next === 'in' ? t('att_in') : t('att_out')}
         </button>
         {#if st.methods.qr}<input placeholder={t('att_qr_ph')} bind:value={qr} autocomplete="off" />{/if}
@@ -110,12 +110,12 @@
   <Modal onclose={() => (consentFor = null)}>
     <h2>{consentFor === 'geo' ? t('att_geo') : t('att_selfie')}</h2>
     <p class="muted">{consentFor === 'geo' ? t('att_consent_geo') : t('att_consent_selfie', { n: st.photo_days })}</p>
-    <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn" onclick={() => (consentFor = null)}>{t('cancel')}</button><button class="btn grad" onclick={giveConsent}>{t('consent_btn')}</button></div>
+    <div class="row u-092b7a7"><button class="btn" onclick={() => (consentFor = null)}>{t('cancel')}</button><button class="btn grad" onclick={giveConsent}>{t('consent_btn')}</button></div>
   </Modal>
 {/if}
 {#if camOpen}
   <Modal onclose={closeCamera}>
-    <video bind:this={cam} playsinline muted style="width:100%;border-radius:18px;background:#000;transform:scaleX(-1)"></video>
-    <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" onclick={closeCamera}>{t('cancel')}</button><button class="btn grad" onclick={snap}>{t('att_take')}</button></div>
+    <video class="u-23e8bd3" bind:this={cam} playsinline muted></video>
+    <div class="row u-19f560a"><button class="btn" onclick={closeCamera}>{t('cancel')}</button><button class="btn grad" onclick={snap}>{t('att_take')}</button></div>
   </Modal>
 {/if}

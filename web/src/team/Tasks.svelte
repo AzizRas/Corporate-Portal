@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { pt } from './p18n';
@@ -23,9 +24,9 @@
 {#if loading}<p class="muted"><span class="spin"></span></p>
 {:else if failed}<p class="alert">{pt('t_load_err')}</p>
 {:else}
-  {#if err}<p class="alert" style="margin-bottom:14px">{err}</p>{/if}
+  {#if err}<p class="alert u-2b583d7">{err}</p>{/if}
   {#if !items.length}
-    <section class="card empty"><p style="font-size:18px;font-weight:600">🎉 {pt('t_empty')}</p></section>
+    <section class="card empty"><p class="u-5f296a9"><Icon inline name="spark" /> {pt('t_empty')}</p></section>
   {:else}
     <div class="grid cols">
       {#snippet row(t: any)}
@@ -37,7 +38,7 @@
             <div class="meta xs">
               <span class={t.overdue ? 'pill-bad' : 'muted'}>{t.due ? pt('t_due', { d: fmtDate(t.due + 'T12:00:00Z') }) : pt('t_no_due')}</span>
               {#if t.overdue}<span class="tagx bad">{pt('t_overdue')}</span>{/if}
-              {#if t.from_ai}<span class="tagx ai">🤖 {pt('t_ai')}</span>{/if}
+              {#if t.from_ai}<span class="tagx ai"><Icon inline name="bot" /> {pt('t_ai')}</span>{/if}
               {#if t.by_name}<span class="muted">{pt('t_by', { n: t.by_name })}</span>{/if}
             </div>
           </div>

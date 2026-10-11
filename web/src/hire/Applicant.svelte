@@ -73,16 +73,16 @@
   <div class="grid two">
     <div class="stack">
       <section class="card">
-        <div class="row wrap" style="gap:12px">
-          <div style="flex:1;min-width:200px"><h2 style="font-size:26px">{fullName(a)} {#if a.user_id}<span class="chip sm2">{ht('hInternal')}</span>{/if}</h2>
+        <div class="row wrap u-ed7b3d8">
+          <div class="u-eeb8c10"><h2 class="u-7afcb61">{fullName(a)} {#if a.user_id}<span class="chip sm2">{ht('hInternal')}</span>{/if}</h2>
             <p class="muted">{a.position}{a.company ? ` · ${a.company}` : ''}</p><p class="small">{a.phone} {a.email}</p></div>
           {#if rec}<button class="btn sm" onclick={startEdit}>{ht('hEdit')}</button>{/if}
         </div>
-        <div class="row wrap" style="gap:8px;margin-top:12px">
+        <div class="row wrap u-6491f85">
           {#each d.tags as t (t.id)}<span class="chip sm2" style:border-color={t.color}>{t.name}{#if rec}<button type="button" class="tagx" aria-label={`× ${t.name}`} title="×" onclick={() => toggleTag(t.id)}>×</button>{/if}</span>{/each}
           {#if rec}<select class="mini" aria-label={ht('hTags')} onchange={(e) => { const v = Number(e.currentTarget.value); e.currentTarget.value = ''; if (v) toggleTag(v); }}><option value="">{ht('hTags')}…</option>{#each hs.meta!.tags.filter((t) => !d.tags.some((x: any) => x.id === t.id)) as t}<option value={t.id}>{t.name}</option>{/each}</select>{/if}
         </div>
-        {#if rec}<label class="f" style="margin-top:12px;max-width:260px">{ht('hConsent')}<select value={a.consent} onchange={(e) => setConsent(e.currentTarget.value)}>{#each ['none', 'pending', 'given'] as s}<option value={s}>{hg('hConsentV', s)}</option>{/each}</select></label>{/if}
+        {#if rec}<label class="f u-9419dcd">{ht('hConsent')}<select value={a.consent} onchange={(e) => setConsent(e.currentTarget.value)}>{#each ['none', 'pending', 'given'] as s}<option value={s}>{hg('hConsentV', s)}</option>{/each}</select></label>{/if}
       </section>
 
       <ResumeView profile={d.profile} {rec} applicantId={id} aiOn={ai.available} onchange={load} />
@@ -91,9 +91,9 @@
         <h3 class="card-title">{ht('hVacancies')}</h3>
         {#each d.pipelines as p (p.id)}
           <div class="pl">
-            <div class="row wrap" style="gap:8px"><a href={`#/hire/v/${p.vacancy_id}`} style="font-weight:600;flex:1">{p.vacancy_title}</a><span class="chip sm2" style:border-color={p.status_color}>{p.status_name}</span></div>
+            <div class="row wrap u-33fcd4c"><a class="u-c44cfd0" href={`#/hire/v/${p.vacancy_id}`}>{p.vacancy_title}</a><span class="chip sm2" style:border-color={p.status_color}>{p.status_name}</span></div>
             {#if p.reason}<p class="muted small">{p.reason}</p>{/if}
-            <div class="row wrap" style="gap:8px;margin-top:8px">
+            <div class="row wrap u-7e81fa2">
               {#if rec && p.vacancy_state !== 'closed'}<button class="btn sm" onclick={() => { sched = p.id; sf = { starts_local: '', duration_min: 60, place: '', link: '', people: [] }; serr = ''; }}>{ht('hSched')}</button>{/if}
               {#if rec && ['offer', 'hired'].includes(p.status_type)}<button class="btn sm" onclick={() => (offerFor = p.id)}>{ht('hOffer')}</button>{/if}
               <button class="btn sm" onclick={() => openFb(p.id)}>{ht('hFeedback')}</button>
@@ -123,9 +123,9 @@
     <div class="stack">
       <section class="card stack">
         <h3 class="card-title">{ht('hResumes')}</h3>
-        {#each d.resumes as r}<a href={`/api/hire/resumes/${r.id}/file`} download style="overflow-wrap:anywhere">{r.filename} <span class="muted xs">{Math.round(r.size / 1024)} KB</span></a>
+        {#each d.resumes as r}<a class="u-115422e" href={`/api/hire/resumes/${r.id}/file`} download>{r.filename} <span class="muted xs">{Math.round(r.size / 1024)} KB</span></a>
         {:else}<p class="muted small">{ht('hNoResumes')}</p>{/each}
-        {#if rec}<label class="btn sm" style="cursor:pointer">{ht('hUpload')}<input type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg" hidden onchange={upload} /></label>{/if}
+        {#if rec}<label class="btn sm u-3b6a3a6">{ht('hUpload')}<input type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg" hidden onchange={upload} /></label>{/if}
       </section>
 
       {#if rec}<Messenger applicant={a} applicantId={id} pipelines={d.pipelines} interviews={d.interviews ?? []} extras={d.extras ?? []} onchange={load} />{/if}
@@ -149,7 +149,7 @@
       <label class="f">{ht('hCompany')}<input bind:value={ef.company} /></label>
       <label class="f">{ht('hSource')}<select bind:value={ef.source_id}><option value="">{ht('hNone')}</option>{#each hs.meta!.sources as s}<option value={s.id}>{s.name}</option>{/each}</select></label>
       {#if eerr}<p class="alert">{eerr}</p>{/if}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (editing = false)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSave')}</button></div>
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (editing = false)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSave')}</button></div>
     </form>
   </Modal>
 {/if}
@@ -164,7 +164,7 @@
       <label class="f">{ht('hLink')}<input type="url" bind:value={sf.link} /></label>
       <label class="f">{ht('hPeopleI')}<select multiple size="4" onchange={(e) => (sf.people = [...e.currentTarget.selectedOptions].map((o) => Number(o.value)))}>{#each hs.meta!.team as u}<option value={u.id}>{u.name}</option>{/each}</select></label>
       {#if serr}<p class="alert">{serr}</p>{/if}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (sched = null)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSched')}</button></div>
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (sched = null)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSched')}</button></div>
     </form>
   </Modal>
 {/if}
@@ -178,7 +178,7 @@
       <label class="f">{ht('hStatus')}<select bind:value={fb.recommendation}>{#each ['yes', 'maybe', 'no'] as k}<option value={k}>{hg('hRecom', k)}</option>{/each}</select></label>
       <label class="f">{ht('hComment')}<textarea bind:value={fb.comment} maxlength="2000"></textarea></label>
       {#if fberr}<p class="alert">{fberr}</p>{/if}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (fbFor = null)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSave')}</button></div>
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (fbFor = null)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSave')}</button></div>
     </form>
   </Modal>
 {/if}

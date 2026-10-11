@@ -1,11 +1,9 @@
 // Чат: общий канал, отделы и внешние подразделения (состав по дереву), личные чаты и группы с ролями, файлы, ответы, @упоминания,
 // прочитано, закреплённое, поиск по истории. Личные чаты и группы читают только их участники — админ тоже нет.
+import { deleteFile, getFile, putFile } from '../storage.js';
 import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { config } from '../config.js';
 import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
 import { bdaySql, notify } from '../notify.js';
 import { channelsFor, chatAccess, dmChannel, type Channel } from '../chat-core.js';
@@ -119,19 +117,18 @@ export async function chatRoutes(app: FastifyInstance) {
     if (!ALLOWED_EXT.has(ext)) { await file.toBuffer().catch(() => {}); return err(reply, 415, 'bad_type'); }
     const buf = await file.toBuffer();
     if (buf.length > 10 * 1024 * 1024) return err(reply, 413, 'too_big');
-    const rel = path.join('chat', `${crypto.randomUUID()}.${ext}`);
-    await fs.mkdir(path.join(config.uploadDir, 'chat'), { recursive: true });
-    await fs.writeFile(path.join(config.uploadDir, rel), buf);
+    const rel = `chat/${crypto.randomUUID()}.${ext}`;
+    try { await putFile(rel, buf, MIME[ext] ?? 'application/octet-stream'); } catch (e) { req.log.error(e); return err(reply, 502, 'storage'); }
     const f = (file.fields as any) ?? {};
     const res: any = await post(req, reply, ch, { body: String(f.body?.value ?? ''), reply_to: Number(f.reply_to?.value) || undefined },
       { name: file.filename.slice(0, 120), mime: MIME[ext] ?? 'application/octet-stream', size: buf.length, path: rel });
-    if (!res?.ok) await fs.rm(path.join(config.uploadDir, rel), { force: true }).catch(() => {});
+    if (!res?.ok) await deleteFile(rel);
     return res;
   });
   app.get('/api/chat/file/:id', auth, async (req, reply) => {
     const f = (await q(`SELECT f.*,m.channel FROM chat_files f JOIN chat_messages m ON m.id=f.message_id WHERE f.id=$1`, [Number((req.params as any).id)])).rows[0];
     if (!f || !(await chatAccess(req.user!, f.channel))) return err(reply, 404, 'not_found');
-    const buf = await fs.readFile(path.join(config.uploadDir, f.path)).catch(() => null);
+    const buf = await getFile(f.path).catch(() => null);
     if (!buf) return err(reply, 404, 'not_found');
     const inline = IMAGE.test(f.mime);
     reply.header('content-type', f.mime).header('x-content-type-options', 'nosniff').header('cache-control', 'private, max-age=3600')
@@ -148,7 +145,7 @@ export async function chatRoutes(app: FastifyInstance) {
     if (m.user_id !== u.id && !(c?.kind === 'group' && canModerate(u, c)) && !(isStaff(u) && c && (c.kind === 'company' || c.kind === 'dept' || c.kind === 'ext'))) return err(reply, 403, 'forbidden');
     const f = (await q('SELECT path FROM chat_files WHERE message_id=$1', [id])).rows[0];
     await q('DELETE FROM chat_messages WHERE id=$1', [id]);
-    if (f) await fs.rm(path.join(config.uploadDir, f.path), { force: true }).catch(() => {});
+    if (f) await deleteFile(f.path);
     await audit(req, 'chat_delete', String(id));
     return { ok: true };
   });

@@ -160,7 +160,7 @@
               {:else}<li class="muted small">—</li>{/each}
             </ul>
           </div>
-          <div class="row wrap" style="gap:8px">
+          <div class="row wrap u-33fcd4c">
             <a class="btn sm" href={`#/hire/a/${cur.applicant_id}`}>{ht('vProfile')}</a>
             {#each det?.resumes ?? [] as r (r.id)}<a class="btn sm" href={`/api/hire/resumes/${r.id}/file`} download>{ht('vResumeFile')} · {r.filename.slice(0, 24)}</a>{/each}
           </div>
@@ -176,7 +176,7 @@
             <button class="kc" draggable={canMove} ondragstart={(e) => e.dataTransfer?.setData('text/plain', `${c.id}:${c.status_id}`)} onclick={() => openPanel(c)}>
               <span class="who"><span class="ava sm" style:background={tint(c.applicant_id)}>{initials(c)}</span><b>{fullName(c)}</b></span>
               {#if c.position}<span class="muted small">{c.position}</span>{/if}
-              <span class="row wrap" style="gap:6px">{#if c.source}<span class="chip">{c.source}</span>{/if}{#if c.internal}<span class="chip">{ht('hInternal')}</span>{/if}</span>
+              <span class="row wrap u-f0abc1d">{#if c.source}<span class="chip">{c.source}</span>{/if}{#if c.internal}<span class="chip">{ht('hInternal')}</span>{/if}</span>
               {#if c.late}<span class="late2">{ht('hLate', { n: c.late })}</span>{/if}
             </button>
           {:else}<p class="muted small empty">{ht('hEmptyCol')}</p>{/each}
@@ -196,7 +196,7 @@
         <label class="f">{ht('hMoveSel')}<select bind:value={panelTo}>{#each d.statuses as s}<option value={s.id}>{hn(s)}</option>{/each}</select></label>
         <label class="f">{ht('hComment')}<input bind:value={panelNote} maxlength="1000" /></label>
       {/if}
-      <div class="row wrap" style="justify-content:flex-end">
+      <div class="row wrap u-455f8cc">
         <button class="btn" onclick={() => (panel = null)}>{ht('hCancel')}</button>
         <a class="btn" href={`#/hire/a/${panel.applicant_id}`} onclick={() => (panel = null)}>{ht('hOpen')}</a>
         {#if canMove}<button class="btn grad" onclick={applyPanel}>{ht('hMove')}</button>{/if}
@@ -211,7 +211,7 @@
       <h2>{ht('hReason')}</h2>
       <label class="f">{ht('hReason')} *<select bind:value={rejReason} required>{#each d.reasons as r}<option value={r.id}>{hn(r)}</option>{/each}</select></label>
       <label class="f">{ht('hComment')}<textarea bind:value={rejNote} maxlength="1000"></textarea></label>
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (reject = null)}>{ht('hCancel')}</button><button class="btn danger">{ht('hMove')}</button></div>
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (reject = null)}>{ht('hCancel')}</button><button class="btn danger">{ht('hMove')}</button></div>
     </form>
   </Modal>
 {/if}
@@ -231,10 +231,10 @@
   <Modal onclose={() => (matches = null)} wide>
     <div class="stack"><h2>{ht('hMatches')}</h2><h3 class="card-title">{ht('hInternalMatch')}</h3>
       {#each matches.internal as m}
-        <div class="row" style="gap:12px"><div style="flex:1"><b>{m.user.name}</b><div class="muted small">{m.pct != null ? `${ht('hReadiness')}: ${m.pct}%` : ht('hNoData')}</div></div>
+        <div class="row u-ed7b3d8"><div class="u-97445a8"><b>{m.user.name}</b><div class="muted small">{m.pct != null ? `${ht('hReadiness')}: ${m.pct}%` : ht('hNoData')}</div></div>
           {#if !m.on_vacancy}<button class="btn sm grad" onclick={() => asCandidate(m.user.id)}>{ht('hAsCand')}</button>{/if}</div>
       {:else}<p class="muted">{ht('hNoInternal')}</p>{/each}
-      <div class="row" style="justify-content:flex-end"><button class="btn" onclick={() => (matches = null)}>{ht('hCancel')}</button></div></div>
+      <div class="row u-455f8cc"><button class="btn" onclick={() => (matches = null)}>{ht('hCancel')}</button></div></div>
   </Modal>
 {/if}
 

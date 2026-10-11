@@ -83,14 +83,14 @@
     {#if rec && personal}<div class="blk muted small" title={ht('rvPersonal')}>{ht('rvPersonal')}: {personal}</div>{/if}
 
     {#if rec}
-      <div class="row wrap" style="gap:8px">
+      <div class="row wrap u-33fcd4c">
         <button type="button" class="btn sm" onclick={openRaw}>{ht('rvRaw')}</button>
         {#if aiOn}<button type="button" class="btn sm" disabled={busy} onclick={aiParse}>{ht('rvAiParse')}</button>{/if}
       </div>
       {#if raw}
         <p class="muted xs">{ht('rvEditHint')}</p>
         <textarea class="rawtxt" bind:value={text} maxlength="60000" aria-label={ht('rvRaw')}></textarea>
-        <button type="button" class="btn sm grad" style="align-self:flex-start" disabled={busy || text.trim().length < 10} onclick={reparse}>{ht('rvReparse')}</button>
+        <button type="button" class="btn sm grad u-c9adc42" disabled={busy || text.trim().length < 10} onclick={reparse}>{ht('rvReparse')}</button>
       {/if}
     {/if}
   {/if}

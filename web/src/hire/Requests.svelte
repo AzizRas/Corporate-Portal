@@ -21,20 +21,20 @@
   }
 </script>
 
-<div class="row" style="justify-content:flex-end;margin-bottom:16px"><button class="btn grad" onclick={() => { creating = true; err = ''; }}>{ht('hNewReq')}</button></div>
+<div class="row u-251bc14"><button class="btn grad" onclick={() => { creating = true; err = ''; }}>{ht('hNewReq')}</button></div>
 
 {#if loading}<p class="muted"><span class="spin"></span></p>
-{:else if !items.length}<section class="card" style="text-align:center;padding:40px 20px"><p class="muted">{ht('hNoReq')}</p></section>
+{:else if !items.length}<section class="card u-a4c941d"><p class="muted">{ht('hNoReq')}</p></section>
 {:else}
   <div class="stack">
     {#each items as r (r.id)}
       <article class="card">
-        <div class="row wrap" style="gap:8px"><b style="flex:1;font-size:17px">{r.data.title ?? `#${r.id}`}</b><span class="chip sm2" class:warn={r.status === 'new'}>{hg('hReqSt', r.status)}</span></div>
+        <div class="row wrap u-33fcd4c"><b class="u-5915f0f">{r.data.title ?? `#${r.id}`}</b><span class="chip sm2" class:warn={r.status === 'new'}>{hg('hReqSt', r.status)}</span></div>
         <p class="muted small">{ht('hFrom')}: {r.requester} · {fmtD(r.created_at)}{r.data.quota ? ` · ${ht('hQuota')}: ${r.data.quota}` : ''}</p>
-        {#if r.data.description}<p style="white-space:pre-wrap;margin-top:8px">{r.data.description}</p>{/if}
+        {#if r.data.description}<p class="u-6a9144a">{r.data.description}</p>{/if}
         {#if r.note}<p class="muted small">{r.note}</p>{/if}
         {#if r.vacancy_id}<a href={`#/hire/v/${r.vacancy_id}`}>{ht('hVac')} →</a>{/if}
-        {#if isRec() && r.status === 'new'}<div class="row" style="gap:8px;margin-top:12px"><button class="btn sm grad" onclick={() => accept(r.id)}>{ht('hAccept')}</button><button class="btn sm danger" onclick={() => (declining = r.id)}>{ht('hDecline')}</button></div>{/if}
+        {#if isRec() && r.status === 'new'}<div class="row u-6491f85"><button class="btn sm grad" onclick={() => accept(r.id)}>{ht('hAccept')}</button><button class="btn sm danger" onclick={() => (declining = r.id)}>{ht('hDecline')}</button></div>{/if}
       </article>
     {/each}
   </div>
@@ -50,7 +50,7 @@
           {:else}<input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} bind:value={data[f.key]} required={f.required} />{/if}</label>
       {/each}
       {#if err}<p class="alert">{err}</p>{/if}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (creating = false)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSubmit')}</button></div>
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (creating = false)}>{ht('hCancel')}</button><button class="btn grad">{ht('hSubmit')}</button></div>
     </form>
   </Modal>
 {/if}
@@ -60,7 +60,7 @@
     <form class="stack" onsubmit={decline}>
       <h2>{ht('hDecline')}</h2>
       <label class="f">{ht('hComment')}<textarea bind:value={note} maxlength="500"></textarea></label>
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (declining = null)}>{ht('hCancel')}</button><button class="btn danger">{ht('hDecline')}</button></div>
+      <div class="row u-455f8cc"><button type="button" class="btn" onclick={() => (declining = null)}>{ht('hCancel')}</button><button class="btn danger">{ht('hDecline')}</button></div>
     </form>
   </Modal>
 {/if}

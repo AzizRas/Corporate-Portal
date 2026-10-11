@@ -37,7 +37,7 @@
         {#if me.ai}<span class="chip tr-chip-ai">✦ {tt('ai_on')}</span>{:else}<span class="chip" title={tt('ai_off_note')}>{tt('ai_off')}</span>{/if}
       </div>
     </div>
-    <div class="tr-bar" role="progressbar" aria-valuenow={pr.pct} aria-valuemin="0" aria-valuemax="100"><i style="width:{pr.pct}%"></i></div>
+    <div class="tr-bar" role="progressbar" aria-valuenow={pr.pct} aria-valuemin="0" aria-valuemax="100"><i style:width={`${pr.pct}%`}></i></div>
     {#if en.cleared_at && en.cleared_by}<p class="muted small">{tt('cleared_by', { name: en.cleared_by })}</p>
     {:else if en.recommended_at && en.recommended_by}<p class="muted small">{tt('recommended_by', { name: en.recommended_by })}</p>{/if}
     {#if !me.ai}<p class="muted xs">{tt('ai_off')} · {tt('ai_off_note')}</p>{/if}
@@ -77,7 +77,7 @@
           <h3>{tt('day', { n: d.day })}</h3>
           <span class="muted small">{s.done}/{s.total}</span>
         </header>
-        <div class="tr-bar sm"><i style="width:{s.total ? (s.done / s.total) * 100 : 0}%"></i></div>
+        <div class="tr-bar sm"><i style:width={`${s.total ? (s.done / s.total) * 100 : 0}%`}></i></div>
         <ul>
           {#each d.lessons as l}
             <li>

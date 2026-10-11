@@ -95,5 +95,5 @@ export function tt(key: string, vars?: Record<string, string | number>): string 
 /** Локализованное поле {base}_ru / {base}_uz с запасным русским. */
 export const lf = (o: Record<string, any> | null | undefined, base: string): string => (o ? (app.lang === 'uz' && o[`${base}_uz`]) || o[`${base}_ru`] || '' : '');
 export const tkind = (k: string) => tt(`k_${k}`);
-export const KIND_ICON: Record<string, string> = { read: '📖', video: '▶', task: '✎', quiz: '?', scenario: '💬', practice: '☎', exam: '★' };
+export const KIND_ICON: Record<string, string> = { read: '≡', video: '▶', task: '✎', quiz: '?', scenario: '“”', practice: '☎', exam: '★' };
 export const verdictLabel = (v: string | null | undefined) => (v ? tt(`verdict_${v}`) : '');

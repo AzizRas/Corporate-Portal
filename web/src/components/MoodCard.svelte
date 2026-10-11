@@ -27,8 +27,8 @@
           <button type="button" class="mood-btn" class:on={score === i + 1} disabled={busy} title={at('md_' + (i + 1))} aria-label={at('md_' + (i + 1))} aria-pressed={score === i + 1} onclick={() => pick(i + 1)}>{f}</button>
         {/each}
       </div>
-      {#if err}<div class="alert" style="margin-top:10px">{at('md_err')}</div>{/if}
-      <p class="muted xs" style="margin-top:12px">{at('md_privacy')}</p>
+      {#if err}<div class="alert u-d2c171b">{at('md_err')}</div>{/if}
+      <p class="muted xs u-56f4356">{at('md_privacy')}</p>
     </section>
   {/if}
 {/if}

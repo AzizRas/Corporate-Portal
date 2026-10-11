@@ -1,7 +1,6 @@
+import { deleteFile, getFile, putFile } from '../storage.js';
 import type { FastifyInstance } from 'fastify';
 import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { q } from '../db.js';
 import { config } from '../config.js';
@@ -39,7 +38,7 @@ export async function cleanupPhotos() {
         AND (m.at < now() - make_interval(days => COALESCE(s.photo_days, g.photo_days, 30)) OR NOT u.active)`,
   );
   for (const m of r.rows) {
-    await fs.rm(path.join(config.uploadDir, m.photo_path), { force: true });
+    await deleteFile(m.photo_path);
     await q('UPDATE attendance_marks SET photo_deleted_at=now() WHERE id=$1', [m.id]);
   }
   if (r.rows.length) await q(`INSERT INTO audit_log(action,target,meta) VALUES('photos_deleted',NULL,$1)`, [JSON.stringify({ count: r.rows.length })]);
@@ -102,8 +101,7 @@ export async function attendanceRoutes(app: FastifyInstance) {
       const m = /^data:image\/jpeg;base64,(.+)$/.exec(String(b.photo ?? ''));
       if (m && m[1].length < 1_500_000) {
         const rel = `selfie/${today}/${u.id}-${now.getTime()}.jpg`;
-        await fs.mkdir(path.dirname(path.join(config.uploadDir, rel)), { recursive: true });
-        await fs.writeFile(path.join(config.uploadDir, rel), Buffer.from(m[1], 'base64'));
+        await putFile(rel, Buffer.from(m[1], 'base64'), 'image/jpeg');
         photoPath = rel; methods.push('selfie');
       } else problems.push('selfie_missing');
     }
@@ -164,7 +162,9 @@ export async function attendanceRoutes(app: FastifyInstance) {
     if (!hasRole(req.user, 'hr') && !(await teamIds(req.user!)).includes(m.user_id)) return reply.code(403).send({ error: 'forbidden' });
     await audit(req, 'photo_view', String(m.user_id));
     reply.header('content-type', 'image/jpeg').header('cache-control', 'private, no-store');
-    return reply.send(await fs.readFile(path.join(config.uploadDir, m.photo_path)));
+    const photo = await getFile(m.photo_path).catch(() => null);
+    if (!photo) return reply.code(404).send({ error: 'not_found' });
+    return reply.send(photo);
   });
 
   app.get('/api/attendance/export', { preHandler: requireRole('accountant', 'hr', 'admin') }, async (req, reply) => {

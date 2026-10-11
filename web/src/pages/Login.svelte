@@ -15,10 +15,10 @@
 
 <div class="center-screen">
   <form class="card login-box stack" onsubmit={submit}>
-    <div class="row"><div class="logo" style="padding:0"><i></i>Qadam</div><span class="sp"></span><ThemeToggle /></div>
-    <div><h2 style="font-size:24px">{t('login_title')}</h2><p class="muted small" style="margin-top:4px">{t('login_sub')}</p></div>
-    <label class="f" style="margin:0">{t('login_id')}<input bind:value={login} autocomplete="username" required /></label>
-    <label class="f" style="margin:0">{t('login_pw')}<input type="password" bind:value={password} autocomplete="current-password" required /></label>
+    <div class="row"><div class="logo u-41d7d7e"><i></i>Qadam</div><span class="sp"></span><ThemeToggle /></div>
+    <div><h2 class="u-81351bd">{t('login_title')}</h2><p class="muted small u-96ad609">{t('login_sub')}</p></div>
+    <label class="f u-1169661">{t('login_id')}<input bind:value={login} autocomplete="username" required /></label>
+    <label class="f u-1169661">{t('login_pw')}<input type="password" bind:value={password} autocomplete="current-password" required /></label>
     {#if err}<div class="alert">{err}</div>{/if}
     <button class="btn grad block" disabled={busy}>{t('login_btn')}</button>
   </form>

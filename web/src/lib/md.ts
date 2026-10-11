@@ -16,7 +16,7 @@ function inline(s: string) {
   return esc(s)
     .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, a, u) => {
       const url = u.replace(/&amp;/g, '&');
-      return ownImage(url, ORIGIN) ? `<img alt="${a}" src="${safeUrl(url)}" loading="lazy">` : `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer">🖼 ${a || 'изображение'}</a>`;
+      return ownImage(url, ORIGIN) ? `<img alt="${a}" src="${safeUrl(url)}" loading="lazy">` : `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer">[${a || 'изображение'}]</a>`;
     })
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, t, u) => `<a href="${safeUrl(u.replace(/&amp;/g, '&'))}" target="_blank" rel="noopener noreferrer">${t}</a>`)
     .replace(/`([^`]+)`/g, '<code>$1</code>')

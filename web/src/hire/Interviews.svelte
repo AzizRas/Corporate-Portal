@@ -81,13 +81,13 @@
 </script>
 
 <div class="cbar">
-  <div class="row" style="gap:6px">
+  <div class="row u-f0abc1d">
     <button class="btn sm" onclick={() => shift(-1)} aria-label="←">←</button>
     <button class="btn sm" onclick={goToday}>{ht('cToday')}</button>
     <button class="btn sm" onclick={() => shift(1)} aria-label="→">→</button>
     <h2 class="ttl">{title}</h2>
   </div>
-  <div class="row wrap" style="gap:12px">
+  <div class="row wrap u-ed7b3d8">
     {#if isRec()}<label class="row chk2"><input type="checkbox" bind:checked={mine} /> {ht('hMine')}</label>{/if}
     <div class="seg" role="group"><button type="button" class:on={mode === 'month'} onclick={() => setMode('month')}>{ht('cMonth')}</button><button type="button" class:on={mode === 'week'} onclick={() => setMode('week')}>{ht('cWeek')}</button><button type="button" class:on={mode === 'list'} onclick={() => setMode('list')}>{ht('cAgenda')}</button></div>
   </div>
@@ -114,7 +114,7 @@
       <button type="button" class="ev" class:cancelled={e.status === 'cancelled'} onclick={() => (openEv = e)}>
         <span class="tm">{hhmm(e)}<small>{endAt(e)}</small></span>
         <span class="ei"><b>{nm(e)}</b><span class="muted small">{e.vacancy_title}</span>
-          <span class="row wrap" style="gap:6px">{#each e.people as p}<span class="who {p.kind}">{p.name} · {kindLabel(p.kind)}</span>{/each}</span></span>
+          <span class="row wrap u-f0abc1d">{#each e.people as p}<span class="who {p.kind}">{p.name} · {kindLabel(p.kind)}</span>{/each}</span></span>
       </button>
     {:else}<p class="muted">{ht('cNoEv')}</p>{/each}
   </section>
@@ -136,17 +136,17 @@
   </div>
 {:else}
   {#each listDays as d}
-    <section class="card" style="margin-bottom:12px">
-      <h3 class="card-title" style="margin-bottom:6px">{fmtDay(d, { weekday: 'long', day: 'numeric', month: 'long' })}{d === today ? ` · ${ht('cToday')}` : ''}</h3>
+    <section class="card u-da12f28">
+      <h3 class="card-title u-4e420af">{fmtDay(d, { weekday: 'long', day: 'numeric', month: 'long' })}{d === today ? ` · ${ht('cToday')}` : ''}</h3>
       {#each byDay[d].slice().sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at)) as e (e.id)}
         <button type="button" class="ev" class:cancelled={e.status === 'cancelled'} onclick={() => (openEv = e)}>
           <span class="tm">{hhmm(e)}<small>{endAt(e)}</small></span>
           <span class="ei"><b>{nm(e)}</b><span class="muted small">{e.vacancy_title}{e.place ? ` · ${e.place}` : ''}</span>
-            <span class="row wrap" style="gap:6px">{#each e.people as p}<span class="who {p.kind}">{p.name} · {kindLabel(p.kind)}</span>{/each}</span></span>
+            <span class="row wrap u-f0abc1d">{#each e.people as p}<span class="who {p.kind}">{p.name} · {kindLabel(p.kind)}</span>{/each}</span></span>
         </button>
       {/each}
     </section>
-  {:else}{#if !loading}<section class="card" style="text-align:center;padding:40px 20px"><p class="muted">{ht('cNoEv')}</p></section>{/if}{/each}
+  {:else}{#if !loading}<section class="card u-a4c941d"><p class="muted">{ht('cNoEv')}</p></section>{/if}{/each}
 {/if}
 
 {#if openEv}
@@ -154,17 +154,17 @@
   <div class="modal-back" role="presentation" onclick={(ev) => { if (ev.target === ev.currentTarget) openEv = null; }} onkeydown={(ev) => { if (ev.key === 'Escape') openEv = null; }}>
     <div class="modal" role="dialog" aria-modal="true" aria-label={nm(e)}>
       <div class="stack">
-        <div><h2 style="margin-bottom:2px">{nm(e)}</h2><p class="muted">{e.position || e.vacancy_title}</p></div>
+        <div><h2 class="u-227f2db">{nm(e)}</h2><p class="muted">{e.position || e.vacancy_title}</p></div>
         <dl>
           <dt>{ht('hInterview')}</dt><dd>{fmtDT(e.starts_at)} — {endAt(e)} ({e.duration_min} {ht('cDur')})</dd>
           <dt>{ht('hVac')}</dt><dd><a href={`#/hire/v/${e.vacancy_id}`}>{e.vacancy_title}</a></dd>
-          <dt>{ht('cWho')}</dt><dd class="row wrap" style="gap:6px">{#each e.people as p}<span class="who {p.kind}">{p.name} · {kindLabel(p.kind)}</span>{/each}</dd>
+          <dt>{ht('cWho')}</dt><dd class="row wrap u-f0abc1d">{#each e.people as p}<span class="who {p.kind}">{p.name} · {kindLabel(p.kind)}</span>{/each}</dd>
           {#if e.place}<dt>{ht('hPlace')}</dt><dd>{e.place}</dd>{/if}
           {#if e.link}<dt>{ht('cOpenLink')}</dt><dd><a href={e.link} target="_blank" rel="noopener noreferrer">{e.link}</a></dd>{/if}
           {#if e.note}<dt>{ht('hNote')}</dt><dd>{e.note}</dd>{/if}
           <dt>{ht('hStatusF')}</dt><dd>{stLabel(e.status)}</dd>
         </dl>
-        <div class="row wrap" style="justify-content:flex-end;gap:8px">
+        <div class="row wrap u-76b9986">
           {#if isRec()}
             {#if e.status === 'planned'}<button class="btn sm grad" onclick={() => mark(e, 'done')}>{ht('cMarkDone')}</button><button class="btn sm danger" onclick={() => mark(e, 'cancelled')}>{ht('cMarkCancel')}</button>
             {:else}<button class="btn sm" onclick={() => mark(e, 'planned')}>{ht('cMarkBack')}</button>{/if}

@@ -26,17 +26,17 @@
       <h3 class="card-title">Доступ к разделам по подразделениям</h3>
       <p class="muted small">Профиль определяется ролью (бухгалтерия, HR, рекрутер), иначе подразделением сотрудника. Админ видит всё. Найм открыт ролям HR, рекрутер, супервайзер и руководитель отдела независимо от этой таблицы.</p>
     </div>
-    <div style="overflow-x:auto">
+    <div class="u-0ddf068">
       <table class="table">
-        <thead><tr><th>Раздел</th>{#each d.profiles as p}<th style="text-align:center">{PROF[p]}</th>{/each}</tr></thead>
+        <thead><tr><th>Раздел</th>{#each d.profiles as p}<th class="u-91a8701">{PROF[p]}</th>{/each}</tr></thead>
         <tbody>
           {#each d.sections as s}
             <tr><td>{SEC[s]}{#if d.server_closed?.includes(s)} <span class="muted xs">· закрыт и на сервере</span>{/if}{#if LOCKED.includes(s)} <span class="muted xs">· открыт всем, обучение и обязательные тесты</span>{/if}</td>
-              {#each d.profiles as p}<td style="text-align:center"><input type="checkbox" aria-label={`${SEC[s]}: ${PROF[p]}`} checked={on(p, s) || LOCKED.includes(s)} disabled={LOCKED.includes(s)} onchange={() => toggle(p, s)} /></td>{/each}</tr>
+              {#each d.profiles as p}<td class="u-91a8701"><input type="checkbox" aria-label={`${SEC[s]}: ${PROF[p]}`} checked={on(p, s) || LOCKED.includes(s)} disabled={LOCKED.includes(s)} onchange={() => toggle(p, s)} /></td>{/each}</tr>
           {/each}
         </tbody>
       </table>
     </div>
-    <div class="row wrap" style="gap:10px"><button class="btn grad" disabled={busy} onclick={save}>Сохранить</button><button class="btn" onclick={reset}>По умолчанию</button>{#if msg}<span class="small" class:pill-ok={!bad} class:pill-bad={bad}>{msg}</span>{/if}</div>
+    <div class="row wrap u-f3d7ce7"><button class="btn grad" disabled={busy} onclick={save}>Сохранить</button><button class="btn" onclick={reset}>По умолчанию</button>{#if msg}<span class="small" class:pill-ok={!bad} class:pill-bad={bad}>{msg}</span>{/if}</div>
   </section>
 {/if}

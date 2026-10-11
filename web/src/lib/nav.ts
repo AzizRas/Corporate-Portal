@@ -2,7 +2,7 @@
 import { app, has, can } from './state.svelte';
 import { st } from './s18n';
 import { wt } from './w18n';
-import { pickLanding, normPath } from './nav-core';
+import { pickLanding, normPath, buildHubs, HUBS, PROFILE_HUB, type Hub } from './nav-core';
 
 export interface NavItem { id: string; label: string; href: string; icon: string; badge?: number; section?: string }
 export interface NavGroup { id: string; label: string; icon: string; items: NavItem[] }
@@ -77,3 +77,17 @@ export function activeItem(groups: NavGroup[], route: string): { group: string; 
   }
   return best;
 }
+
+/** Разделы боковой колонки и вкладок (7 пунктов первого уровня). Видимость и бейджи те же, что у navGroups. */
+export function navHubs(chatBadge = 0): Hub[] {
+  const items = navGroups(chatBadge).flatMap((g) => g.items);
+  return buildHubs(items, HUBS);
+}
+/** Раздел «Профиль» (ЗП, настройки): в боковое меню не входит, но вкладки на его страницах нужны. */
+export function profileHub(chatBadge = 0): Hub | null {
+  return buildHubs(navGroups(chatBadge).flatMap((g) => g.items), [PROFILE_HUB])[0] ?? null;
+}
+
+/** Названия разделов меню на языке пользователя. */
+export const hubLabel = (id: string): string =>
+  ({ home: st('n_home'), chat: st('n_chat'), know: wt('g_know'), learn: wt('g_learn'), grow: st('n_growth'), work: wt('g_work'), manage: wt('g_manage'), profile: wt('g_profile') } as Record<string, string>)[id] ?? id;

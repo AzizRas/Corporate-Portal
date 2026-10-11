@@ -33,9 +33,9 @@
   {#if consent !== 'given'}<p class="alert">{ht('aiConsent')}</p>{/if}
   {#if !open.length}<p class="muted small">{ht('aiNoVac')}</p>
   {:else}
-    <div class="row wrap" style="gap:8px">
-      {#if open.length > 1}<select bind:value={pid} aria-label={ht('aiFor')} style="width:auto"><option value={0}>{ht('aiFor')}: {open[0].vacancy_title}</option>{#each open.slice(1) as p}<option value={p.id}>{p.vacancy_title}</option>{/each}</select>
-      {:else}<span class="muted small">{ht('aiFor')}: <b style="color:var(--text)">{open[0].vacancy_title}</b></span>{/if}
+    <div class="row wrap u-33fcd4c">
+      {#if open.length > 1}<select class="u-30e741d" bind:value={pid} aria-label={ht('aiFor')}><option value={0}>{ht('aiFor')}: {open[0].vacancy_title}</option>{#each open.slice(1) as p}<option value={p.id}>{p.vacancy_title}</option>{/each}</select>
+      {:else}<span class="muted small">{ht('aiFor')}: <b class="u-f045bbe">{open[0].vacancy_title}</b></span>{/if}
       <button type="button" class="btn sm grad" disabled={busy || !aiOn || !hasResume} onclick={run}>{busy ? ht('aiWait') : last ? ht('aiAgain') : ht('aiRun')}</button>
     </div>
     {#if !aiOn}<p class="muted small">{ht('aiOff')}{aiReason ? `: ${ht(`aiOff_${aiReason}`)}` : ''}</p>{:else if !hasResume}<p class="muted small">{ht('aiNoResume')}</p>{/if}
@@ -54,7 +54,7 @@
         {#if res.risks?.length}<div><h4>{ht('aiRisks')}</h4><ul>{#each res.risks as x}<li>{x}</li>{/each}</ul></div>{/if}
       </div>
       {#if res.questions?.length}<div><h4>{ht('aiQs')}</h4><ol>{#each res.questions as x}<li>{x}</li>{/each}</ol></div>{/if}
-      <div class="row wrap" style="gap:8px;align-items:center">
+      <div class="row wrap u-1ecd9eb">
         <button type="button" class="btn sm" onclick={note}>{ht('aiNote')}</button>
         <span class="muted xs">{fmtDT(last.created_at)}{last.by_name ? ` · ${last.by_name}` : ''}</span>
       </div>

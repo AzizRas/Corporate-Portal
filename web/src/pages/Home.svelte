@@ -36,13 +36,13 @@
 <Checklist />
 <MoodCard />
 
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
-  <a class="card hl" href="#/schedule" style="text-decoration:none;color:inherit">
+<div class="grid u-3115482">
+  <a class="card hl u-38b741b" href="#/schedule">
     <div class="card-head"><h3>{st('n_schedule')}</h3><span class="aside">{t('att_today')}</span></div>
     {#if sched}
       {@const td = sched.days.find((d: any) => d.day === sched.today)}
-      <div class="big-num" style="font-size:clamp(26px,3vw,40px)">{td?.kind === 'work' ? `${td.shift_start}–${td.shift_end}` : st('s_off')}</div>
-      <p style="margin-top:14px;color:var(--accent-ink);font-weight:700">{st('s_title')} →</p>
+      <div class="big-num u-c7e198e">{td?.kind === 'work' ? `${td.shift_start}–${td.shift_end}` : st('s_off')}</div>
+      <p class="u-35deb46">{st('s_title')} →</p>
     {:else if fail.sched}<ErrorState error={fail.sched} retry={loadSched} />
     {:else}<Skeleton lines={2} />{/if}
   </a>
@@ -50,8 +50,8 @@
   <section class="card">
     <div class="card-head"><h3>{t('home_pay')}</h3>{#if last}<span class="aside">{monthLong(last.month)}</span>{/if}</div>
     {#if last}
-      <div class="big-num" style="font-size:clamp(28px,3vw,44px)">{fmtSum(last.data.total)}</div><p class="muted small" style="margin-top:6px">{t('pay_net')}</p>
-      <a href="#/profile/pay" style="display:inline-block;margin-top:14px;font-weight:700">{t('nav_pay')} →</a>
+      <div class="big-num u-7fa2d86">{fmtSum(last.data.total)}</div><p class="muted small u-fe7b497">{t('pay_net')}</p>
+      <a class="u-6bf6cab" href="#/profile/pay">{t('nav_pay')} →</a>
     {:else if fail.pay}<ErrorState error={fail.pay} retry={loadPay} />
     {:else if !done.pay}<Skeleton lines={2} />
     {:else}<EmptyState title={t('pay_none')} />{/if}
@@ -68,8 +68,8 @@
   {#if can('path') || can('growth')}<section class="card">
     <div class="card-head"><h3>{t('home_path')}</h3></div>
     {#if path}
-      <div class="row" style="gap:18px"><div class="mini" style="width:120px"><Ring pct={path.readiness} /></div>
-        <div><a href="#/path" style="font-weight:700">{t('nav_path')} →</a><p class="muted small" style="margin-top:6px">{t('path_threshold')} {path.threshold}%</p></div></div>
+      <div class="row u-6857c69"><div class="mini u-465bfea"><Ring pct={path.readiness} /></div>
+        <div><a class="u-e3ec02a" href="#/path">{t('nav_path')} →</a><p class="muted small u-fe7b497">{t('path_threshold')} {path.threshold}%</p></div></div>
     {:else if fail.path}<ErrorState error={fail.path} retry={loadPath} />
     {:else}<Skeleton lines={2} />{/if}
   </section>{/if}
@@ -79,9 +79,9 @@
     <form class="stack" onsubmit={search}><input type="search" placeholder={t('home_kb_ph')} bind:value={q} /><button class="btn">{t('search')}</button></form>
   </section>{/if}
 
-  {#if can('assist')}<a class="card hl" href="#/assist" style="text-decoration:none;color:inherit">
+  {#if can('assist')}<a class="card hl u-38b741b" href="#/assist">
     <div class="card-head"><h3>{t('home_assist')}</h3></div>
-    <p style="font-size:18px;font-weight:700">{t('home_assist_sub')}</p>
-    <p style="margin-top:14px;color:var(--accent-ink);font-weight:700">{t('open')} →</p>
+    <p class="u-d98b42f">{t('home_assist_sub')}</p>
+    <p class="u-35deb46">{t('open')} →</p>
   </a>{/if}
 </div>
