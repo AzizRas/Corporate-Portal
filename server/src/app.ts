@@ -1,3 +1,4 @@
+import { hireOnboardRoutes } from './modules/hire-onboard.js';
 import { teamRoutes } from './modules/team.js';
 import { storageKind } from './storage.js';
 import { hrRequestRoutes } from './modules/hr-requests.js';
@@ -79,6 +80,7 @@ export async function buildApp() {
 
   await app.register(pushRoutes);
   await app.register(teamRoutes);
+  await app.register(hireOnboardRoutes);
   await app.register(hrRequestRoutes);
   await app.register(authRoutes);
   await app.register(usersRoutes);

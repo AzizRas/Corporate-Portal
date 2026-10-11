@@ -24,3 +24,7 @@
 .hr-g .dy.we { opacity: .55; }
 .hr-gantt .dy.pending { background: repeating-linear-gradient(45deg, #60a5fa 0 4px, #bfdbfe 4px 8px); }
 .hr-gantt .dy.clash { outline: 2px solid #ef4444; outline-offset: -2px; }
+.hr-bar { display: grid; grid-template-columns: 70px 1fr 34px 1fr 34px; gap: 6px; align-items: center; font-size: 12px; }
+.hr-bar i { display: block; height: 10px; border-radius: 5px; min-width: 2px; }
+.hr-bar i.in { background: #22c55e; }
+.hr-bar i.out { background: #ef4444; }

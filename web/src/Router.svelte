@@ -23,6 +23,7 @@
   const reportsLoader = () => import('./pages/Reports.svelte');
   const teamLoader = () => import('./pages/Team.svelte');
   const leavesLoader = () => import('./pages/LeavesCalendar.svelte');
+  const hrLoader = () => import('./pages/HrHub.svelte');
   const tasksLoader = () => import('./team/Tasks.svelte');
   const pathLoader = () => import('./pages/Path.svelte');
   const attLoader = () => import('./pages/Attendance.svelte');
@@ -166,6 +167,12 @@
     {/await}
   {:else if head === 'more'}
     {#await moreLoader()}
+      <span class="spin"></span>
+    {:then m}
+      <m.default />
+    {/await}
+  {:else if head === 'hr' && (lead() || has('hr'))}
+    {#await hrLoader()}
       <span class="spin"></span>
     {:then m}
       <m.default />

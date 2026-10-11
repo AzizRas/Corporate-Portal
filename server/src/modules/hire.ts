@@ -1,3 +1,4 @@
+import { orgNodes, pathName } from '../org-core.js';
 import crypto from 'node:crypto';
 // Найм: вакансии, воронка по этапам, кандидаты, заявки руководителей, встречи, офферы, отчёты.
 // Права: рекрутер = роль recruiter или hr (и admin), заказчик = manager или head.
@@ -204,6 +205,7 @@ export async function hireRoutes(app: FastifyInstance) {
       team: (await q(`SELECT DISTINCT u.id,u.name,u.position_code FROM users u JOIN user_roles r ON r.user_id=u.id AND r.role IN ('hr','recruiter','manager','head','admin') WHERE u.active ORDER BY u.name`)).rows,
       positions: Object.entries(POSITIONS).map(([code, p]) => ({ code, ru: p.ru, uz: p.uz })),
       departments: (await q('SELECT id,name_ru,name_uz FROM departments ORDER BY id')).rows,
+      nodes: await (async () => { const all = await orgNodes(); return all.filter((n) => !n.archived && n.kind !== 'root').map((n) => ({ id: n.id, name: pathName(all, n.id) })); })(),
       settings: { tz: cal.tz, workdays: [...cal.days], hm_contacts: cal.hmContacts },
     };
   });
@@ -297,8 +299,8 @@ export async function hireRoutes(app: FastifyInstance) {
     const pos = S(b.position_code, 10) || null;
     if (pos && !POSITIONS[pos]) return err(reply, 400, 'invalid');
     const id = await tx(async (c) => {
-      const r = await c.query(`INSERT INTO hire_vacancies(title,dept_id,position_code,description,quota,owner_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [title, I(b.dept_id) || null, pos, S(b.description, 5000), Math.max(1, I(b.quota) || 1), req.user!.id]);
+      const r = await c.query(`INSERT INTO hire_vacancies(title,dept_id,position_code,description,quota,owner_id,node_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [title, I(b.dept_id) || null, pos, S(b.description, 5000), Math.max(1, I(b.quota) || 1), req.user!.id, I(b.node_id) || null]);
       await c.query(`INSERT INTO hire_vacancy_members(vacancy_id,user_id,role) VALUES($1,$2,'recruiter')`, [r.rows[0].id, req.user!.id]);
       await stateLog(c, r.rows[0].id, 'open', req.user!.id);
       return r.rows[0].id as number;
@@ -335,8 +337,8 @@ export async function hireRoutes(app: FastifyInstance) {
     const b = (req.body ?? {}) as any;
     const pos = b.position_code === undefined ? v.position_code : (S(b.position_code, 10) || null);
     if (pos && !POSITIONS[pos]) return err(reply, 400, 'invalid');
-    const r = await q(`UPDATE hire_vacancies SET title=$1,dept_id=$2,position_code=$3,description=$4,quota=$5,updated_at=now() WHERE id=$6 RETURNING *`,
-      [S(b.title, 120) || v.title, b.dept_id === undefined ? v.dept_id : (I(b.dept_id) || null), pos, b.description === undefined ? v.description : S(b.description, 5000), Math.max(1, I(b.quota) || v.quota), v.id]);
+    const r = await q(`UPDATE hire_vacancies SET title=$1,dept_id=$2,position_code=$3,description=$4,quota=$5,node_id=$7,updated_at=now() WHERE id=$6 RETURNING *`,
+      [S(b.title, 120) || v.title, b.dept_id === undefined ? v.dept_id : (I(b.dept_id) || null), pos, b.description === undefined ? v.description : S(b.description, 5000), Math.max(1, I(b.quota) || v.quota), v.id, b.node_id === undefined ? v.node_id : (I(b.node_id) || null)]);
     return { vacancy: r.rows[0] };
   });
   app.post('/api/hire/vacancies/:id/state', R_ONLY, async (req, reply) => {
@@ -402,7 +404,9 @@ export async function hireRoutes(app: FastifyInstance) {
       if (f.required && (v === undefined || v === null || String(v).trim() === '')) return err(reply, 400, 'invalid', { field: f.key });
       if (v !== undefined) clean[f.key] = f.type === 'number' ? Number(v) : S(v, 2000);
     }
-    const r = await q('INSERT INTO hire_requests(requester_id,data) VALUES($1,$2) RETURNING *', [req.user!.id, JSON.stringify(clean)]);
+    // узел, куда нужен человек: указан в заявке или первый узел, которым руководит автор
+    const node = I((req.body as any)?.node_id) || (await q('SELECT id FROM org_nodes WHERE head_user_id=$1 AND NOT archived ORDER BY id LIMIT 1', [req.user!.id])).rows[0]?.id || null;
+    const r = await q('INSERT INTO hire_requests(requester_id,data,node_id) VALUES($1,$2,$3) RETURNING *', [req.user!.id, JSON.stringify(clean), node]);
     const recs = (await q(`SELECT DISTINCT user_id FROM user_roles WHERE role IN ('hr','recruiter','admin')`)).rows.map((x) => x.user_id as number);
     await notify(recs, 'hire', `📋 Заявка на подбор: ${S(clean.title, 80)}`, `От: ${req.user!.name}`, '#/hire/req');
     return { request: r.rows[0] };
@@ -414,8 +418,8 @@ export async function hireRoutes(app: FastifyInstance) {
     const d = rq.data as Record<string, any>, b = (req.body ?? {}) as any, me = req.user!;
     const pos = S(b.position_code, 10) || null;
     const vid = await tx(async (c) => {
-      const v = await c.query(`INSERT INTO hire_vacancies(title,dept_id,position_code,description,quota,owner_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [S(b.title || d.title, 120) || `Заявка №${rq.id}`, I(b.dept_id) || null, pos && POSITIONS[pos] ? pos : null, S(d.description, 5000), Math.max(1, I(d.quota) || 1), me.id]);
+      const v = await c.query(`INSERT INTO hire_vacancies(title,dept_id,position_code,description,quota,owner_id,node_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        [S(b.title || d.title, 120) || `Заявка №${rq.id}`, I(b.dept_id) || null, pos && POSITIONS[pos] ? pos : null, S(d.description, 5000), Math.max(1, I(d.quota) || 1), me.id, I(b.node_id) || rq.node_id || null]);
       await c.query(`INSERT INTO hire_vacancy_members(vacancy_id,user_id,role) VALUES($1,$2,'recruiter')`, [v.rows[0].id, me.id]);
       if (rq.requester_id !== me.id) await c.query(`INSERT INTO hire_vacancy_members(vacancy_id,user_id,role) VALUES($1,$2,'hm')`, [v.rows[0].id, rq.requester_id]);
       await stateLog(c, v.rows[0].id, 'open', me.id);

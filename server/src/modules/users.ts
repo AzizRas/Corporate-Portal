@@ -11,14 +11,14 @@ import { NAME_HEADERS, cellVal, findCol, findHeader, norm, normName } from './pa
 const TR: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o',
   п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'x', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o', қ: 'q', ғ: 'g', ҳ: 'h' };
 // «Косимжонов Даврон» → kosimjonov.davron
-const loginFrom = (name: string) =>
+export const loginFrom = (name: string) =>
   normName(name).split(' ').filter(Boolean).slice(0, 2).map((w) => [...w].map((c) => TR[c] ?? c).join('').replace(/[^a-z0-9]/g, '')).filter(Boolean).join('.') || 'user';
-const simplePassword = () => String(crypto.randomInt(100000, 1000000));   // 6 цифр; при первом входе сотрудник задаёт свой
+export const simplePassword = () => String(crypto.randomInt(100000, 1000000));   // 6 цифр; при первом входе сотрудник задаёт свой
 const POSITION: Record<string, { code: string; roles: string[] }> = {
   'оператор': { code: 'op', roles: ['employee'] }, 'старший оператор': { code: 'sr', roles: ['employee', 'senior'] },
   'супервайзер': { code: 'sv', roles: ['employee', 'manager'] }, 'кладовщик': { code: 'wh', roles: ['employee'] }, 'мастер': { code: 'ex', roles: ['employee'] },
 };
-const positionInfo = (pos: string) => {
+export const positionInfo = (pos: string) => {
   const p = normName(pos);
   if (POSITION[p]) return POSITION[p];
   if (p.startsWith('руководитель')) return { code: 'hd', roles: ['employee', 'manager', 'head'] };

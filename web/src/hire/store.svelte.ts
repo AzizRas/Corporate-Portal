@@ -6,7 +6,7 @@ import { ht, hg } from './h18n';
 export interface Meta {
   role: 'admin' | 'recruiter' | 'hm' | 'none';
   statuses: any[]; reasons: any[]; sources: any[]; tags: any[]; fields: any[]; templates: any[]; holidays: any[]; team: any[];
-  positions: { code: string; ru: string; uz: string }[]; departments: any[];
+  positions: { code: string; ru: string; uz: string }[]; departments: any[]; nodes?: { id: number; name: string }[];
   settings: { tz: string; workdays: number[]; hm_contacts: boolean };
 }
 
