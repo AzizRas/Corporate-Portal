@@ -7,6 +7,7 @@ import { hasRole, type AuthUser } from './auth.js';
 import { flagsOf, mayHearSignal, panelScope } from './modules/ai-analyst.js';
 import { signalOf, workStats, type WorkStats } from './ai-context.js';
 import { orgNodes, pathName } from './org-core.js';
+import { decide, decideAvailable } from './ai-decide.js';
 
 export type Intent = 'kb' | 'self' | 'person' | 'team' | 'denied';
 export interface Fact {
@@ -56,7 +57,18 @@ function tagsOf(s: WorkStats, avg: number, signals: boolean): string[] {
 /** Разбирает последние реплики оператора и собирает данные платформы в пределах его прав. */
 export async function buildPlatform(u: AuthUser, history: string[]): Promise<Platform> {
   const last = history[history.length - 1] ?? '';
-  const wantData = DATA_RE.test(last), pron = PRON_RE.test(last);
+  let wantData = DATA_RE.test(last);
+  const pron = PRON_RE.test(last);
+  // намерение — моделью решений (Jev), если она подключена: регулярные выражения плохо понимают узбекский и перефразировки
+  let jevTopic: string | null = null;
+  if (await decideAvailable('intent')) {
+    const d = await decide('intent', last, {
+      topic: { type: 'choice', instructions: 'О чём спрашивает сотрудник?', criteria: { self: 'о себе: моё обучение, мои тесты, мой график, мой рост', team: 'о своей команде или подчинённых', person: 'о конкретном коллеге по имени', kb: 'общий вопрос о работе, продукте, правилах' } },
+      data: { type: 'noul', instructions: 'Для ответа нужны личные данные сотрудников (обучение, тесты, активность, настроение, график)?' },
+    });
+    if (d?.data && d.data.confidence >= 0.6) wantData = !!d.data.yes;
+    if (d?.topic && d.topic.confidence >= 0.6) jevTopic = d.topic.choice ?? null;
+  }
   const people = (await q(`SELECT id,name,position,node_id,manager_id FROM users WHERE active AND employment<>'dismissed' LIMIT 3000`)).rows;
   const nodes = await orgNodes();
   const byId = new Map<number, any>(people.map((p) => [p.id, p]));
@@ -86,9 +98,9 @@ export async function buildPlatform(u: AuthUser, history: string[]): Promise<Pla
   if (named.size && wantData) {
     const ok = [...named.keys()].filter(may).slice(0, 5);
     if (ok.length) { intent = 'person'; ids = ok; } else intent = 'denied';
-  } else if (TEAM_RE.test(last) && wantData && !SELF_RE.test(last)) {
+  } else if ((jevTopic ? jevTopic === 'team' : TEAM_RE.test(last) && !SELF_RE.test(last)) && wantData) {
     if (scope?.length || wide) { intent = 'team'; ids = scope ?? []; } else intent = 'denied';
-  } else if (wantData && SELF_RE.test(last)) { intent = 'self'; ids = [u.id]; }
+  } else if (wantData && (jevTopic ? jevTopic === 'self' : SELF_RE.test(last))) { intent = 'self'; ids = [u.id]; }
   else if (wantData && pron && named.size === 0 && history.length > 1) {
     const prev = history.slice(0, -1).join(' ');
     if (SELF_RE.test(prev) && !TEAM_RE.test(prev)) { intent = 'self'; ids = [u.id]; }

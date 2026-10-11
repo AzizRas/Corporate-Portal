@@ -11,6 +11,7 @@ import { externalRootOf, orgHooks, orgNodes, subtreeIds } from '../org-core.js';
 import { EventEmitter } from 'node:events';
 import { REACTIONS, STICKERS } from '../stickers.js';
 import { pushTo } from '../push.js';
+import { decide, decideAvailable } from '../ai-decide.js';
 
 /** Шина событий чата: «в канале что-то изменилось». Содержимого в событии нет — клиент после него сам спрашивает свежие данные. Один экземпляр сервера. */
 export const chatBus = new EventEmitter();
@@ -105,7 +106,7 @@ export async function chatRoutes(app: FastifyInstance) {
     return { messages: msgs, updated, now, typing: who, peer, has_more: more, readers, channel: c, can_moderate: canModerate(u, c) };
   });
 
-  async function post(req: any, reply: any, ch: string, fields: { body: string; reply_to?: number; mentions?: number[]; sticker?: string; fwd_from?: string }, file?: { name: string; mime: string; size: number; path: string }) {
+  async function post(req: any, reply: any, ch: string, fields: { body: string; reply_to?: number; mentions?: number[]; sticker?: string; fwd_from?: string; force?: boolean }, file?: { name: string; mime: string; size: number; path: string }) {
     const u = req.user as AuthUser;
     const c = await chatAccess(u, ch);
     if (!c) return err(reply, 403, 'forbidden');
@@ -114,6 +115,17 @@ export async function chatRoutes(app: FastifyInstance) {
     const body = fields.body.trim().slice(0, 1000);
     const sticker = fields.sticker && (STICKERS as readonly string[]).includes(fields.sticker) ? fields.sticker : null;
     if (!body && !file && !sticker) return err(reply, 400, 'empty');
+    // мягкая модерация общих каналов и групп (Jev): предупреждаем автора, решение отправить — за ним
+    let flagged: string | null = null;
+    if (body.length >= 6 && c.kind !== 'dm' && (await decideAvailable('moderate'))) {
+      const d = await decide('moderate', body, {
+        rude: { type: 'noul', instructions: 'Сообщение грубое, оскорбительное или унижает кого-то?' },
+        pii: { type: 'noul', instructions: 'В сообщении есть персональные данные клиента (телефон, паспорт, номер карты, адрес)?' },
+      });
+      const reasons = Object.entries(d ?? {}).filter(([, a]) => a.yes && a.confidence >= 0.7).map(([k]) => k);
+      if (reasons.length && !fields.force) return reply.code(409).send({ error: 'moderation', reasons });
+      if (reasons.length) flagged = reasons.join(',');
+    }
     let replyTo: number | null = null, replyOwner: number | null = null;
     if (fields.reply_to) {
       const rp = (await q('SELECT id,user_id FROM chat_messages WHERE id=$1 AND channel=$2', [Number(fields.reply_to), ch])).rows[0];
@@ -125,7 +137,7 @@ export async function chatRoutes(app: FastifyInstance) {
       const mem = new Set((await q('SELECT user_id FROM chat_members WHERE channel=$1 AND left_at IS NULL', [ch])).rows.map((r) => r.user_id as number));
       mentions = mentions.filter((id) => mem.has(id));
     }
-    const id = Number((await q('INSERT INTO chat_messages(channel,user_id,body,reply_to,mentions,sticker,fwd_from) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id', [ch, u.id, body, replyTo, mentions, sticker, fields.fwd_from?.slice(0, 80) ?? null])).rows[0].id);
+    const id = Number((await q('INSERT INTO chat_messages(channel,user_id,body,reply_to,mentions,sticker,fwd_from,flagged) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id', [ch, u.id, body, replyTo, mentions, sticker, fields.fwd_from?.slice(0, 80) ?? null, flagged])).rows[0].id);
     if (file) await q('INSERT INTO chat_files(message_id,name,mime,size,path) VALUES($1,$2,$3,$4,$5)', [id, file.name, file.mime, file.size, file.path]);
     await markRead(u.id, ch, id);
     chatChanged(ch);
@@ -139,8 +151,8 @@ export async function chatRoutes(app: FastifyInstance) {
     return { ok: true, id };
   }
   app.post('/api/chat/:ch', auth, async (req, reply) => {
-    const b = (req.body ?? {}) as { body?: string; reply_to?: number; mentions?: number[]; sticker?: string };
-    return post(req, reply, (req.params as any).ch, { body: String(b.body ?? ''), reply_to: b.reply_to, mentions: b.mentions, sticker: b.sticker });
+    const b = (req.body ?? {}) as { body?: string; reply_to?: number; mentions?: number[]; sticker?: string; force?: boolean };
+    return post(req, reply, (req.params as any).ch, { body: String(b.body ?? ''), reply_to: b.reply_to, mentions: b.mentions, sticker: b.sticker, force: !!b.force });
   });
 
   /* ----- правка, реакции, пересылка, «печатает…» ----- */

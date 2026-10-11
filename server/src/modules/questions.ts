@@ -22,11 +22,11 @@ export async function questionRoutes(app: FastifyInstance) {
     const u = req.user!, status = String((req.query as any).status ?? '');
     const s = queueScopeSql(u), all = await orgNodes();
     const rows = (await q(
-      `SELECT o.id,o.kind,o.source,o.body,o.dup_count,o.status,o.answer,o.article_id,o.created_at,o.answered_at,o.anonymous,o.node_id,o.assignee_id,
+      `SELECT o.id,o.kind,o.source,o.body,o.dup_count,o.status,o.answer,o.article_id,o.created_at,o.answered_at,o.anonymous,o.node_id,o.assignee_id,o.urgent,ks.title_ru AS section,
               CASE WHEN o.anonymous THEN NULL ELSE a.name END AS author, asg.name AS assignee_name
-         FROM open_questions o LEFT JOIN users a ON a.id=o.user_id LEFT JOIN users asg ON asg.id=o.assignee_id
+         FROM open_questions o LEFT JOIN users a ON a.id=o.user_id LEFT JOIN users asg ON asg.id=o.assignee_id LEFT JOIN kb_sections ks ON ks.id=o.section_id
         WHERE ${s.sql} ${status && STATUSES.includes(status) ? `AND o.status='${status}'` : ''}
-        ORDER BY (o.status IN ('answered','closed')), o.dup_count DESC, o.created_at DESC LIMIT 300`, s.params)).rows;
+        ORDER BY (o.status IN ('answered','closed')), o.urgent DESC, o.dup_count DESC, o.created_at DESC LIMIT 300`, s.params)).rows;
     const counts = (await q(`SELECT o.status, count(*)::int n FROM open_questions o WHERE ${s.sql} GROUP BY o.status`, s.params)).rows;
     return { items: rows.map((r) => ({ ...r, node_path: pathName(all, r.node_id) })), counts: Object.fromEntries(counts.map((c) => [c.status, c.n])) };
   });

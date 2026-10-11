@@ -10,6 +10,7 @@ import { takeAi } from './training.js';
 import { buildPlatform } from '../assist-data.js';
 import { urlAllowed } from '../access.js';
 import { SYSTEM_USER_SQL } from '../org-core.js';
+import { enqueue } from '../jobs.js';
 
 const like = (s: string) => `%${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 const normText = (s: string) => [...new Set(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2))].sort().join(' ');
@@ -26,6 +27,7 @@ export async function queueQuestion(u: AuthUser, body: string, o: { anonymous?: 
   const r = await q(
     `INSERT INTO open_questions(user_id,anonymous,dept_id,node_id,kind,source,body,norm) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
     [u.id, !!o.anonymous, u.dept_id, u.node_id, o.kind ?? 'question', o.source ?? 'manual', text, norm]);
+  await enqueue('route_question', { id: Number(r.rows[0].id) });   // раздел и срочность определит модель решений, если подключена
   return { id: Number(r.rows[0].id), dup: false };
 }
 

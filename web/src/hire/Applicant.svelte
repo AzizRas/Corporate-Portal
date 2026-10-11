@@ -17,7 +17,12 @@
   let note = $state(''), editing = $state(false), ef: any = $state({}), eerr = $state('');
   let sched: null | number = $state(null), sf = $state({ starts_local: '', duration_min: 60, place: '', link: '', people: [] as number[] }), serr = $state('');
   let fbFor: null | number = $state(null), fbList: any[] = $state([]), fb = $state({ rating: 3, recommendation: 'yes', comment: '' }), fberr = $state('');
-  let offerFor: null | number = $state(null), onboardFor: null | number = $state(null);
+  let offerFor: null | number = $state(null), onboardFor: null | number = $state(null), fits: Record<number, string> = $state({});
+  const FIT_RU = ['не подходит', 'слабо', 'частично', 'хорошо', 'отлично'], FIT_UZ = ['mos emas', 'zaif', 'qisman', 'yaxshi', 'a’lo'];
+  async function screen(pid: number) {
+    try { const r = await api.post(`/api/hire/pipeline/${pid}/screen`); fits[pid] = `${(app.lang === 'uz' ? FIT_UZ : FIT_RU)[r.fit] ?? r.fit} · ${Math.round(r.confidence * 100)}%`; }
+    catch (e: any) { fits[pid] = e?.code === 'not_configured' ? (app.lang === 'uz' ? 'Jev ulanmagan' : 'Jev не подключён') : e?.code === 'no_resume' ? (app.lang === 'uz' ? 'Rezyume yo‘q' : 'Нет резюме') : (app.lang === 'uz' ? 'Xatolik' : 'Ошибка'); }
+  }
   let ai = $state<{ available: boolean; reason: string | null }>({ available: false, reason: null });
   const rec = $derived(isRec());
 
@@ -100,6 +105,7 @@
               {#if rec && ['offer', 'hired'].includes(p.status_type)}<button class="btn sm" onclick={() => (offerFor = p.id)}>{ht('hOffer')}</button>{/if}
               {#if has('hr') && ['offer', 'hired'].includes(p.status_type)}{#if p.user_id}<a class="btn sm" href="#/team/{p.user_id}">{app.lang === 'uz' ? 'Xodim kartochkasi' : 'Карточка сотрудника'}</a>{:else}<button class="btn sm grad" onclick={() => (onboardFor = p.id)}>{app.lang === 'uz' ? 'Xodimni rasmiylashtirish' : 'Оформить сотрудника'}</button>{/if}{/if}
               <button class="btn sm" onclick={() => openFb(p.id)}>{ht('hFeedback')}</button>
+              {#if rec}<button class="btn sm" title={app.lang === 'uz' ? 'Faqat maslahat: qarorni inson qabul qiladi' : 'Только подсказка: решение принимает человек'} onclick={() => screen(p.id)}>{app.lang === 'uz' ? 'Moslik (AI)' : 'Соответствие (ИИ)'}</button>{#if fits[p.id]}<span class="chip sm2">{fits[p.id]}</span>{/if}{/if}
             </div>
           </div>
         {:else}<p class="muted">{ht('hNoItems')}</p>{/each}

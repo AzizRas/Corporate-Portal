@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { deferDelete } from '../lib/dialog.svelte';
+  import { confirmBox, deferDelete } from '../lib/dialog.svelte';
   import { onMount, tick } from 'svelte';
-  import { api } from '../lib/api';
+  import { api, ApiError } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
@@ -176,7 +176,17 @@
     const rt = replyTo?.id;
     text = ''; replyTo = null; picked = []; mentionQ = null; tray = 'none'; autosize();
     try { await api.post(`/api/chat/${encodeURIComponent(channel)}`, { body: b, reply_to: rt, mentions: ids }); await poll(); }
-    catch { err = st('c_err'); text = b; }
+    catch (e) {
+      // мягкая модерация: предупреждение, решение — за автором
+      if (e instanceof ApiError && e.code === 'moderation') {
+        const why = (e.body?.reasons ?? []).map((r: string) => (r === 'rude' ? (app.lang === 'uz' ? 'qo‘pol ohang' : 'грубый тон') : (app.lang === 'uz' ? 'mijozning shaxsiy ma’lumotlari' : 'персональные данные клиента'))).join(', ');
+        if (await confirmBox(app.lang === 'uz' ? `Xabarda: ${why}. Baribir yuborilsinmi?` : `В сообщении похоже: ${why}. Всё равно отправить?`)) {
+          try { await api.post(`/api/chat/${encodeURIComponent(channel)}`, { body: b, reply_to: rt, mentions: ids, force: true }); await poll(); return; } catch { /* ниже */ }
+        }
+        text = b; return;
+      }
+      err = st('c_err'); text = b;
+    }
   }
   async function sendSticker(code: string) {
     tray = 'none';

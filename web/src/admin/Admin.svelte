@@ -16,6 +16,8 @@
   import AccessAdmin from './AccessAdmin.svelte';
   import UsageAdmin from './UsageAdmin.svelte';
   import TestsAdmin from './TestsAdmin.svelte';
+  import KbWiki from './KbWiki.svelte';
+  import DecideAdmin from './DecideAdmin.svelte';
 
   let { parts }: { parts: string[] } = $props();
   const tabs = $derived([
@@ -23,6 +25,7 @@
     has('accountant') && { id: 'payroll', l: 'Зарплата и KPI' },
     has('admin') && { id: 'attendance', l: 'Приход' },
     has('editor', 'hr') && { id: 'kb', l: 'База знаний' },
+    has('editor', 'hr') && { id: 'wiki', l: 'Вики: источники и проверка' },
     has('hr') && { id: 'growth', l: 'Модель роста' },
     has('hr', 'editor', 'head') && { id: 'training', l: 'Обучение' },
     has('hr', 'editor') && { id: 'tests', l: 'Тесты' },
@@ -32,6 +35,7 @@
     has('admin') && { id: 'access', l: 'Доступ к разделам' },
     has('admin') && { id: 'usage', l: 'Использование разделов' },
     has('admin') && { id: 'ai', l: 'ИИ' },
+    has('admin') && { id: 'decide', l: 'Решения (Jev)' },
     has('admin') && { id: 'tour', l: 'Обучение порталу' },
     has('admin') && { id: 'audit', l: 'Журнал' },
   ].filter(Boolean) as { id: string; l: string }[]);
@@ -45,6 +49,8 @@
 {:else if cur === 'payroll'}<PayrollAdmin />
 {:else if cur === 'attendance'}<AttendanceAdmin />
 {:else if cur === 'kb'}<KbAdmin />
+{:else if cur === 'wiki'}<KbWiki />
+{:else if cur === 'decide'}<DecideAdmin />
 {:else if cur === 'growth'}<GrowthAdmin />
 {:else if cur === 'training'}<TrainingAdmin />
 {:else if cur === 'tests'}<TestsAdmin />

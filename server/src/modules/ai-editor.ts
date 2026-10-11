@@ -59,7 +59,7 @@ async function checkArticle(p: any, needId = false): Promise<Check<any>> {
   const sec = p?.section_id ? Number(p.section_id) : (await q('SELECT id FROM kb_sections ORDER BY sort,id LIMIT 1')).rows[0]?.id;
   if (!sec || !(await q('SELECT 1 FROM kb_sections WHERE id=$1', [sec])).rows.length) return { err: 'section' };
   if (needId && !(await q('SELECT 1 FROM kb_articles WHERE id=$1', [Number(p?.article_id)])).rows.length) return { err: 'article' };
-  return { ok: { ...(needId ? { article_id: Number(p.article_id), base_version: Number(p.base_version) || undefined } : {}), section_id: sec, title_ru, title_uz: str(p?.title_uz, 200) || title_ru, body_ru, body_uz: str(p?.body_uz, 8000) || body_ru, tags: str(p?.tags, 200), changes: str(p?.changes, 400) || undefined, source_question: p?.source_question ? Number(p.source_question) : undefined } };
+  return { ok: { ...(needId ? { article_id: Number(p.article_id), base_version: Number(p.base_version) || undefined } : {}), section_id: sec, title_ru, title_uz: str(p?.title_uz, 200) || title_ru, body_ru, body_uz: str(p?.body_uz, 8000) || body_ru, tags: str(p?.tags, 200), changes: str(p?.changes, 400) || undefined, source_question: p?.source_question ? Number(p.source_question) : undefined, page_type: p?.page_type ? str(p.page_type, 20) : undefined, source_id: p?.source_id ? Number(p.source_id) : undefined } };
 }
 async function checkLibrary(p: any): Promise<Check<any>> {
   const raw = Array.isArray(p?.items) ? p.items : [];
@@ -109,6 +109,10 @@ async function apply(u: AuthUser, d: any): Promise<{ target: string; prev: any }
   if (d.kind === 'article_new') {
     const row = await writeArticle(null, p, u.id);
     await q(`UPDATE kb_articles SET status='published', reviewed_at=now() WHERE id=$1`, [row.id]);
+    // страница вики: тип и источник, из которого её предложил ИИ (ТЗ №3, H)
+    if (p.page_type || p.source_id) await q(`UPDATE kb_articles SET page_type=COALESCE($2,page_type), source_ids=CASE WHEN $3::int IS NULL THEN source_ids ELSE array_append(source_ids,$3) END WHERE id=$1`,
+      [row.id, ['howto', 'faq', 'entity', 'concept', 'summary', 'comparison'].includes(p.page_type) ? p.page_type : null, p.source_id ?? null]);
+    await q(`INSERT INTO kb_log(op,ref,summary,by_user) VALUES('publish',$1,$2,$3)`, [`article:${row.id}`, String(p.title_ru).slice(0, 200), u.id]);
     if (p.source_question) await q(`UPDATE open_questions SET article_id=$2 WHERE id=$1`, [p.source_question, row.id]);
     return { target: `article:${row.id}`, prev: null };
   }
