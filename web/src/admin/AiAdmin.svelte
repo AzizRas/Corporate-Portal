@@ -8,7 +8,7 @@
   type Tab = 'settings' | 'usage' | 'log' | 'bad';
   let tab: Tab = $state('settings');
   let cfg: any = $state(null), loadErr = $state(false), saving = $state(false), msg = $state(''), msgBad = $state(false);
-  let budget = $state(''), roles: Record<string, boolean> = $state({}), style = $state(''), pin = $state('0'), pout = $state('0');
+  let daily = $state(''), budget = $state(''), roles: Record<string, boolean> = $state({}), style = $state(''), pin = $state('0'), pout = $state('0');
   let usage: any = $state(null), log: any[] | null = $state(null), bad: any[] | null = $state(null);
 
   const money = (n: number) => (n < 1 ? n.toFixed(4) : n.toFixed(2));
@@ -18,6 +18,7 @@
       cfg = await api.get('/api/admin/ai/config');
       const c = cfg.config;
       budget = c.budget_month === null || c.budget_month === undefined ? '' : String(c.budget_month);
+      daily = c.user_daily == null ? '' : String(c.user_daily);
       roles = Object.fromEntries(ROLES.map((r) => [r, c.roles?.[r] !== false]));
       style = c.style ?? ''; pin = String(c.prices?.in ?? 0); pout = String(c.prices?.out ?? 0);
     } catch { loadErr = true; }
@@ -28,7 +29,7 @@
     e.preventDefault();
     saving = true; msg = '';
     try {
-      const r = await api.put('/api/admin/ai/config', { budget_month: budget.trim() === '' ? null : Number(budget.replace(',', '.')), roles, style, prices: { in: Number(pin.replace(',', '.')), out: Number(pout.replace(',', '.')) } });
+      const r = await api.put('/api/admin/ai/config', { budget_month: budget.trim() === '' ? null : Number(budget.replace(',', '.')), user_daily: daily.trim() === '' ? null : Number(daily), roles, style, prices: { in: Number(pin.replace(',', '.')), out: Number(pout.replace(',', '.')) } });
       msg = at('ai_saved'); msgBad = false;
       if (cfg) cfg.config = r.config;
       api.get('/api/admin/ai/config').then((c) => (cfg = c)).catch(() => {});
@@ -65,6 +66,8 @@
 
       <label class="f">{at('ai_budget')}<input type="text" inputmode="decimal" bind:value={budget} placeholder="—" style="display:block;max-width:220px" /></label>
       <p class="muted xs" style="margin:-8px 0 8px">{at('ai_budget_hint')}</p>
+      <label class="f">{at('ai_daily')}<input type="text" inputmode="numeric" bind:value={daily} placeholder="—" class="w-220" /></label>
+      <p class="muted xs hint-tight">{at('ai_daily_hint')}</p>
       <div class="ai-meter">
         <div class="small">{limit ? at('ai_spent_of', { x: money(spent), y: money(limit) }) : at('ai_spent_nolimit', { x: money(spent) })}</div>
         {#if limit}<div class="bar" class:good={pct < 90} style="margin-top:8px" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin="0" aria-valuemax="100"><i style="width:{pct}%"></i></div>{/if}

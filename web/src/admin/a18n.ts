@@ -4,6 +4,7 @@ import { app } from '../lib/state.svelte';
 const ru: Record<string, string> = {
   ai_tab_settings: 'Настройки', ai_tab_usage: 'Использование', ai_tab_log: 'Журнал', ai_tab_bad: 'Не помогло',
   ai_on_openrouter: 'ИИ подключён через OpenRouter', ai_on_anthropic: 'ИИ подключён через Anthropic', ai_no_key: 'Ключ не задан — добавьте OPENROUTER_API_KEY в переменные сервиса.',
+  ai_daily: 'Запросов к ИИ на человека в сутки', ai_daily_hint: 'Пусто — без лимита. Защищает бюджет от одного человека, который задаёт слишком много вопросов; ответы из кэша не считаются.',
   ai_budget: 'Месячный лимит стоимости, $', ai_budget_hint: 'Пусто — без лимита. Когда лимит исчерпан, ИИ до конца месяца отвечает «недоступен».', ai_spent_of: 'Потрачено ${x} из ${y}', ai_spent_nolimit: 'Потрачено ${x} (без лимита)',
   ai_roles: 'Роли ИИ', ai_roles_hint: 'Выключенная роль перестаёт работать у всех; остальные части портала не страдают.',
   ai_role_mentor: 'Наставник', ai_role_mentor_d: 'отвечает сотруднику',
@@ -33,6 +34,7 @@ const ru: Record<string, string> = {
 const uz: Record<string, string> = {
   ai_tab_settings: 'Sozlamalar', ai_tab_usage: 'Foydalanish', ai_tab_log: 'Jurnal', ai_tab_bad: 'Yordam bermadi',
   ai_on_openrouter: 'AI OpenRouter orqali ulangan', ai_on_anthropic: 'AI Anthropic orqali ulangan', ai_no_key: 'Kalit berilmagan — xizmat o‘zgaruvchilariga OPENROUTER_API_KEY qo‘shing.',
+  ai_daily: 'Bir kishiga kunlik AI so‘rovlari', ai_daily_hint: 'Bo‘sh qoldirilsa — limitsiz. Byudjetni bir kishining haddan tashqari ko‘p savolidan himoya qiladi; keshdagi javoblar hisobga olinmaydi.',
   ai_budget: 'Oylik narx limiti, $', ai_budget_hint: 'Bo‘sh qoldirilsa — limitsiz. Limit tugasa, AI oy oxirigacha «mavjud emas» deb javob beradi.', ai_spent_of: 'Sarflandi ${x} / ${y}', ai_spent_nolimit: 'Sarflandi ${x} (limitsiz)',
   ai_roles: 'AI rollari', ai_roles_hint: 'O‘chirilgan rol hamma uchun ishlamaydi; portalning boshqa qismlariga ta’sir qilmaydi.',
   ai_role_mentor: 'Murabbiy', ai_role_mentor_d: 'xodimga javob beradi',
