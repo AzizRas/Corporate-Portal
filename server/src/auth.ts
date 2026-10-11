@@ -58,8 +58,33 @@ export async function createSession(reply: FastifyReply, userId: number) {
   });
 }
 
+/* Чат опрашивает сервер каждые 3,5 с, уведомления — каждые 8 с, и так в каждой открытой вкладке; каждый запрос заново собирал пользователя (4 запроса к БД).
+   Пользователь по токену живёт в памяти 30 секунд. Сбрасывается сразу: при выходе, закрытии сеансов, любом изменении самим пользователем (его запросы POST/PUT/PATCH/DELETE)
+   и при любом изменении в админке и в структуре (роли, подразделение, увольнение). Изменение чужих данных руководителем доходит до человека не позже чем через 30 секунд. */
+const userCache = new Map<string, { at: number; user: AuthUser }>();
+const USER_TTL = () => (process.env.USER_CACHE_MS != null && process.env.USER_CACHE_MS !== '' ? Number(process.env.USER_CACHE_MS) : process.env.NODE_TEST_CONTEXT ? 0 : 30_000);   // в обычных тестах кэш выключен: они меняют БД напрямую
+/** Забыть пользователя (все его токены); без аргумента — всех. */
+export function dropUserCache(userId?: number) {
+  if (userId == null) { userCache.clear(); return; }
+  for (const [k, v] of userCache) if (v.user.id === userId) userCache.delete(k);
+}
+
 export async function loadUser(token: string | undefined): Promise<AuthUser | null> {
   if (!token) return null;
+  const ttl = USER_TTL(), key = sha256(token);
+  if (ttl > 0) {
+    const hit = userCache.get(key);
+    if (hit && Date.now() - hit.at < ttl) return structuredClone(hit.user);        // копия: обработчики вправе менять свой объект
+  }
+  const u = await loadUserFromDb(token);
+  if (u && ttl > 0) {
+    if (userCache.size >= 5000) userCache.delete(userCache.keys().next().value!);
+    userCache.set(key, { at: Date.now(), user: structuredClone(u) });
+  }
+  return u;
+}
+
+async function loadUserFromDb(token: string): Promise<AuthUser | null> {
   const r = await q(
     `SELECT u.id,u.name,u.login,u.tab_number,u.position,u.position_code,u.target_position_code,u.dept_id,
             u.manager_id,u.node_id,u.employment,u.lang,u.theme,u.must_change_password,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
@@ -100,6 +125,12 @@ export function registerAuth(app: FastifyInstance) {
   app.decorateRequest('user', undefined);
   app.addHook('onRequest', async (req) => {
     if (req.url.startsWith('/api/')) req.user = (await loadUser(req.cookies[COOKIE])) ?? undefined;
+  });
+  // изменения сбрасывают кэш пользователя (см. выше)
+  app.addHook('onResponse', async (req) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || !req.url.startsWith('/api/')) return;
+    if (/^\/api\/(admin|org)\//.test(req.url)) dropUserCache();
+    else if (req.user) dropUserCache(req.user.id);
   });
   app.addHook('preHandler', async (req, reply) => {
     if (req.user?.external && !externalAllowed(req.url, req.user.external)) return reply.code(403).send({ error: 'external_forbidden' });

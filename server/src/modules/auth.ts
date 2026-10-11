@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { config } from '../config.js';
-import { COOKIE, audit, createSession, requireAuth, hasRole, type AuthUser } from '../auth.js';
+import { COOKIE, audit, createSession, requireAuth, hasRole, dropUserCache, type AuthUser } from '../auth.js';
 import { hashPasswordAsync, verifyPasswordAsync, sha256 } from '../security.js';
 import { IP_MAX, cooldownSec, ipFail, ipWait, streak } from '../login-guard.js';
 
@@ -45,6 +45,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/api/logout', async (req, reply) => {
     const t = req.cookies[COOKIE];
     if (t) await q('DELETE FROM sessions WHERE token_hash=$1', [sha256(t)]);
+    dropUserCache();                                       // кэш по токену не должен пережить выход
     reply.clearCookie(COOKIE, { path: '/' });
     return { ok: true };
   });
@@ -69,6 +70,7 @@ export async function authRoutes(app: FastifyInstance) {
       await q('UPDATE users SET pass_hash=$2, must_change_password=false WHERE id=$1', [u.id, await hashPasswordAsync(String(b.password))]);
       // S4: смена пароля завершает все остальные сессии (украденный или забытый вход на другом устройстве перестаёт работать); текущая остаётся
       const cut = await q('DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2', [u.id, sha256(req.cookies[COOKIE] ?? '')]);
+      dropUserCache(u.id);
       await audit(req, 'password_changed', undefined, { sessions_closed: cut.rowCount ?? 0 });
     }
     return { ok: true };
@@ -77,6 +79,7 @@ export async function authRoutes(app: FastifyInstance) {
   // «Выйти на всех устройствах»: закрывает все сессии, кроме текущей
   app.post('/api/me/logout-others', { preHandler: requireAuth }, async (req) => {
     const r = await q('DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2', [req.user!.id, sha256(req.cookies[COOKIE] ?? '')]);
+    dropUserCache(req.user!.id);
     await audit(req, 'logout_others', undefined, { sessions_closed: r.rowCount ?? 0 });
     return { closed: r.rowCount ?? 0 };
   });
