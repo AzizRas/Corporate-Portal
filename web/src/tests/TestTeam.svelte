@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { api } from '../lib/api';
   import Avatar from '../components/Avatar.svelte';
   import Modal from '../components/Modal.svelte';
@@ -64,7 +65,7 @@
                   <td>
                     {#if m.results[t.slug]}<a class="t-cell {m.results[t.slug].tone}" href="#/tests/result/{m.results[t.slug].id}">{tl(m.results[t.slug].headline)}</a>
                     {:else}<span class="muted">—</span>{/if}
-                    {#if m.pending.includes(t.slug)}<div class="t-pend">⏳ {tt('tm_pending')}</div>{/if}
+                    {#if m.pending.includes(t.slug)}<div class="t-pend"><Icon inline name="hourglass" /> {tt('tm_pending')}</div>{/if}
                   </td>
                 {/each}
               </tr>

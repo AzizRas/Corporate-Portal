@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
@@ -124,7 +125,7 @@
         <section class="card stack as-res u-86de7ac" aria-live="polite">
           <div class="row wrap u-e9d24fb">
             <h3 class="card-title u-b2297c5">{et('a_result')}</h3>
-            <span class="chip u-8c46ff0">{result.ai ? '✨ ' + et('a_by_ai') : et('a_by_builtin')}</span>
+            <span class="chip u-8c46ff0">{result.ai ? '' + et('a_by_ai') : et('a_by_builtin')}</span>
           </div>
           <div class="as-score">
             <div class="as-num {tone(result.score)}"><b>{result.score}</b><span>{et('a_score')}</span></div>
@@ -218,7 +219,7 @@
       <aside class="card stack as-weak">
         <h3 class="as-h3">{et('a_weak')}</h3>
         <p class="muted xs">{et('a_weak_d')}</p>
-        {#if !ov.weak.length}<p class="small">🎉 {et('a_weak_none')}</p>
+        {#if !ov.weak.length}<p class="small"><Icon inline name="spark" /> {et('a_weak_none')}</p>
         {:else}
           {#each ov.weak as w (w.id)}
             <button class="as-weak-row" onclick={() => openScenario(w.id)}>

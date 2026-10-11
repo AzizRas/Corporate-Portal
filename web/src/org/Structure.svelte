@@ -236,7 +236,7 @@
                 <Avatar u={{ ...p, bday: false }} size={38} />
                 <div class="op-info">
                   <b>{p.name}</b> <span class="chip" class:warn={p.employment === 'intern'}>{p.employment === 'intern' ? wt('o_e_intern') : wt('o_e_staff')}</span>
-                  {#if p.on_leave}<span class="chip">🌴 {wt('o_on_leave')}</span>{/if}
+                  {#if p.on_leave}<span class="chip"><Icon inline name="palm" /> {wt('o_on_leave')}</span>{/if}
                   {#if p.pending_transfer}<span class="chip">↪ {wt('o_pending_tr', { d: fmtDate(p.pending_transfer.effective_date) })}</span>{/if}
                   <div class="muted xs">{p.position}</div>
                 </div>

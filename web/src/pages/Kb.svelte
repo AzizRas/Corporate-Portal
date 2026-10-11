@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { app, go, has } from '../lib/state.svelte';
@@ -37,8 +38,8 @@
       <div class="md">{@html md((app.lang === 'uz' && art.body_uz) || art.body_ru)}</div>
       <div class="row u-e143a47">
         <span class="muted">{t('kb_helpful')}</span>
-        <button class="btn sm" class:primary={vote === true} onclick={() => rate(true)}>👍 {t('yes')}</button>
-        <button class="btn sm" class:primary={vote === false} onclick={() => rate(false)}>👎 {t('no')}</button>
+        <button class="btn sm" class:primary={vote === true} onclick={() => rate(true)}><Icon inline name="thumb-up" /> {t('yes')}</button>
+        <button class="btn sm" class:primary={vote === false} onclick={() => rate(false)}><Icon inline name="thumb-down" /> {t('no')}</button>
         {#if vote !== null}<span class="pill-ok small">{t('kb_thanks')}</span>{/if}
       </div>
     </article>

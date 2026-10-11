@@ -92,3 +92,18 @@ test('Классы u-… из перенесённых стилей: кажды�
   assert.ok(/!important/.test(css), 'объявления с !important, чтобы вести себя как встроенные');
   assert.match(read('src/main.ts'), /import '\.\/inline\.css'/);
 });
+
+test('Иконки: в интерфейсе нет эмодзи-картинок (кроме опроса настроения, чата и напоминаний об отдыхе); значки берутся из Icon', () => {
+  const rx = /[\u{1F300}-\u{1FAFF}✅✨➤⏳⏰]/u;
+  const allowed = ['MoodCard.svelte', 'Chat.svelte', 'WellnessAdmin.svelte', 'Wellness.svelte', 'WellnessSettings.svelte', 'w18n.ts', 'help-content.ts', 'tour.svelte.ts'];
+  const bad: string[] = [];
+  for (const f of walk(srcDir).filter((x) => /\.(svelte|ts)$/.test(x))) {
+    const g = f.split(path.sep).join('/');
+    if (allowed.includes(path.basename(f)) || g.includes('/assist/') || g.includes('/wellness/')) continue;
+    fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => { if (rx.test(l)) bad.push(`${path.basename(f)}:${i + 1}`); });
+  }
+  assert.deepEqual(bad, [], 'эмодзи в интерфейсе: ' + bad.join(', '));
+  const icon = read('src/components/Icon.svelte');
+  for (const n of ['palm', 'cake', 'thumb-up', 'thumb-down', 'pin', 'hourglass', 'spark', 'lock', 'bot', 'video', 'link', 'file', 'image', 'heart', 'trophy', 'idea', 'send']) assert.match(icon, new RegExp(`['"]?${n}['"]?: '`), `значок ${n}`);
+  assert.match(icon, /class:ico=\{inline\}/);
+});

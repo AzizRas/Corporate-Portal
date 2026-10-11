@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { api } from '../lib/api';
   import { fmtDate } from '../lib/format';
   import Avatar from '../components/Avatar.svelte';
@@ -74,7 +75,7 @@
             <div><div class="t-h">{tt('r_risks')}</div><ul class="t-list">{#each tlist(p.risks) as s}<li>{s}</li>{/each}</ul></div>
             <div><div class="t-h">{tt('r_tips')}</div><ul class="t-list">{#each tlist(p.tips) as s}<li>{s}</li>{/each}</ul></div>
           </div>
-          {#if p.line}<div class="t-note u-efea5fc"><span aria-hidden="true">🎧</span><div><b>{tt('r_line')}</b><small class="u-a9c7b3e">{tl(p.line)}</small></div></div>{/if}
+          {#if p.line}<div class="t-note u-efea5fc"><span aria-hidden="true"><Icon inline name="assist" /></span><div><b>{tt('r_line')}</b><small class="u-a9c7b3e">{tl(p.line)}</small></div></div>{/if}
         </div>
       {/each}
     {:else if kind === 'scale'}
@@ -118,7 +119,7 @@
     {/if}
 
     {#if kind === 'categories' && c.note}<p class="muted small">{tl(c.note)}</p>{/if}
-    <div class="t-note u-1169661"><span aria-hidden="true">🤝</span><div><b>{tt('fair')}</b>{#if d.own}<small>{tt('r_repeat_hint')}</small>{/if}</div></div>
+    <div class="t-note u-1169661"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b>{#if d.own}<small>{tt('r_repeat_hint')}</small>{/if}</div></div>
     {#if d.own}<div class="row wrap"><a class="btn grad" href="#/tests/take/{d.test.slug}">{tt('again')}</a><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>{/if}
   </div>
 {/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { name }: { name: string } = $props();
+  let { name, inline = false }: { name: string; inline?: boolean } = $props();
   const P: Record<string, string> = {
     home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
     path: 'M3 17l6-6 4 4 8-8M15 7h6v6',
@@ -26,6 +26,27 @@
     close: 'M6 6l12 12M18 6L6 18',
     check: 'M5 12l4 4 10-10',
     moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+    palm: 'M12 21v-9M12 12c-1-4-4-6-8-6 0 4 3 6 8 6zM12 12c1-4 4-6 8-6 0 4-3 6-8 6z',
+    cake: 'M4 20h16M5 20v-7h14v7M5 13c2 0 2-2 4-2s2 2 3 2 2-2 4-2 2 2 3 2M12 9V6M12 6c-1-1 0-3 0-3s1 2 0 3z',
+    'thumb-up': 'M7 11v9H4v-9zM7 11l4-7c2 0 3 1 3 3v3h5a2 2 0 0 1 2 2l-1 6a2 2 0 0 1-2 2H7',
+    'thumb-down': 'M7 13V4H4v9zM7 13l4 7c2 0 3-1 3-3v-3h5a2 2 0 0 0 2-2l-1-6a2 2 0 0 0-2-2H7',
+    pin: 'M12 17v5M8 3h8l-1 6 3 3v2H6v-2l3-3z',
+    hourglass: 'M6 3h12M6 21h12M7 3c0 5 5 5 5 9s-5 4-5 9M17 3c0 5-5 5-5 9s5 4 5 9',
+    spark: 'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z',
+    lock: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3',
+    bot: 'M5 8h14v10H5zM12 8V4M9 13h.01M15 13h.01M3 12v3M21 12v3',
+    video: 'M3 6h12v12H3zM15 10l6-3v10l-6-3',
+    link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+    file: 'M6 3h8l4 4v14H6zM14 3v4h4',
+    image: 'M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M8.5 9.5h.01',
+    heart: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z',
+    trophy: 'M8 4h8v5a4 4 0 0 1-8 0zM8 6H4v2a3 3 0 0 0 3 3M16 6h4v2a3 3 0 0 1-3 3M12 13v4M8 21h8M10 17h4',
+    idea: 'M12 3a6 6 0 0 0-4 10c1 1 1 2 1 3h6c0-1 0-2 1-3a6 6 0 0 0-4-10zM10 20h4',
+    send: 'M3 12l18-9-7 18-3-7z',
   };
 </script>
-<svg viewBox="0 0 24 24" aria-hidden="true"><path d={P[name]} /></svg>
+<svg viewBox="0 0 24 24" aria-hidden="true" class:ico={inline}><path d={P[name] ?? P.more} /></svg>
+
+<style>
+  svg.ico { width: 1.1em; height: 1.1em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.2em; flex: none; }
+</style>

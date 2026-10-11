@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
@@ -187,7 +188,7 @@
 </header>
 
 <div class="alert info ed-banner" role="note">
-  <span class="ed-shield" aria-hidden="true">🛡</span>
+  <span class="ed-shield" aria-hidden="true"><Icon inline name="admin" /></span>
   <div><b>{et('e_banner_t')}</b> {et('e_banner')}</div>
 </div>
 
@@ -353,7 +354,7 @@
         {#if dMsg}<div class="alert ok" role="status">{dMsg}
           {#if d.status === 'applied' && targetLink(d.target)} · <a href={targetLink(d.target)!.href}>{et('e_open_result')}</a>{/if}</div>{/if}
         {#if dErr}<div class="alert" role="alert">{dErr}</div>{/if}
-        {#if d.ai && d.status === 'draft' && !ed}<div class="alert info small">✨ {et('e_ai_hint')}</div>{/if}
+        {#if d.ai && d.status === 'draft' && !ed}<div class="alert info small"><Icon inline name="spark" /> {et('e_ai_hint')}</div>{/if}
         {#if d.status === 'applied' && !dMsg && targetLink(d.target)}<div><a class="btn sm" href={targetLink(d.target)!.href}>{et('e_open_result')}</a></div>{/if}
 
         <!-- ----- содержимое ----- -->

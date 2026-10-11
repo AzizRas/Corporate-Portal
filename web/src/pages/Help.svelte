@@ -46,7 +46,7 @@
     {#if res.topic}
       {@const t = topicById(res.topic.id)}
       <div class="hp-res">
-        {#if res.answer}<p class="small">{res.ai ? '✨ ' : ''}{res.answer}</p>{/if}
+        {#if res.answer}<p class="small">{res.ai ? '' : ''}{res.answer}</p>{/if}
         <b>{title(res.topic)}</b>
         <ol class="hp-steps">{#each steps(res.topic.id) as s}<li>{s}</li>{/each}</ol>
         <div class="row wrap u-33fcd4c">{#if t}<button class="btn grad sm" onclick={() => show(t)}>{wt('hp_show')}</button>{/if}<a class="btn sm" href={'#' + res.topic.route}>{wt('hp_where')}</a></div>

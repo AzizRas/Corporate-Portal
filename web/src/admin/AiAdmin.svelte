@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   // Админка ИИ (только admin): настройки, использование, журнал вызовов, негативные оценки.
   import { api } from '../lib/api';
   import { fmtDateTime } from '../lib/format';
@@ -154,7 +155,7 @@
       {#if !usage.feedback.length}<p class="muted">{at('ai_u_fb_none')}</p>
       {:else}
         <div class="scroll-x"><table class="table">
-          <thead><tr><th>{at('ai_u_role')}</th><th>👍 {at('ai_u_yes')}</th><th>👎 {at('ai_u_no')}</th></tr></thead>
+          <thead><tr><th>{at('ai_u_role')}</th><th><Icon inline name="thumb-up" /> {at('ai_u_yes')}</th><th><Icon inline name="thumb-down" /> {at('ai_u_no')}</th></tr></thead>
           <tbody>{#each usage.feedback as f}<tr><td>{roleName(f.role)}</td><td>{f.yes}</td><td class:pill-bad={f.no > 0}>{f.no}</td></tr>{/each}</tbody>
         </table></div>
       {/if}

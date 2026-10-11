@@ -19,7 +19,7 @@
   <div class="ci card" role="status">
     {#if done}<span class="pill-ok">✓ {st('ci_ok')}</span>
     {:else}
-      <span class="ci-ic">👋</span>
+      <span class="ci-ic"></span>
       <div class="ci-t">{st('ci_text')}{#if err}<div class="pill-bad small">{err}</div>{/if}</div>
       <button class="btn grad sm" onclick={mark} disabled={busy}>{s.simple ? st('ci_btn') : st('ci_open')}</button>
       <button class="g-act" onclick={() => (hidden = true)}>{st('ci_later')}</button>

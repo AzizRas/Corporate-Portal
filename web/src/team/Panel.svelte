@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { api, ApiError } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { pt } from './p18n';
@@ -131,7 +132,7 @@
             <span class="chip st">{p.employment === 'intern' ? pt('p_intern') : pt('p_staff')}</span>
           </div>
 
-          {#if s.leave.now}<p class="small pill-warn">🌴 {pt('p_on_leave')}</p>{/if}
+          {#if s.leave.now}<p class="small pill-warn"><Icon inline name="palm" /> {pt('p_on_leave')}</p>{/if}
 
           <dl class="kv">
             <div><dt>{pt('p_learning')}</dt><dd>{s.training.enrolled ? pt('p_lessons', { a: s.training.lessons_done, b: s.training.lessons_total }) : pt('p_no_course')}</dd></div>
@@ -160,7 +161,7 @@
 
           {#if p.signal && !dismissed[p.id]}
             <div class="talk">
-              <b>💬 {pt('p_talk')}</b>
+              <b><Icon inline name="chat" /> {pt('p_talk')}</b>
               <p class="xs muted">{pt('p_talk_sub')}</p>
               <ul>{#each p.signal.reasons as r}<li>{pt(`r_${r}`)}</li>{/each}</ul>
               {#if h?.talk}<p class="small ai-t">{h.talk}</p>{/if}

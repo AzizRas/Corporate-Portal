@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { initials } from '../lib/format';
   // u — любой объект с id и name; avatar_v > 0 означает, что загружено фото; bday — сегодня день рождения
   let { u, size = 40, ring = false }: { u: { id: number; name: string; avatar_v?: number; bday?: boolean }; size?: number; ring?: boolean } = $props();
@@ -6,7 +7,7 @@
 
 <span class="av" class:ring style:width="{size}px" style:height="{size}px" style:font-size="{Math.round(size * 0.36)}px" title={u.name}>
   {#if u.avatar_v}<img src="/api/avatar/{u.id}?v={u.avatar_v}" alt={u.name} loading="lazy" />{:else}{initials(u.name)}{/if}
-  {#if u.bday}<i class="cake" style:font-size={`${Math.max(12, Math.round(size * 0.42))}px`} aria-label="🎂">🎂</i>{/if}
+  {#if u.bday}<i class="cake" style:font-size={`${Math.max(12, Math.round(size * 0.42))}px`} aria-hidden="true"><Icon inline name="cake" /></i>{/if}
 </span>
 
 <style>

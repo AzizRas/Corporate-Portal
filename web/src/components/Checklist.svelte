@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { api } from '../lib/api';
   import { wt } from '../lib/w18n';
   import { restartTour } from '../lib/tour.svelte';
@@ -21,7 +22,7 @@
       <button class="g-act" onclick={hide}>{wt('ck_hide')}</button>
     </div>
     <div class="bar u-1b914c5"><i style:width={`${pct}%`}></i></div>
-    {#if data.done === data.total}<p class="small">🎉 {wt('ck_done_all')}</p>{/if}
+    {#if data.done === data.total}<p class="small"><Icon inline name="spark" /> {wt('ck_done_all')}</p>{/if}
     <div class="ck-items">
       {#each data.items as it (it.id)}
         <a class="ck-it" class:done={it.done} href={'#' + it.route}><span class="ck-box">{it.done ? '✓' : ''}</span><span>{label(it.id)}</span></a>

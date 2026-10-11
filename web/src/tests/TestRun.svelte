@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { go } from '../lib/state.svelte';
@@ -43,7 +44,7 @@
       <div class="t-meta"><span class="t-pill {test.kind}">{tt(test.kind === 'psych' ? 'k_psych' : 'k_prof')}</span><span class="t-pill">~{test.minutes} {tt('min')}</span><span class="t-pill">{total} {tt('questions')}</span></div>
       <div class="big">{tl(test.title)}</div>
       <p>{tl(test.intro)}</p>
-      <div class="t-note u-1169661"><span aria-hidden="true">🤝</span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
+      <div class="t-note u-1169661"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
       {#if test.disclaimer}<div class="t-warn">{tl(test.disclaimer)}</div>{/if}
       <div class="row wrap"><button class="btn grad" onclick={() => (started = true)}>{tt('intro_start')}</button><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>
     </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   // Страница #/tests: каталог, прохождение (#/tests/take/slug), результат (#/tests/result/id), история, команда.
   import { api } from '../lib/api';
@@ -43,7 +44,7 @@
   {#if view === 'team'}
     <TestTeam />
   {:else}
-    <div class="t-note"><span aria-hidden="true">🤝</span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
+    <div class="t-note"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
 
     {#if err}<div class="alert">{tt('err')}</div>
     {:else if view === 'history'}
@@ -79,7 +80,7 @@
             </div>
             <h3>{tl(x.title)}</h3>
             <p>{tl(x.descr)}</p>
-            {#if x.assigned}<div class="t-assigned">📌 {tt('assigned')}{x.assigned.by ? ` · ${tt('assigned_by', { name: x.assigned.by })}` : ''}{x.assigned.note ? ` — ${x.assigned.note}` : ''}</div>{/if}
+            {#if x.assigned}<div class="t-assigned"><Icon inline name="pin" /> {tt('assigned')}{x.assigned.by ? ` · ${tt('assigned_by', { name: x.assigned.by })}` : ''}{x.assigned.note ? ` — ${x.assigned.note}` : ''}</div>{/if}
             {#if x.last}
               <a class="t-last {x.last.tone} u-38b741b" href="#/tests/result/{x.last.id}">
                 <span>{tt('passed')} {fmtDate(x.last.created_at)} · {x.last.attempts} {tt('attempts')}</span>

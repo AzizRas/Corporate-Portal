@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { app } from '../lib/state.svelte';
@@ -20,12 +21,12 @@
 
 {#if loaded && allowed}
   <section class="card stack u-f3d7ce7">
-    <div class="card-head u-1169661"><h3>🔒 {own ? st('pg_title') : st('pg_head_view')}</h3></div>
+    <div class="card-head u-1169661"><h3><Icon inline name="lock" /> {own ? st('pg_title') : st('pg_head_view')}</h3></div>
     {#if own}<p class="muted small">{st('pg_hint')}</p>{/if}
     {#each items as g (g.id)}
       <div class="row u-1593348">
         {#if own}<input class="u-6f57ccc" type="checkbox" checked={g.done} onchange={() => toggle(g)} aria-label={st('pg_done')} />
-        {:else}<span>{g.done ? '✅' : '◻︎'}</span>{/if}
+        {:else}<span>{g.done ? '' : '◻︎'}</span>{/if}
         <span class="pg-text" class:pg-done={g.done}>{g.text}</span>
         {#if own}<button class="g-act" onclick={() => del(g)} aria-label="×">✕</button>{/if}
       </div>

@@ -97,7 +97,7 @@
 
 {#snippet helpCard(h: any)}
   {@const t = h.topic}
-  {#if h.answer}<p class="small">{h.ai ? '✨ ' : ''}{h.answer}</p>{/if}
+  {#if h.answer}<p class="small">{h.ai ? '' : ''}{h.answer}</p>{/if}
   <b>{t.title[app.lang]}</b>
   <ol class="u-ba31dbb">{#each (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? []) as step}<li>{step}</li>{/each}</ol>
   <div class="row wrap u-f6c3b0c">

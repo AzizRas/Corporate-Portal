@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { app, has, logout, go, can } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
+  import { stripEmoji } from '../lib/format';
   import { notif, startNotify } from '../lib/notify.svelte';
   import { navGroups, activeItem, landing, navHubs, profileHub, hubLabel } from '../lib/nav';
   import { hubOfActive } from '../lib/nav-core';

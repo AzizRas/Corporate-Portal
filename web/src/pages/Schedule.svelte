@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import PageHelp from '../components/PageHelp.svelte';
@@ -226,8 +227,8 @@
             <button class="cell {d.kind}" class:today={d.day === my.today} class:pending={d.source === 'pending'} class:rejected={d.source === 'rejected'} class:leave={d.source === 'leave'} class:past
               disabled={past || d.kind === 'off'} onclick={() => { reqDay = d; err = ''; note = ''; }}>
               <b>{num(d.day)}</b>
-              {#if d.kind === 'work'}<small>{d.shift_start}–{d.shift_end}</small>{:else}<small>{d.source === 'leave' ? '🌴' : st('s_off')}</small>{/if}
-              {#if d.source === 'pending'}<i title={st('s_pending')}>⏳</i>{:else if d.source === 'rejected'}<i title={st('s_rejected')}>✖</i>{/if}
+              {#if d.kind === 'work'}<small>{d.shift_start}–{d.shift_end}</small>{:else}<small>{d.source === 'leave' ? '' : st('s_off')}</small>{/if}
+              {#if d.source === 'pending'}<i title={st('s_pending')}><Icon inline name="hourglass" /></i>{:else if d.source === 'rejected'}<i title={st('s_rejected')}>✖</i>{/if}
             </button>
           {/each}
           {#if wi === myWeeks.length - 1}{#each Array(Math.max(0, 7 - ((lead + my.days.length) % 7 || 7))) as _}<div class="empty"></div>{/each}{/if}
@@ -329,7 +330,7 @@
                   <td class="c" class:we={dow(days[i]) >= 6} class:today={days[i] === today} class:ws={dow(days[i]) === 1 && i > 0}>
                     <button type="button" class="cb {c.k}" class:leave={c.s === 'leave'} class:pending={c.s === 'pending'} class:rejected={c.s === 'rejected'} class:picked={sel.has(k)} class:ro={!r.can_edit}
                       aria-pressed={sel.has(k)} aria-label={tip(r, i)} title={tip(r, i)} onclick={(e) => toggleCell(r, i, e)}>
-                      {#if sel.has(k)}✓{:else if c.s === 'leave'}🌴{:else if c.k === 'o'}<small>{st('s_off').slice(0, 3)}</small>{/if}
+                      {#if sel.has(k)}✓{:else if c.s === 'leave'}<Icon inline name="palm" />{:else if c.k === 'o'}<small>{st('s_off').slice(0, 3)}</small>{/if}
                     </button>
                   </td>
                 {/each}

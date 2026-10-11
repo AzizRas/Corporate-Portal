@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { api } from '../lib/api';
   import { pt } from './p18n';
   import Modal from '../components/Modal.svelte';
@@ -14,7 +15,7 @@
   }
 </script>
 
-<button class="btn" onclick={show}>💬 {pt('a_btn')}</button>
+<button class="btn" onclick={show}><Icon inline name="chat" /> {pt('a_btn')}</button>
 
 {#if open}
   <Modal onclose={() => (open = false)}>

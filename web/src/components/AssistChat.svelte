@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   // Плавающее окно помощника оператора: ищет в базе знаний, иначе даёт готовый ответ ИИ, а нерешённое передаёт руководителю.
   import { tick } from 'svelte';
   import { api } from '../lib/api';
@@ -94,7 +95,7 @@
       </div>
       <footer>
         <textarea bind:this={inp} bind:value={text} onkeydown={key} rows="1" placeholder={wt('ac_ph')} maxlength="600"></textarea>
-        <button class="go" onclick={send} disabled={busy || text.trim().length < 3} aria-label={wt('ac_send')}>➤</button>
+        <button class="go" onclick={send} disabled={busy || text.trim().length < 3} aria-label={wt('ac_send')}><Icon inline name="send" /></button>
       </footer>
       <div class="priv small muted">{wt('ac_priv')}</div>
     </section>
