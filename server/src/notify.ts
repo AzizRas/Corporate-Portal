@@ -1,5 +1,6 @@
 import { q } from './db.js';
 import { tzDate } from './settings.js';
+import { pushTo } from './push.js';
 
 /** Уведомление одному или нескольким сотрудникам (колокольчик + браузерное уведомление на клиенте). */
 export async function notify(userIds: number[], kind: string, title: string, body = '', link: string | null = null) {
@@ -11,6 +12,7 @@ export async function notify(userIds: number[], kind: string, title: string, bod
       WHERE NOT EXISTS (SELECT 1 FROM notify_prefs p WHERE p.user_id=x AND ((NOT p.news AND $2='news') OR (NOT p.mentions AND $2 IN ('mention','reply'))))`,
     [ids, kind, title.slice(0, 200), body.slice(0, 400), link],
   );
+  void pushTo(ids, { title, body, url: link ?? '/#/' }, { kind });   // и на телефон, если подписан; ошибки push не мешают
 }
 
 /** SQL-выражение «сегодня день рождения» для пользователя с алиасом a (по Ташкенту). */

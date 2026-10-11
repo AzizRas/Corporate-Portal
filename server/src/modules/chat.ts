@@ -10,6 +10,7 @@ import { channelsFor, chatAccess, dmChannel, type Channel } from '../chat-core.j
 import { externalRootOf, orgHooks, orgNodes, subtreeIds } from '../org-core.js';
 import { EventEmitter } from 'node:events';
 import { REACTIONS, STICKERS } from '../stickers.js';
+import { pushTo } from '../push.js';
 
 /** Шина событий чата: «в канале что-то изменилось». Содержимого в событии нет — клиент после него сам спрашивает свежие данные. Один экземпляр сервера. */
 export const chatBus = new EventEmitter();
@@ -129,6 +130,10 @@ export async function chatRoutes(app: FastifyInstance) {
     await markRead(u.id, ch, id);
     chatChanged(ch);
     const link = `#/chat/${encodeURIComponent(ch)}`, preview = (body || (sticker ? '🖼 стикер' : `📎 ${file?.name ?? ''}`)).slice(0, 160);
+    if (c.kind === 'dm' || c.kind === 'group') {   // push о личных сообщениях и группах (упоминания уйдут отдельным уведомлением)
+      const to = (await q('SELECT user_id FROM chat_members WHERE channel=$1 AND left_at IS NULL AND user_id<>$2', [ch, u.id])).rows.map((r) => r.user_id as number).filter((x) => !mentions.includes(x) && x !== replyOwner);
+      void pushTo(to, { title: c.kind === 'dm' ? u.name : `${u.name} · ${(c as any).name_ru ?? ''}`, body: preview, url: `/${link}` }, { kind: 'chat', channel: ch });
+    }
     await notify(mentions, 'mention', `@ ${u.name}`, preview, link);
     if (replyOwner && replyOwner !== u.id && !mentions.includes(replyOwner)) await notify([replyOwner], 'reply', `↩ ${u.name}`, preview, link);
     return { ok: true, id };

@@ -1,3 +1,4 @@
+import { pushRoutes } from './push.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
@@ -46,7 +47,7 @@ export const ASSET_CACHE = 'public, max-age=31536000, immutable';
 export function staticCache(file: string): string {
   const rel = path.relative(config.webDir, file).split(path.sep);
   if (rel[0] === 'assets') return ASSET_CACHE;
-  if (/\.html?$/i.test(file)) return INDEX_CACHE;
+  if (/\.html?$/i.test(file) || /[\/]sw\.js$/.test(file)) return INDEX_CACHE;     // service worker обязан обновляться сразу
   return 'public, max-age=3600';       // иконка, manifest: имена без хэша, час не страшен
 }
 
@@ -71,6 +72,7 @@ export async function buildApp() {
     try { await q('SELECT 1'); return { ok: true }; } catch { return reply.code(503).send({ ok: false }); }
   });
 
+  await app.register(pushRoutes);
   await app.register(authRoutes);
   await app.register(usersRoutes);
   await app.register(payrollRoutes);
