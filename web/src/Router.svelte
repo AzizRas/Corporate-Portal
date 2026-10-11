@@ -27,6 +27,7 @@
   const adminLoader = () => import('./admin/Admin.svelte');
   const assistLoader = () => import('./assist/Assist.svelte');
   const growthLoader = () => import('./growth/Growth.svelte');
+  const hireLoader = () => import('./hire/Hire.svelte');
 </script>
 
 {#key head}
@@ -53,6 +54,12 @@
       <span class="spin"></span>
     {:then m}
       <m.default />
+    {/await}
+  {:else if head === 'hire' && has('hr', 'manager', 'head')}
+    {#await hireLoader()}
+      <span class="spin"></span>
+    {:then m}
+      <m.default parts={parts.slice(1)} />
     {/await}
   {:else if head === 'assist'}
     {#await assistLoader()}

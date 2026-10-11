@@ -24,6 +24,7 @@ export function navGroups(chatBadge = 0): NavGroup[] {
       it('chat', st('n_chat'), '/chat', 'chat', chatBadge, 'chat'),
       ...(has('manager', 'head', 'hr', 'senior') ? [it('team', st('n_team'), '/team', 'team', undefined, 'internal')] : []),
       it('structure', wt('i_structure'), '/structure', 'admin', undefined, 'internal'),
+      ...(has('hr', 'manager', 'head') ? [it('hire', app.lang === 'uz' ? 'Yollash' : 'Найм', '/hire', 'team', undefined, 'internal')] : []),
       it('schedule', st('n_schedule'), '/schedule', 'schedule', undefined, 'schedule'),
     ] },
     { id: 'profile', label: wt('g_profile'), icon: 'user', items: [

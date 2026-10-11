@@ -5,6 +5,7 @@ import { pool } from './db.js';
 import { ensureBase } from './seed.js';
 import { cleanupPhotos } from './modules/attendance.js';
 import { applyDueTransfers } from './org-core.js';
+import { hireDigest } from './modules/hire.js';
 
 async function main() {
   if (config.isProd && !(process.env.DATABASE_URL || process.env.POSTGRES_URL)) {
@@ -25,6 +26,11 @@ async function main() {
   setTimeout(transfers, 15_000);
   setInterval(transfers, 3600_000).unref();
   setInterval(clean, 3600_000).unref();
+
+  // сводка по просроченным этапам найма: раз в сутки (повторный запуск в тот же день ничего не делает)
+  const digest = () => hireDigest().then((n) => n && console.log(`[portal] найм: просрочено карточек ${n}`)).catch((e) => console.error('[hire]', e));
+  setTimeout(digest, 20_000);
+  setInterval(digest, 3600_000).unref();
 
   const stop = async () => { await app.close(); await pool.end(); process.exit(0); };
   process.on('SIGTERM', stop);
