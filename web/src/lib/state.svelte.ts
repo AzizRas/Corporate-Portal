@@ -3,6 +3,7 @@ import { applyDensity } from './density';
 
 export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'recruiter' | 'accountant' | 'editor' | 'admin';
 export interface User {
+  is_lead?: boolean; team_nodes?: number;
   totp_enabled?: boolean; must_setup_2fa?: boolean;
   id: number; name: string; login: string; tab_number: string | null; position: string; position_code: string;
   dept_id: number | null; status: string; birthday: string | null; avatar_v: number; days_off: number[]; shift_start: string; shift_end: string;
@@ -20,6 +21,8 @@ export const app = $state({
 
 /** Доступен ли раздел по подразделению и роли (список приходит с сервера в /api/me). */
 export const can = (section: string) => !app.user?.sections || app.user.sections.includes(section);
+/** Руководитель: возглавляет узел структуры (или замещает) — права на команду идут отсюда, а не из ролей. */
+export const lead = () => !!app.user?.is_lead;
 export const has = (...roles: Role[]) => !!app.user && (app.user.roles.includes('admin') || roles.some((r) => app.user!.roles.includes(r)));
 
 /* ---- тема ---- */

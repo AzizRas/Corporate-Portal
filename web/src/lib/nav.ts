@@ -1,5 +1,5 @@
 // Меню портала: 6 групп, видимость по ролям. Один источник для боковой колонки, нижней панели телефона, поиска и «Ещё».
-import { app, has, can } from './state.svelte';
+import { app, has, can, lead } from './state.svelte';
 import { st } from './s18n';
 import { wt } from './w18n';
 import { pickLanding, normPath, buildHubs, HUBS, PROFILE_HUB, type Hub } from './nav-core';
@@ -33,14 +33,14 @@ export function navGroups(chatBadge = 0): NavGroup[] {
     { id: 'know', label: wt('g_know'), icon: 'kb', items: [
       it('kb', st('n_kb'), '/kb', 'kb', undefined, 'kb'), it('assist', st('n_assist'), '/assist', 'assist', undefined, 'internal'), it('help', wt('i_help'), '/help', 'more'),
       // руководителям: помощник и очередь вопросов — рядом с базой знаний, а не в «Управлении»
-      ...(has('manager', 'head', 'hr') ? [it('assistant', wt('i_assistant'), '/assistant', 'assist', undefined, 'internal'), it('queue', wt('i_queue'), '/queue', 'kb', undefined, 'internal')] : []),
+      ...(lead() || has('hr') ? [it('assistant', wt('i_assistant'), '/assistant', 'assist', undefined, 'internal'), it('queue', wt('i_queue'), '/queue', 'kb', undefined, 'internal')] : []),
     ] },
     { id: 'people', label: wt('g_people'), icon: 'team', items: [
       it('chat', st('n_chat'), '/chat', 'chat', chatBadge, 'chat'),
-      ...(has('manager', 'head', 'hr', 'senior') ? [it('team', st('n_team'), '/team', 'team', undefined, 'internal')] : []),
+      ...(lead() || has('hr', 'senior') ? [it('team', st('n_team'), '/team', 'team', undefined, 'internal')] : []),
       it('structure', wt('i_structure'), '/structure', 'admin', undefined, 'internal'),
-      ...(has('manager', 'head', 'hr') ? [it('leaves', app.lang === 'uz' ? 'Ta’tillar' : 'Отпуска', '/leaves', 'schedule', undefined, 'internal')] : []),
-      ...(has('hr', 'recruiter', 'manager', 'head') ? [it('hire', app.lang === 'uz' ? 'Yollash' : 'Найм', '/hire', 'team', undefined, 'internal')] : []),
+      ...(lead() || has('hr') ? [it('leaves', app.lang === 'uz' ? 'Ta’tillar' : 'Отпуска', '/leaves', 'schedule', undefined, 'internal')] : []),
+      ...(lead() || has('hr', 'recruiter') ? [it('hire', app.lang === 'uz' ? 'Yollash' : 'Найм', '/hire', 'team', undefined, 'internal')] : []),
       it('schedule', st('n_schedule'), '/schedule', 'schedule', undefined, 'schedule'),
     ] },
     { id: 'profile', label: wt('g_profile'), icon: 'user', items: [
@@ -49,8 +49,8 @@ export function navGroups(chatBadge = 0): NavGroup[] {
   ];
   const manage: NavItem[] = [
     ...(has('admin', 'hr', 'accountant', 'editor', 'head') ? [it('admin', st('n_admin'), '/admin', 'admin')] : []),
-    ...(has('manager', 'head', 'hr') ? [it('reports', wt('i_reports'), '/reports', 'path')] : []),
-    ...(has('manager', 'head', 'hr', 'editor') ? [it('editor', wt('i_editor'), '/editor', 'news')] : []),
+    ...(lead() || has('hr') ? [it('reports', wt('i_reports'), '/reports', 'path')] : []),
+    ...(lead() || has('hr', 'editor') ? [it('editor', wt('i_editor'), '/editor', 'news')] : []),
   ];
   if (manage.length) groups.push({ id: 'manage', label: wt('g_manage'), icon: 'admin', items: manage });
   // внешнее подразделение видит только разрешённые разделы; стажёр — без ЗП и KPI (то же закрыто на сервере)

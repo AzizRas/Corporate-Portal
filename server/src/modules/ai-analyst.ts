@@ -4,7 +4,7 @@
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { AiUnavailable, aiCall, aiStatus, parseJson } from '../ai.js';
-import { audit, hasRole, requireAuth, teamIds, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, teamIds, type AuthUser, isLead } from '../auth.js';
 import { signalOf, workStats, type SignalReason, type WorkStats } from '../ai-context.js';
 import { LOAD_HIGH, computeIndices, type Indices } from '../indices.js';
 import { chainOf, orgNodes, pathName } from '../org-core.js';
@@ -31,7 +31,7 @@ export function signalWith(s: WorkStats, idx: Indices | undefined): { level: 'no
 /** Кого видит панель: админ и HR — всех, супервайзер и руководитель отдела — свою ветку, старший оператор — свою группу. */
 export async function panelScope(u: AuthUser): Promise<number[] | null> {
   if (hasRole(u, 'admin') || u.roles.includes('hr')) return (await q('SELECT id FROM users WHERE active AND id<>$1 ORDER BY name LIMIT 5000', [u.id])).rows.map((r) => r.id);   // раньше было 300 по алфавиту: остальных HR не видел вовсе; страницы режутся уже в /api/panel
-  if (u.roles.includes('manager') || u.roles.includes('head')) return teamIds(u);
+  if (isLead(u)) return teamIds(u);
   if (u.roles.includes('senior') && u.node_id != null) return (await q('SELECT id FROM users WHERE active AND id<>$1 AND node_id=$2', [u.id, u.node_id])).rows.map((r) => r.id);
   return null;
 }
@@ -107,7 +107,7 @@ async function panelData(u: AuthUser, scope: number[]): Promise<PanelCache> {
   await syncSignals(people.map((p) => { const sg = signalWith(stats.get(p.id)!, idxs.get(p.id)); return { user_id: p.id, active: sg.level === 'talk', reasons: sg.reasons }; })).catch(() => {});
   // сначала те, у кого сигнал, потом по числу признаков, остальные по алфавиту (раньше брались первые 300 по алфавиту, и важные случаи могли не попасть в список)
   items.sort((a, b) => (b.signal ? 1 : 0) - (a.signal ? 1 : 0) || b.flags.length - a.flags.length || a.name.localeCompare(b.name));
-  const queue = hasRole(u, 'manager', 'head', 'hr') ? queueScopeSql(u) : null;
+  const queue = isLead(u) || hasRole(u, 'hr') ? queueScopeSql(u) : null;
   const open = queue ? (await q(`SELECT count(*)::int n FROM open_questions o WHERE o.status IN ('new','in_progress') AND ${queue.sql}`, queue.params)).rows[0].n : null;
   const summary = { high_load: items.filter((i) => i.indices?.load?.level === 'high').length, people: items.length, inactive: items.filter((i) => i.flags.includes('inactive')).length, overdue: items.reduce((n, i) => n + i.stats.tasks.overdue, 0), on_leave: items.filter((i) => i.stats.leave.now).length, with_signal: items.filter((i) => i.signal).length, open_questions: open };
   const units = hasRole(u, 'hr', 'admin') ? unitSummary(people, idxs, all) : [];

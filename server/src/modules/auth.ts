@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { config } from '../config.js';
-import { COOKIE, audit, createSession, requireAuth, hasRole, dropUserCache, type AuthUser } from '../auth.js';
+import { COOKIE, audit, createSession, requireAuth, hasRole, dropUserCache, isLead, type AuthUser } from '../auth.js';
 import { hashPasswordAsync, verifyPasswordAsync, sha256 } from '../security.js';
 import { IP_MAX, cooldownSec, ipFail, ipWait, streak } from '../login-guard.js';
 import QRCode from 'qrcode';
@@ -12,7 +12,7 @@ export const publicUser = (u: AuthUser) => ({
   position_code: u.position_code, dept_id: u.dept_id, lang: u.lang, theme: u.theme,
   must_change_password: u.must_change_password, totp_enabled: u.totp_enabled, must_setup_2fa: totpEnforced() && totpRequired(u.roles) && !u.totp_enabled, roles: u.roles, status: u.status, birthday: u.birthday, avatar_v: u.avatar_v,
   days_off: u.days_off, shift_start: u.shift_start, shift_end: u.shift_end, wellness: u.wellness, wellness_min: u.wellness_min,
-  node_id: u.node_id, employment: u.employment, external: u.external, acting: u.acting_for.length > 0, sections: u.sections, dept_code: u.dept_code,
+  node_id: u.node_id, is_lead: isLead(u), team_nodes: u.branch_nodes.length, employment: u.employment, external: u.external, acting: u.acting_for.length > 0, sections: u.sections, dept_code: u.dept_code,
 });
 
 export async function authRoutes(app: FastifyInstance) {

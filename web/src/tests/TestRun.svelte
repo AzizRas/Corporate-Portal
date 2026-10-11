@@ -4,14 +4,16 @@
   import { api } from '../lib/api';
   import { go } from '../lib/state.svelte';
   import { tt, tl } from './t18n';
+  import { app } from '../lib/state.svelte';
+  import ShareChoice from './ShareChoice.svelte';
 
   let { slug }: { slug: string } = $props();
-  let test: any = $state(null), err = $state(false), started = $state(false), i = $state(0), answers: number[] = $state([]), busy = $state(false), sendErr = $state(false);
+  let test: any = $state(null), err = $state(false), started = $state(false), i = $state(0), answers: number[] = $state([]), busy = $state(false), sendErr = $state(false), share = $state<'self' | 'lead' | 'lead_hr'>('lead');
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   $effect(() => {
     test = null; started = false; i = 0; answers = []; err = false;
-    api.get(`/api/tests/${slug}`).then((t) => { test = t; answers = t.questions.map(() => -1); }).catch(() => (err = true));
+    api.get(`/api/tests/${slug}`).then((t) => { test = t; answers = t.questions.map(() => -1); share = t.share_default ?? 'lead'; }).catch(() => (err = true));
     return () => clearTimeout(timer);
   });
 
@@ -31,7 +33,7 @@
   async function leave() { if (await confirmBox(tt('leave_q'))) go('/tests'); }
   async function finish() {
     busy = true; sendErr = false;
-    try { const r = await api.post(`/api/tests/${slug}/submit`, { answers: $state.snapshot(answers) }); go(`/tests/result/${r.id}`); }
+    try { const r = await api.post(`/api/tests/${slug}/submit`, { answers: $state.snapshot(answers), share }); go(`/tests/result/${r.id}`); }
     catch { sendErr = true; busy = false; }
   }
 </script>
@@ -46,6 +48,7 @@
       <p>{tl(test.intro)}</p>
       <div class="t-note u-1169661"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
       {#if test.disclaimer}<div class="t-warn">{tl(test.disclaimer)}</div>{/if}
+      {#if test.kind === 'psych'}<ShareChoice bind:value={share} />{/if}
       <div class="row wrap"><button class="btn grad" onclick={() => (started = true)}>{tt('intro_start')}</button><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>
     </div>
   {:else}

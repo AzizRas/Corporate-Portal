@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
 import { q } from '../db.js';
 import { config } from '../config.js';
-import { audit, hasRole, requireAuth, requireRole, teamIds } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, requireLead } from '../auth.js';
 import { getSetting, tzDate, tzMinutes } from '../settings.js';
 
 const QR_PERIOD_S = 60;
@@ -46,7 +46,7 @@ export async function cleanupPhotos() {
 }
 
 export async function attendanceRoutes(app: FastifyInstance) {
-  const mgr = { preHandler: requireRole('manager', 'head', 'hr') };
+  const mgr = { preHandler: requireLead('hr') };
   const adm = { preHandler: requireRole('admin') };
 
   // что нужно показать на кнопке «Пришёл»

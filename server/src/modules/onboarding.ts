@@ -7,8 +7,8 @@ import { requireAuth, requireRole, type AuthUser } from '../auth.js';
 import { HELP_TOPICS, matchTopics, topicsFor, type HelpTopic } from '../help-topics.js';
 
 export type TourKind = 'operator' | 'lead' | 'staff' | 'external';
-export const tourKind = (u: Pick<AuthUser, 'roles' | 'external'>): TourKind =>
-  u.external ? 'external' : u.roles.includes('manager') || u.roles.includes('head') ? 'lead' : u.roles.some((r) => ['hr', 'admin', 'editor', 'accountant'].includes(r)) ? 'staff' : 'operator';
+export const tourKind = (u: Pick<AuthUser, 'roles' | 'external'> & { branch_nodes?: number[] }): TourKind =>
+  u.external ? 'external' : u.roles.includes('manager') || u.roles.includes('head') || (u.branch_nodes?.length ?? 0) > 0 ? 'lead' : u.roles.some((r) => ['hr', 'admin', 'editor', 'accountant'].includes(r)) ? 'staff' : 'operator';
 
 const PAGES = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports', 'search']);
 const EVENTS = new Set(['start', 'view', 'next', 'back', 'skip', 'done', 'restart']);

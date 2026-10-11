@@ -2,12 +2,13 @@
 // рекомендации руководителя, беседы 1:1, цели ИПР, значки, кадровый резерв, настройки модели, ИИ-наставник.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, type AuthUser, isLead, requireLead } from '../auth.js';
 import { getSetting, setSetting, tzDate, tzMonth } from '../settings.js';
 import { POSITIONS, type Comp } from '../model.js';
 import { pathFor } from './path.js';
 import { AiUnavailable, aiCall, aiEnabled, aiStatus, aiStream } from '../ai.js';
 import { workStats } from '../ai-context.js';
+import { orgNodes, subtreeIds } from '../org-core.js';
 
 /* ---------- беседы 1:1: вопросы шаблонов ---------- */
 export const TALK: Record<'month' | 'stay', { ru: string; uz: string }[]> = {
@@ -34,11 +35,11 @@ const getUser = async (id: number): Promise<Row | undefined> =>
 /** Руководить человеком может: админ; HR — любым, кроме себя; руководитель — сотрудниками своей ветки дерева (в том числе по замещению). */
 export const canManage = (v: AuthUser, t: Row) =>
   hasRole(v, 'admin') ||
-  (t.id !== v.id && (hasRole(v, 'hr') || ((v.roles.includes('manager') || v.roles.includes('head')) && (t.node_id != null && v.branch_nodes.includes(t.node_id)))));
+  (t.id !== v.id && (hasRole(v, 'hr') || (t.node_id != null && v.branch_nodes.includes(t.node_id))));   // руководитель — по структуре, роли не нужны
 export const canSee = (v: AuthUser, t: Row) => v.id === t.id || canManage(v, t);
 /** Зоны роста видят: сам сотрудник, его супервайзер, руководитель отдела и администратор (не коллеги и не HR). */
 export const canSeeGrowth = (v: AuthUser, t: Row) =>
-  v.id === t.id || hasRole(v, 'admin') || ((v.roles.includes('manager') || v.roles.includes('head')) && canManage(v, t));
+  v.id === t.id || hasRole(v, 'admin') || (isLead(v) && canManage(v, t));
 
 const compsActive = async (): Promise<(Comp & { round: number | null; question_ru: string; question_uz: string })[]> =>
   (await q('SELECT id,grp,name_ru,name_uz,sort,round,question_ru,question_uz FROM competencies WHERE active ORDER BY sort')).rows;
@@ -57,7 +58,7 @@ async function rounds() {
 /** Кого и в каком качестве оценивает сотрудник: себя, своих подчинённых, своего руководителя, до 4 коллег (ротация по месяцам). */
 async function tasksFor(r: AuthUser, period: string) {
   const all = (await q(`SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.manager_id,
-                               EXISTS(SELECT 1 FROM user_roles x WHERE x.user_id=u.id AND x.role='admin') AS is_admin
+                               u.is_system AS is_admin
                           FROM users u WHERE u.active ORDER BY u.id`)).rows;      // порядок фиксирован: иначе набор коллег для оценки менялся от запуска к запуску
   const tasks: { target: any; type: 'self' | 'manager' | 'sub' | 'peer' }[] = [{ target: all.find((u) => u.id === r.id), type: 'self' }];
   for (const t of all) if (t.manager_id === r.id) tasks.push({ target: t, type: 'manager' });
@@ -343,7 +344,7 @@ export async function growthRoutes(app: FastifyInstance) {
   });
 
   /* ----- кадровый резерв и карточка человека ----- */
-  app.get('/api/growth/reserve', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
+  app.get('/api/growth/reserve', { preHandler: requireLead('hr') }, async (req) => {
     const me = req.user!;
     const users = (await q('SELECT id,name,position_code,target_position_code,dept_id,node_id,manager_id,active,lang FROM users WHERE active AND id<>$1', [me.id])).rows as Row[];
     const mine = users.filter((u) => canManage(me, u));
@@ -475,7 +476,12 @@ export async function growthRoutes(app: FastifyInstance) {
   });
 
   /* ----- личная цель: видит только сам сотрудник и руководитель его отдела ----- */
-  const headOf = (v: AuthUser, t: Row) => v.roles.includes('head') && t.node_id != null && v.branch_nodes.includes(t.node_id) && v.id !== t.id;
+  // «руководитель отдела» — по структуре: глава узла уровня отдела (или компании), в ветке которого сотрудник; супервайзер группы — нет
+  const headOf = async (v: AuthUser, t: Row) => {
+    if (t.node_id == null || v.id === t.id) return false;
+    const all = await orgNodes();
+    return all.some((n) => n.head_user_id === v.id && !n.archived && (n.kind === 'dept' || n.kind === 'root') && subtreeIds(all, n.id).includes(t.node_id!));
+  };
   app.get('/api/growth/personal', auth, async (req) => ({
     items: (await q('SELECT id,text,done,created_at FROM personal_goals WHERE user_id=$1 ORDER BY done, id DESC', [req.user!.id])).rows,
   }));
@@ -498,7 +504,7 @@ export async function growthRoutes(app: FastifyInstance) {
   app.get('/api/growth/personal/user/:id', auth, async (req, reply) => {
     const t = await getUser(Number((req.params as any).id));
     if (!t) return reply.code(404).send({ error: 'not_found' });
-    if (!headOf(req.user!, t)) return reply.code(403).send({ error: 'forbidden' });
+    if (!(await headOf(req.user!, t))) return reply.code(403).send({ error: 'forbidden' });
     return { items: (await q('SELECT id,text,done,created_at FROM personal_goals WHERE user_id=$1 ORDER BY done, id DESC', [t.id])).rows };
   });
 }

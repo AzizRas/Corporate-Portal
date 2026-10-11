@@ -2,7 +2,7 @@
 // интервью «готов ли к линии», прогресс команды и допуск на линию. Без ANTHROPIC_API_KEY всё работает во встроенном режиме.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { q, tx } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser, isLead } from '../auth.js';
 import { AiUnavailable, aiCall, aiEnabled, aiStatus, parseJson } from '../ai.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
@@ -109,14 +109,14 @@ const arr = (v: unknown, n = 4): string[] => (Array.isArray(v) ? v.map((x) => st
 
 /* ============================== кто что видит ============================== */
 const isNewbie = (u: AuthUser) => u.roles.includes('newbie');
-const canClear = (u: AuthUser) => hasRole(u, 'manager', 'head', 'hr');
-const canRecommend = (u: AuthUser) => hasRole(u, 'senior', 'manager', 'head', 'hr');
+const canClear = (u: AuthUser) => isLead(u) || hasRole(u, 'hr');
+const canRecommend = (u: AuthUser) => isLead(u) || hasRole(u, 'senior', 'hr');
 
 /** Id сотрудников на обучении, которых viewer вправе видеть: все (hr/admin); отдел (head, senior); подчинённые (manager, head); подопечные (наставник). */
 async function visibleIds(v: AuthUser): Promise<number[]> {
   const all = hasRole(v, 'admin', 'hr');
   // руководитель — своя ветка дерева; старший оператор — свой узел (группа); наставник — подопечные
-  const branch = hasRole(v, 'manager', 'head') && !all ? await teamIds(v) : [];
+  const branch = isLead(v) && !all ? await teamIds(v) : [];
   const r = await q(
     `SELECT DISTINCT e.user_id AS id FROM enrollments e JOIN users u ON u.id=e.user_id
       WHERE u.active AND u.id<>$1 AND ($2 OR u.id = ANY($3::int[]) OR ($4 AND $5::int IS NOT NULL AND u.node_id=$5) OR e.mentor_id=$1)`,

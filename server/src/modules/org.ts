@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import ExcelJS from 'exceljs';
 import { q } from '../db.js';
-import { ALL_ROLES, audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
+import { ALL_ROLES, audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser, isLead } from '../auth.js';
 import { hashPasswordAsync } from '../security.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
@@ -30,7 +30,7 @@ export async function orgRoutes(app: FastifyInstance) {
   /** Управлять человеком (отпуск, история): админ, HR или руководитель, у которого он в ветке. */
   const canHandle = async (u: AuthUser, targetId: number) => isHr(u) || (await teamIds(u)).includes(targetId);
   /** Свой отпуск или больничный оформляет и сам руководитель (с заместителем). */
-  const canLeave = async (u: AuthUser, targetId: number) => (u.id === targetId && hasRole(u, 'manager', 'head')) || canHandle(u, targetId);
+  const canLeave = async (u: AuthUser, targetId: number) => (u.id === targetId && isLead(u)) || canHandle(u, targetId);
 
   /* ----- дерево ----- */
   app.get('/api/org/tree', auth, async (req) => {
@@ -332,7 +332,7 @@ export async function orgRoutes(app: FastifyInstance) {
   app.post('/api/org/delegations', auth, async (req, reply) => {
     const b = (req.body ?? {}) as any, me = req.user!;
     const from = hasRole(me, 'admin') && b.from_user_id ? Number(b.from_user_id) : me.id;
-    if (from === me.id && !hasRole(me, 'manager', 'head')) return reply.code(403).send({ error: 'forbidden' });
+    if (from === me.id && !isLead(me)) return reply.code(403).send({ error: 'forbidden' });
     const to = await activeUser(b.to_user_id), d1 = isoDate(b.from), d2 = isoDate(b.to);
     if (!to || to === from || !d1 || !d2 || d2 < d1) return reply.code(400).send({ error: 'invalid' });
     const id = (await q('INSERT INTO delegations(from_user_id,to_user_id,from_date,to_date,created_by) VALUES($1,$2,$3,$4,$5) RETURNING id', [from, to, d1, d2, me.id])).rows[0].id;

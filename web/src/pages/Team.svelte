@@ -9,6 +9,10 @@
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
   import Panel from '../team/Panel.svelte';
+  import Members from '../team/Members.svelte';
+  import Member from '../team/Member.svelte';
+
+  let { id = null }: { id?: number | null } = $props();
   import Skeleton from '../components/Skeleton.svelte';
   import ErrorState from '../components/ErrorState.svelte';
   import EmptyState from '../components/EmptyState.svelte';
@@ -22,7 +26,9 @@
   async function decide(id: number, approve: boolean) { await api.post(`/api/attendance/${id}/decide`, { approve }); await load(); }
 </script>
 
-<header class="page-head"><div><h1>{t('nav_team')}<PageHelp topic="panel_team" /></h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a></div></header>
+{#if id}<Member {id} />{:else}
+<header class="page-head"><div><h1>{t('nav_team')}<PageHelp topic="panel_team" /></h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a><a class="btn" href="#/leaves">{wt('i_leaves')}</a></div></header>
+<Members />
 <Panel />
 <div class="grid u-e3865e7">
   <section class="card">
@@ -51,3 +57,4 @@
     </div>{/if}
   </section>
 </div>
+{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { app } from '../lib/state.svelte';
   import Icon from '../components/Icon.svelte';
   import { api } from '../lib/api';
   import Avatar from '../components/Avatar.svelte';
@@ -63,7 +64,7 @@
                 <td><div class="who"><Avatar u={m} size={34} /><div><b>{m.name}</b><small>{m.position}</small></div></div></td>
                 {#each d.tests as t}
                   <td>
-                    {#if m.results[t.slug]}<a class="t-cell {m.results[t.slug].tone}" href="#/tests/result/{m.results[t.slug].id}">{tl(m.results[t.slug].headline)}</a>
+                    {#if m.results[t.slug]?.hidden}<span class="t-cell muted" title={app.lang === 'uz' ? 'Xodim natijani yopiq qoldirdi' : 'Сотрудник оставил результат закрытым'}>{app.lang === 'uz' ? 'Topshirilgan · yopiq' : 'Пройден · закрыт'}</span>{:else if m.results[t.slug]}<a class="t-cell {m.results[t.slug].tone}" href="#/tests/result/{m.results[t.slug].id}">{tl(m.results[t.slug].headline)}</a>
                     {:else}<span class="muted">—</span>{/if}
                     {#if m.pending.includes(t.slug)}<div class="t-pend"><Icon inline name="hourglass" /> {tt('tm_pending')}</div>{/if}
                   </td>

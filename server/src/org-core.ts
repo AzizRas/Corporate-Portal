@@ -161,6 +161,7 @@ export async function ensureOrg() {
     await q('UPDATE users SET node_id=$2 WHERE id=$1', [u.id, node]);
   }
   invalidateOrg();
+  await syncAllManagers();
 }
 
 /** Размещает одного нового сотрудника в узел отдела (если узел не указан). */
@@ -175,6 +176,18 @@ export async function placeUser(userId: number) {
     if (node) await q('UPDATE users SET node_id=$2 WHERE id=$1', [userId, node.id]);
   }
   await syncUserDept(userId);
+}
+
+/** Пересчитать прямого руководителя у всех (страховка от рассинхрона: источник правды — структура). Возвращает число исправленных. */
+export async function syncAllManagers(): Promise<number> {
+  const all = await orgNodes();
+  const rows = (await q('SELECT id,node_id,manager_id FROM users WHERE active AND node_id IS NOT NULL')).rows;
+  let fixed = 0;
+  for (const u of rows) {
+    const head = [...chainOf(all, u.node_id)].reverse().find((n) => n.head_user_id != null && n.head_user_id !== u.id)?.head_user_id ?? null;
+    if (head !== u.manager_id) { await q('UPDATE users SET manager_id=$2 WHERE id=$1', [u.id, head]); fixed++; }
+  }
+  return fixed;
 }
 
 /** Прямой руководитель сотрудника — ближайший глава узла выше него (сам себе не руководит). */

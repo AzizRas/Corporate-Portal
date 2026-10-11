@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
 import { AiUnavailable, aiCall, aiStatus, parseJson } from '../ai.js';
-import { audit, hasRole, requireAuth, teamIds, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, teamIds, type AuthUser, isLead } from '../auth.js';
 import { notify } from '../notify.js';
 import { writeArticle } from './kb.js';
 import { parseItem } from './library.js';
@@ -18,8 +18,8 @@ const str = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 
 /** Что вправе создавать и подтверждать пользователь — те же права, что и у ручных разделов. */
 export function canKind(u: AuthUser, kind: Kind) {
-  if (kind === 'assign') return hasRole(u, 'manager', 'head', 'hr');
-  if (kind === 'library_add') return hasRole(u, 'manager', 'head', 'hr', 'editor');
+  if (kind === 'assign') return isLead(u) || hasRole(u, 'hr');
+  if (kind === 'library_add') return isLead(u) || hasRole(u, 'hr', 'editor');
   return hasRole(u, 'editor', 'hr');
 }
 

@@ -1,7 +1,7 @@
 // Очередь нерешённых вопросов и предложений: видна админу, HR и руководителям своей ветки. Ответ можно предложить в базу знаний — только черновиком.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, type AuthUser, requireLead } from '../auth.js';
 import { notify } from '../notify.js';
 import { orgNodes, pathName } from '../org-core.js';
 
@@ -11,7 +11,7 @@ const STATUSES = ['new', 'in_progress', 'answered', 'closed'];
 export const queueScopeSql = (u: AuthUser) => (hasRole(u, 'admin', 'hr') ? { sql: 'TRUE', params: [] as unknown[] } : { sql: 'o.node_id = ANY($1::int[])', params: [u.branch_nodes] });
 
 export async function questionRoutes(app: FastifyInstance) {
-  const lead = { preHandler: requireRole('manager', 'head', 'hr') };
+  const lead = { preHandler: requireLead('hr') };
 
   const canSee = async (u: AuthUser, id: number) => {
     const s = queueScopeSql(u);

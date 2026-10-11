@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import ExcelJS from 'exceljs';
 import { q, tx } from '../db.js';
-import { audit, hasRole, requireAuth, requireRole, teamIds } from '../auth.js';
+import { audit, hasRole, requireAuth, requireRole, teamIds, requireLead } from '../auth.js';
 import { getSetting } from '../settings.js';
 
 // Колонки ведомости: заголовки ищутся по названию (регистр и порядок не важны).
@@ -273,7 +273,7 @@ export async function payrollRoutes(app: FastifyInstance) {
   }));
 
   // --- руководитель: свод по команде без имён
-  app.get('/api/payroll/team', { preHandler: requireRole('accountant', 'manager', 'head') }, async (req) => {
+  app.get('/api/payroll/team', { preHandler: requireLead('accountant') }, async (req) => {
     const month = String((req.query as any).month ?? '');
     const ids = hasRole(req.user, 'accountant') ? null : await teamIds(req.user!);
     const r = await q(

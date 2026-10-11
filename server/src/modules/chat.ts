@@ -4,7 +4,7 @@ import { deleteFile, getFile, putFile } from '../storage.js';
 import crypto from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireAuth, type AuthUser, isLead } from '../auth.js';
 import { bdaySql, notify } from '../notify.js';
 import { channelsFor, chatAccess, dmChannel, type Channel } from '../chat-core.js';
 import { externalRootOf, orgHooks, orgNodes, subtreeIds } from '../org-core.js';
@@ -62,7 +62,7 @@ export async function chatRoutes(app: FastifyInstance) {
   };
   const isStaff = (u: AuthUser) => hasRole(u, 'admin', 'hr');
   /** Закреплять и удалять чужое: владелец/админ группы; в общих каналах — руководители, HR и админ. */
-  const canModerate = (u: AuthUser, c: Channel) => (c.kind === 'group' ? c.role === 'owner' || c.role === 'admin' : c.kind === 'dm' ? false : hasRole(u, 'manager', 'head', 'hr', 'editor'));
+  const canModerate = (u: AuthUser, c: Channel) => (c.kind === 'group' ? c.role === 'owner' || c.role === 'admin' : c.kind === 'dm' ? false : isLead(u) || hasRole(u, 'hr', 'editor'));
 
   /* ----- список чатов ----- */
   app.get('/api/chat/channels', auth, async (req) => {

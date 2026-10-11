@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { deleteFile, getFile, putFile, storageKind } from '../storage.js';
 import type { FastifyInstance } from 'fastify';
 import { q, tx } from '../db.js';
-import { audit, hasRole, requireRole, type AuthUser } from '../auth.js';
+import { audit, hasRole, requireRole, type AuthUser, isLead, requireLead } from '../auth.js';
 import { config } from '../config.js';
 import { notify } from '../notify.js';
 import { getSetting, setSetting } from '../settings.js';
@@ -92,9 +92,9 @@ const calendar = async (): Promise<Cal & { hmContacts: boolean }> => {
 
 // ---------- права ----------
 const isRec = (u: AuthUser) => hasRole(u, 'hr', 'recruiter');
-const isHm = (u: AuthUser) => hasRole(u, 'manager', 'head');
+const isHm = (u: AuthUser) => isLead(u);
 const role = (u: AuthUser) => (hasRole(u, 'admin') ? 'admin' : isRec(u) ? 'recruiter' : isHm(u) ? 'hm' : 'none');
-const R_OR_H = { preHandler: requireRole('hr', 'recruiter', 'manager', 'head') };
+const R_OR_H = { preHandler: requireLead('hr', 'recruiter') };
 const R_ONLY = { preHandler: requireRole('hr', 'recruiter') };
 const ADMIN = { preHandler: requireRole('admin') };
 
@@ -816,7 +816,7 @@ export async function hireRoutes(app: FastifyInstance) {
 
   // оффер
   app.put('/api/hire/pipeline/:id/offer', R_ONLY, async (req, reply) => {
-    const p = (await q('SELECT id FROM hire_pipeline WHERE id=$1', [Number((req.params as any).id)])).rows[0];
+    const p = await pipeRow(req.user!, Number((req.params as any).id));
     if (!p) return err(reply, 404, 'not_found');
     const b = (req.body ?? {}) as any;
     const fields = (await q(`SELECT * FROM hire_form_fields WHERE form='offer' AND active`)).rows;
@@ -828,7 +828,7 @@ export async function hireRoutes(app: FastifyInstance) {
   });
   app.get('/api/hire/pipeline/:id/offer', R_ONLY, async (req, reply) => {
     const p = (await q(`SELECT p.id,a.first_name,a.last_name,v.title FROM hire_pipeline p JOIN hire_applicants a ON a.id=p.applicant_id JOIN hire_vacancies v ON v.id=p.vacancy_id WHERE p.id=$1`, [Number((req.params as any).id)])).rows[0];
-    if (!p) return err(reply, 404, 'not_found');
+    if (!p || !(await pipeRow(req.user!, p.id))) return err(reply, 404, 'not_found');
     const o = (await q('SELECT * FROM hire_offers WHERE pipeline_id=$1', [p.id])).rows[0];
     return { offer: o ?? { pipeline_id: p.id, data: {}, status: 'draft' }, who: p, fields: (await q(`SELECT * FROM hire_form_fields WHERE form='offer' AND active ORDER BY ord`)).rows };
   });

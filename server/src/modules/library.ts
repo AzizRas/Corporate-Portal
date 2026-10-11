@@ -2,14 +2,14 @@
 // «Рекомендовано мне» — материалы, у которых comp совпадает с зонами роста (gaps) сотрудника из pathFor.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth } from '../auth.js';
+import { audit, hasRole, requireAuth, isLead } from '../auth.js';
 import { getSetting, setSetting } from '../settings.js';
 import { pathFor } from './path.js';
 
 export const KINDS = ['book', 'video', 'link', 'article', 'course'];
 const LEVELS = ['', 'basic', 'mid', 'adv'];
 const STATUSES = ['wish', 'reading', 'done'];
-const canEdit = (u: any) => hasRole(u, 'manager', 'head', 'hr', 'editor');
+const canEdit = (u: any) => isLead(u) || hasRole(u, 'hr', 'editor');
 
 // примеры: реальные книги и одно известное видео; админ может заменить или скрыть
 const SEED: [string, string, string, string, string, string | null, string, string][] = [

@@ -2,8 +2,8 @@
 // Сотрудник просит выходной → подтверждает старший оператор (для операторов своего отдела), супервайзер, руководитель отдела, HR, админ.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { SYSTEM_USER_SQL, branchNodes, isOnLeave } from '../org-core.js';
-import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
+import { SYSTEM_USER_SQL, branchNodes, isOnLeave, chainOf, orgNodes } from '../org-core.js';
+import { audit, hasRole, requireAuth, type AuthUser, isLead } from '../auth.js';
 import { notify } from '../notify.js';
 import { getSetting, setSetting, tzDate, tzMinutes } from '../settings.js';
 import { settingsFor } from './attendance.js';
@@ -42,23 +42,22 @@ const validMonth = (s: unknown) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(String(s)) ? 
 
 /** Кого пользователь видит в графике (команда) и кого может подтверждать. Старший оператор — операторов своего отдела. */
 export const isSenior = (u: Pick<AuthUser, 'roles'>) => u.roles.includes('senior');
-function canSeeTeam(v: AuthUser) { return hasRole(v, 'manager', 'head', 'hr') || isSenior(v); }
+function canSeeTeam(v: AuthUser) { return hasRole(v, 'hr') || isLead(v) || isSenior(v); }
 function inScope(v: AuthUser, t: P) {
   if (t.id === v.id) return false;
   if (hasRole(v, 'admin', 'hr')) return true;
   const inBranch = t.node_id != null && v.branch_nodes.includes(t.node_id);
-  if (v.roles.includes('head')) return inBranch;
-  if (v.roles.includes('manager')) return inBranch;
+  if (inBranch) return true;                       // руководитель узла (по структуре, без ролей) — вся ветка
   if (isSenior(v)) return v.node_id != null && t.node_id === v.node_id;   // старший оператор — операторы своей группы
   return false;
 }
 /** Решать по выходному: старший оператор — только за обычных операторов; остальные руководители — за всех в своей зоне. */
 function canDecide(v: AuthUser, t: P) {
   if (!inScope(v, t)) return false;
-  if (hasRole(v, 'admin', 'hr', 'manager', 'head')) return true;
+  if (hasRole(v, 'hr') || isLead(v)) return true;
   return isSenior(v) && !t.roles.some((r) => ['senior', 'manager', 'head'].includes(r));
 }
-const canEditSchedule = (v: AuthUser, t: P) => hasRole(v, 'admin', 'hr', 'manager', 'head') && inScope(v, t);
+const canEditSchedule = (v: AuthUser, t: P) => (hasRole(v, 'hr') || isLead(v)) && inScope(v, t);
 
 export interface DayInfo { day: string; kind: 'work' | 'off'; source: 'pattern' | 'approved' | 'pending' | 'rejected' | 'leave'; shift_start: string | null; shift_end: string | null; note?: string }
 
@@ -120,11 +119,13 @@ export async function scheduleRoutes(app: FastifyInstance) {
       `INSERT INTO schedule_days(user_id,day,kind,status,note,requested_by) VALUES($1,$2,'off','pending',$3,$1)
        ON CONFLICT (user_id,day) DO UPDATE SET kind='off',status='pending',note=$3,requested_by=$1,decided_by=NULL,decided_at=NULL,shift_start=NULL,shift_end=NULL`,
       [u.id, day, String(b.note ?? '').slice(0, 200)]);
-    // уведомляем тех, кто может подтвердить
-    const all = (await q(PEOPLE)).rows as P[];
-    const approvers: number[] = [];
-    for (const x of all.filter((x) => x.id !== u.id && x.roles.some((r) => ['admin', 'hr', 'manager', 'head', 'senior'].includes(r))))
-      if (canDecide({ ...(x as any), roles: x.roles, branch_nodes: await branchNodes([x.id]), acting_for: [] } as AuthUser, p)) approvers.push(x.id);
+    // согласующие: руководители по цепочке вверх от узла сотрудника, их заместители и старший оператор группы (раньше перебирались все руководители компании)
+    const heads = chainOf(await orgNodes(), p.node_id).map((n) => n.head_user_id).filter((x): x is number => x != null && x !== u.id);
+    const deps = heads.length ? (await q(`SELECT DISTINCT to_user_id FROM delegations WHERE from_user_id = ANY($1::int[]) AND $2::date BETWEEN from_date AND to_date`, [heads, tzDate()])).rows.map((r) => r.to_user_id as number) : [];
+    const plain = !p.roles.some((r) => ['senior', 'manager', 'head'].includes(r));
+    const seniors = plain && p.node_id != null ? (await q(`SELECT u.id FROM users u JOIN user_roles r ON r.user_id=u.id AND r.role='senior' WHERE u.active AND u.node_id=$1 AND u.id<>$2`, [p.node_id, u.id])).rows.map((r) => r.id as number) : [];
+    let approvers = [...new Set([...heads, ...deps, ...seniors])];
+    if (!approvers.length) approvers = (await q(`SELECT DISTINCT r.user_id FROM user_roles r JOIN users x ON x.id=r.user_id AND x.active AND NOT x.is_system WHERE r.role='hr'`)).rows.map((r) => r.user_id as number);
     await notify(approvers, 'dayoff', `📅 ${u.name}`, `${day}${b.note ? ` — ${String(b.note).slice(0, 100)}` : ''}`, '#/schedule/team');
     return { ok: true };
   });

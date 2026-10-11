@@ -1,14 +1,14 @@
 // Лента (мысли, благодарности, победы, объявления) и чат по каналам: общий и по отделам — вовлечение и обратная связь внутри команды.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth } from '../auth.js';
+import { audit, hasRole, requireAuth, isLead } from '../auth.js';
 import { bdaySql, notify } from '../notify.js';
 
 const KINDS = ['thought', 'kudos', 'win', 'announce'];
 
 export async function communityRoutes(app: FastifyInstance) {
   const auth = { preHandler: requireAuth };
-  const canAnnounce = (u: NonNullable<import('fastify').FastifyRequest['user']>) => hasRole(u, 'manager', 'head', 'hr', 'editor');
+  const canAnnounce = (u: NonNullable<import('fastify').FastifyRequest['user']>) => isLead(u as any) || hasRole(u, 'hr', 'editor');
 
   const POSTS = () => `SELECT p.id,p.kind,p.body,p.pinned,p.created_at,p.user_id,u.name AS author,u.position AS author_position,u.avatar_v,u.status,${bdaySql('u')} AS bday,
       (SELECT count(*)::int FROM post_likes l WHERE l.post_id=p.id) AS likes,

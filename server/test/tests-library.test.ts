@@ -180,7 +180,10 @@ test('видимость результатов: оператор и старш�
   const op1 = await login('op1'), op2 = await login('op2'), senior = await login('senior1'), sv = await login('rustam');
   const hr = await login('hr'), head = await login('head1'), other = await login('other1'), admin = await login('admin', 'admin-test-1');
   const t = T('stress');
-  const mine = (await send(op1, 'POST', '/api/tests/stress/submit', { answers: t.config.questions.map(() => 3) })).json().id;
+  // по умолчанию стресс-тест закрыт (ТЗ №3, B6): руководитель не видит без согласия
+  const closed = (await send(op1, 'POST', '/api/tests/stress/submit', { answers: t.config.questions.map(() => 3) })).json().id;
+  assert.equal((await get(sv, `/api/tests/results/${closed}`)).statusCode, 403, 'без согласия закрыто');
+  const mine = (await send(op1, 'POST', '/api/tests/stress/submit', { answers: t.config.questions.map(() => 3), share: 'lead_hr' })).json().id;
   assert.equal((await get(op2, `/api/tests/results/${mine}`)).statusCode, 403);
   assert.equal((await get(senior, `/api/tests/results/${mine}`)).statusCode, 403, 'senior результаты не видит');
   assert.equal((await get(other, `/api/tests/results/${mine}`)).statusCode, 403);
@@ -189,7 +192,7 @@ test('видимость результатов: оператор и старш�
   assert.equal((await get(hr, `/api/tests/results/${mine}`)).statusCode, 200);
   assert.equal((await get(admin, `/api/tests/results/${mine}`)).statusCode, 200);
   // результат сотрудника другого отдела: ни супервайзер, ни head отдела «call» его не видят, hr видит
-  const o = (await send(other, 'POST', '/api/tests/stress/submit', { answers: t.config.questions.map(() => 5) })).json().id;
+  const o = (await send(other, 'POST', '/api/tests/stress/submit', { answers: t.config.questions.map(() => 5), share: 'lead_hr' })).json().id;
   assert.equal((await get(sv, `/api/tests/results/${o}`)).statusCode, 403);
   assert.equal((await get(head, `/api/tests/results/${o}`)).statusCode, 403);
   assert.equal((await get(hr, `/api/tests/results/${o}`)).statusCode, 200);

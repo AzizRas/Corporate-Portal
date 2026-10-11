@@ -10,7 +10,7 @@ const ru: Record<string, string> = {
   ai_role_mentor: 'Наставник', ai_role_mentor_d: 'отвечает сотруднику',
   ai_role_analyst: 'Аналитик руководителя', ai_role_analyst_d: 'подсказки по команде',
   ai_role_editor: 'Редактор контента', ai_role_editor_d: 'черновики тестов и статей',
-  ai_role_supervisor: 'Помощник супервайзера', ai_role_supervisor_d: 'разбор смены и задач',
+  ai_role_supervisor: 'Помощник руководителя', ai_role_supervisor_d: 'разбор смены и задач',
   ai_role_trainer: 'Тренажёр обучения', ai_role_trainer_d: 'диалоги для практики',
   ai_role_search: 'Умный поиск по базе знаний', ai_role_search_d: 'ответы по ЧАВО и статьям',
   ai_role_recruiter: 'Помощник рекрутёра', ai_role_recruiter_d: 'разбор резюме и совет по кандидату (решает человек)',
