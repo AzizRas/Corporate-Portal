@@ -4,6 +4,7 @@
   import { app, has, logout, go, can } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
   import { stripEmoji } from '../lib/format';
+  import { enhanceTables } from '../lib/table-cards';
   import { notif, startNotify } from '../lib/notify.svelte';
   import { navGroups, activeItem, landing, navHubs, profileHub, hubLabel } from '../lib/nav';
   import { hubOfActive } from '../lib/nav-core';
@@ -28,6 +29,17 @@
   let collapsed = $state(false);
   try { collapsed = localStorage.getItem('side-collapsed') === '1'; } catch { /* приватный режим */ }
   const toggle = () => { collapsed = !collapsed; try { localStorage.setItem('side-collapsed', collapsed ? '1' : '0'); } catch { /* */ } };
+  // таблицы на телефоне превращаются в карточки (подписи колонок ставятся автоматически, см. lib/table-cards.ts)
+  onMount(() => {
+    const main = document.querySelector('main.main');
+    if (!main) return;
+    let t: ReturnType<typeof setTimeout>;
+    const run = () => { clearTimeout(t); t = setTimeout(() => enhanceTables(main), 60); };
+    const mo = new MutationObserver(run);
+    mo.observe(main, { childList: true, subtree: true });
+    run();
+    return () => { mo.disconnect(); clearTimeout(t); };
+  });
   onMount(() => { startNotify(); const t = setTimeout(maybeAutoStart, 1400); return () => clearTimeout(t); });
   // посещённые разделы — для чек-листа «Первые шаги» и статистики
   $effect(() => { if (app.user) visit(app.route); });

@@ -107,3 +107,15 @@ test('Иконки: в интерфейсе нет эмодзи-картинок
   for (const n of ['palm', 'cake', 'thumb-up', 'thumb-down', 'pin', 'hourglass', 'spark', 'lock', 'bot', 'video', 'link', 'file', 'image', 'heart', 'trophy', 'idea', 'send']) assert.match(icon, new RegExp(`['"]?${n}['"]?: '`), `значок ${n}`);
   assert.match(icon, /class:ico=\{inline\}/);
 });
+
+test('Телефон: таблицы превращаются в карточки с подписями колонок; таблицы со слитыми ячейками не трогаются', async () => {
+  const { labelsFor } = await import('../../web/src/lib/table-cards.ts');
+  assert.deepEqual(labelsFor([' ФИО ', 'Должность'], 2, false), ['ФИО', 'Должность']);
+  assert.equal(labelsFor(['A', 'B'], 3, false), null, 'число колонок не совпало');
+  assert.equal(labelsFor(['A', 'B'], 2, true), null, 'есть colspan/rowspan');
+  assert.equal(labelsFor([], 2, false), null, 'нет заголовка');
+  const css = read('src/tokens.css');
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.table\.cardify td::before \{ content: attr\(data-label\)/);
+  assert.match(css, /\.table\.cardify thead \{ display: none; \}/);
+  assert.match(read('src/components/Shell.svelte'), /enhanceTables\(main\)/); assert.match(read('src/components/Shell.svelte'), /MutationObserver/);
+});
