@@ -52,3 +52,22 @@ test('Ошибки загрузки на этих страницах больш�
   const pageErrors = web('components/ErrorState.svelte');
   assert.match(pageErrors, /friendlyError\(error, app\.lang\)/);
 });
+
+test('UX 7: тур показывает только шаги по доступным разделам и добавляет шаги под профиль', async () => {
+  const { STEP_SECTION, stepAllowed } = await import('../../web/src/lib/tour-core.ts');
+  const all = () => true;
+  const hr = (s: string) => !['path', 'kb', 'assist', 'trainer', 'ready'].includes(s);       // профиль HR
+  const rec = (s: string) => ['home', 'news', 'chat', 'tasks', 'schedule', 'help', 'pay', 'library', 'tests'].includes(s);     // профиль рекрутёра
+  assert.equal(stepAllowed('path', all), true); assert.equal(stepAllowed('path', hr), false, 'у HR раздела «Мой путь» нет — шага тоже');
+  assert.equal(stepAllowed('kb', hr), false); assert.equal(stepAllowed('kb', all), true);
+  assert.equal(stepAllowed('training', rec), false, 'у рекрутёра нет плана обучения'); assert.equal(stepAllowed('chat', rec), true);
+  assert.equal(stepAllowed('search', () => false), true, 'шаги без раздела (поиск, колокольчик) видны всем');
+  assert.equal(stepAllowed('hire', () => false), true, 'найм определяется ролью, а не разделом');
+  // шаги тура привязаны к существующим разделам матрицы доступа
+  const { SECTIONS } = await import('../src/access.js');
+  for (const [step, section] of Object.entries(STEP_SECTION)) assert.ok((SECTIONS as readonly string[]).includes(section), `${step} → ${section}`);
+  // в турах есть шаги «Найм» (для HR и рекрутёров) и «ЧАВО» (для сотрудников с этим разделом)
+  const tours = fs.readFileSync(new URL('../../web/src/lib/tour.svelte.ts', import.meta.url), 'utf8');
+  assert.match(tours, /S\('hire',[\s\S]*\['hr', 'recruiter', 'admin'\]/); assert.match(tours, /S\('kb',/);
+  assert.match(tours, /\.filter\(\(s\) => stepAllowed\(s\.id, can\)\)/);
+});
