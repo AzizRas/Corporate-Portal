@@ -83,8 +83,8 @@ export async function claude(model: string, system: string, messages: Msg[], max
 }
 
 /* =================== ядро ИИ: роли, лимит стоимости, кэш, журнал =================== */
-export type AiRole = 'mentor' | 'analyst' | 'editor' | 'supervisor' | 'trainer' | 'search';
-export const AI_ROLES: AiRole[] = ['mentor', 'analyst', 'editor', 'supervisor', 'trainer', 'search'];
+export type AiRole = 'mentor' | 'analyst' | 'editor' | 'supervisor' | 'trainer' | 'search' | 'recruiter';
+export const AI_ROLES: AiRole[] = ['mentor', 'analyst', 'editor', 'supervisor', 'trainer', 'search', 'recruiter'];
 export class AiUnavailable extends Error {
   constructor(public reason: 'no_key' | 'budget' | 'role_off') { super(`ai_${reason}`); }
 }

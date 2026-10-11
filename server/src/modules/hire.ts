@@ -9,7 +9,10 @@ import { notify } from '../notify.js';
 import { getSetting, setSetting } from '../settings.js';
 import { POSITIONS } from '../model.js';
 import { pathFor } from './path.js';
-import { extractText, parseResume, resumeKind } from './hire-parse.js';
+import { extractText, resumeKind } from './hire-parse.js';
+import { hasProfile, parseResume, type ResumeProfile } from './hire-profile.js';
+import { aiExtractProfile, aiReviewCandidate } from '../hire-ai.js';
+import { AiUnavailable, aiStatus } from '../ai.js';
 
 const TR: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o', қ: 'q', ғ: 'g', ҳ: 'h' };
 const translit = (s: string) => String(s || '').toLowerCase().replace(/[а-яёўқғҳ]/g, (c) => TR[c] ?? c);
@@ -27,6 +30,12 @@ const EXTRA_KINDS = ['telegram', 'whatsapp', 'instagram', 'linkedin', 'website',
 const CONTACT_KINDS = ['telegram', 'whatsapp', 'instagram', 'linkedin', 'website', 'phone2', 'email2'];
 const cleanExtras = (list: unknown) => (Array.isArray(list) ? list : []).slice(0, 40)
   .map((x: any) => ({ kind: String(x?.kind ?? ''), value: S(x?.value, 700) })).filter((x) => EXTRA_KINDS.includes(x.kind) && x.value);
+
+/** Разобранное резюме кандидата: структура для рекрутёра и ИИ + полный текст файла. */
+async function saveProfile(applicantId: number, profile: ResumeProfile, rawText: string, source: 'rules' | 'ai' | 'manual', userId: number | null) {
+  await q(`INSERT INTO hire_applicant_profile(applicant_id,data,raw_text,source,updated_by) VALUES($1,$2,$3,$4,$5)
+    ON CONFLICT (applicant_id) DO UPDATE SET data=$2,raw_text=$3,source=$4,updated_by=$5,updated_at=now()`, [applicantId, JSON.stringify(profile), rawText.slice(0, 60000), source, userId]);
+}
 
 const STAGE_TYPES = ['new', 'work', 'interview', 'offer', 'hired', 'rejected'];
 
@@ -480,6 +489,8 @@ export async function hireRoutes(app: FastifyInstance) {
     for (const x of cleanExtras(b.extras)) await q('INSERT INTO hire_applicant_extra(applicant_id,kind,value,created_by) VALUES($1,$2,$3,$4)', [aid, x.kind, x.value, req.user!.id]);
     const note = S(b.note, 3000);
     if (note) await q("INSERT INTO hire_logs(applicant_id,kind,body,author_id) VALUES($1,'note',$2,$3)", [aid, note, req.user!.id]);
+    const resumeText = String(b.resume_text ?? '').slice(0, 60000);
+    if (resumeText.trim().length >= 30) await saveProfile(aid, parseResume(resumeText).profile, resumeText, 'rules', req.user!.id);
     return { applicant: pubApplicant(r.rows[0]), duplicates: dupes };
   });
   app.get('/api/hire/applicants/:id', R_OR_H, async (req, reply) => {
@@ -504,7 +515,13 @@ export async function hireRoutes(app: FastifyInstance) {
     const resumes = (await q(`SELECT id,filename,mime,size,created_at FROM hire_resumes WHERE applicant_id=$1 ORDER BY id DESC`, [id])).rows;
     const tags = (await q('SELECT t.id,t.name,t.color FROM hire_applicant_tags x JOIN hire_tags t ON t.id=x.tag_id WHERE x.applicant_id=$1', [id])).rows;
     const extras = (await q('SELECT id,kind,value FROM hire_applicant_extra WHERE applicant_id=$1 ORDER BY id', [id])).rows.filter((x) => rec || cal.hmContacts || !CONTACT_KINDS.includes(x.kind));
-    return { applicant: pubApplicant(stripContacts(a, cal.hmContacts, u)), pipelines: pipes, timeline, resumes, tags, extras };
+    const pr = (await q('SELECT data,raw_text,source,updated_at FROM hire_applicant_profile WHERE applicant_id=$1', [id])).rows[0];
+    // заказчику не отдаём личные признаки и исходный текст (в нём телефон и почта)
+    const profile = pr ? { data: rec ? pr.data : { ...pr.data, personal: { gender: '', age: '', birthday: '', location: '' } }, raw_text: rec ? pr.raw_text : '', source: pr.source, updated_at: pr.updated_at } : null;
+    const reviews = rec ? (await q(
+      `SELECT r.id,r.pipeline_id,r.result,r.model,r.created_at,u.name AS by_name FROM hire_ai_reviews r LEFT JOIN users u ON u.id=r.created_by WHERE r.applicant_id=$1 ORDER BY r.id DESC LIMIT 20`, [id])).rows : [];
+    return { applicant: pubApplicant(stripContacts(a, cal.hmContacts, u)), pipelines: pipes, timeline, resumes, tags, extras, profile, reviews,
+      interviews: itv.filter((i) => i.status === 'planned').map((i) => ({ pipeline_id: i.pipeline_id, starts_at: i.starts_at, duration_min: i.duration_min, place: i.place, link: i.link })) };
   });
   app.patch('/api/hire/applicants/:id', R_ONLY, async (req, reply) => {
     const cur = (await q('SELECT * FROM hire_applicants WHERE id=$1', [Number((req.params as any).id)])).rows[0];
@@ -524,6 +541,8 @@ export async function hireRoutes(app: FastifyInstance) {
       await c.query('DELETE FROM hire_logs WHERE applicant_id=$1', [id]);
       await c.query('DELETE FROM hire_applicant_tags WHERE applicant_id=$1', [id]);
       await c.query('DELETE FROM hire_applicant_extra WHERE applicant_id=$1', [id]);
+      await c.query('DELETE FROM hire_applicant_profile WHERE applicant_id=$1', [id]);
+      await c.query('DELETE FROM hire_ai_reviews WHERE applicant_id=$1', [id]);
       await c.query(`UPDATE hire_applicants SET first_name='Удалён',last_name='',middle_name='',phone='',email='',birthday=NULL,position='',company='',salary_expect=NULL,
         name_key='',phone_norm='',email_norm='',user_id=NULL,consent='none',consent_at=NULL,anonymized=true,updated_at=now() WHERE id=$1`, [id]);
     });
@@ -565,6 +584,12 @@ export async function hireRoutes(app: FastifyInstance) {
     if (!mime) return err(reply, 415, 'bad_type');
     const name = S(file.filename || 'resume', 120).replace(/[\\/\r\n"]/g, '_');
     const r = await q('INSERT INTO hire_resumes(applicant_id,filename,mime,size,data,created_by) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,filename,mime,size,created_at', [id, name, mime, buf.length, buf, req.user!.id]);
+    // текст файла сохраняем как профиль, если у кандидата его ещё нет (или он пустой)
+    const have = (await q('SELECT data FROM hire_applicant_profile WHERE applicant_id=$1', [id])).rows[0];
+    if (!have || !hasProfile(have.data)) {
+      const { text } = await extractText(buf);
+      if (text.trim().length >= 30) await saveProfile(id, parseResume(text).profile, text, 'rules', req.user!.id);
+    }
     return { resume: r.rows[0] };
   });
   // импорт резюме: файл → текст → поля формы (ничего не сохраняется, рекрутер проверяет и создаёт кандидата сам)
@@ -579,7 +604,7 @@ export async function hireRoutes(app: FastifyInstance) {
     const fields = parseResume(text);
     const a = appFields(fields as any);
     const dupes = fields.first_name || fields.phone || fields.email ? await findDupes(a) : [];
-    return { kind, chars: text.length, fields, duplicates: dupes, text: text.slice(0, 4000) };
+    return { kind, chars: text.length, fields, duplicates: dupes, text };
   });
   app.get('/api/hire/resumes/:rid/file', R_OR_H, async (req, reply) => {
     const f = (await q('SELECT * FROM hire_resumes WHERE id=$1', [Number((req.params as any).rid)])).rows[0];
@@ -589,6 +614,58 @@ export async function hireRoutes(app: FastifyInstance) {
       .header('content-security-policy', "default-src 'none'").header('cache-control', 'private, no-store');
     return reply.send(f.data);
   });
+  // профиль резюме: правка исходного текста и повторный разбор; разбор ИИ для нестандартных резюме
+  app.put('/api/hire/applicants/:id/profile', R_ONLY, async (req, reply) => {
+    const id = Number((req.params as any).id), text = String((req.body as any)?.text ?? '').slice(0, 60000);
+    if (!(await q('SELECT 1 FROM hire_applicants WHERE id=$1 AND NOT anonymized', [id])).rows.length) return err(reply, 404, 'not_found');
+    if (text.trim().length < 10) return err(reply, 400, 'invalid');
+    await saveProfile(id, parseResume(text).profile, text, 'manual', req.user!.id);
+    await audit(req, 'hire_profile_edit', String(id));
+    return { ok: true };
+  });
+  app.post('/api/hire/applicants/:id/profile/ai', R_ONLY, async (req, reply) => {
+    const id = Number((req.params as any).id);
+    const a = (await q('SELECT first_name,last_name,middle_name FROM hire_applicants WHERE id=$1 AND NOT anonymized', [id])).rows[0];
+    const pr = (await q('SELECT raw_text FROM hire_applicant_profile WHERE applicant_id=$1', [id])).rows[0];
+    if (!a) return err(reply, 404, 'not_found');
+    if (!pr?.raw_text) return err(reply, 400, 'no_resume');
+    try {
+      const prof = await aiExtractProfile(pr.raw_text, req.user!, [a.first_name, a.last_name, a.middle_name]);
+      if (!prof || !hasProfile(prof)) return err(reply, 502, 'ai_bad_answer');
+      await saveProfile(id, prof, pr.raw_text, 'ai', req.user!.id);
+      return { ok: true };
+    } catch (e) { return e instanceof AiUnavailable ? err(reply, 503, 'ai_unavailable', { reason: e.reason }) : err(reply, 502, 'ai_error'); }
+  });
+  app.get('/api/hire/ai/status', R_ONLY, async () => { const s = await aiStatus('recruiter'); return { available: s.available, reason: s.reason }; });
+  app.post('/api/hire/pipeline/:id/ai-review', R_ONLY, async (req, reply) => {
+    const pid = Number((req.params as any).id);
+    const p = (await q(`SELECT p.id,p.applicant_id,p.vacancy_id,v.title,v.description,a.first_name,a.last_name,a.middle_name,a.position,a.salary_expect,a.consent,a.anonymized
+        FROM hire_pipeline p JOIN hire_vacancies v ON v.id=p.vacancy_id JOIN hire_applicants a ON a.id=p.applicant_id WHERE p.id=$1`, [pid])).rows[0];
+    if (!p || p.anonymized) return err(reply, 404, 'not_found');
+    const st = await aiStatus('recruiter');
+    if (!st.available) return err(reply, 503, 'ai_unavailable', { reason: st.reason });
+    const pr = (await q('SELECT data,raw_text FROM hire_applicant_profile WHERE applicant_id=$1', [p.applicant_id])).rows[0];
+    if (!pr) return err(reply, 400, 'no_resume');
+    const others = (await q("SELECT id,title,description FROM hire_vacancies WHERE state='open' AND id<>$1 ORDER BY id DESC LIMIT 12", [p.vacancy_id])).rows;
+    try {
+      const r = await aiReviewCandidate({ user: req.user!, lang: req.user!.lang === 'uz' ? 'uz' : 'ru', vacancy: { id: p.vacancy_id, title: p.title, description: p.description }, others, profile: pr.data, rawText: pr.raw_text,
+        names: [p.first_name, p.last_name, p.middle_name], position: p.position, salaryExpect: p.salary_expect, pipelineId: pid });
+      if (!r) return err(reply, 502, 'ai_bad_answer');
+      const row = (await q('INSERT INTO hire_ai_reviews(pipeline_id,applicant_id,result,model,created_by) VALUES($1,$2,$3,$4,$5) RETURNING id,pipeline_id,result,model,created_at', [pid, p.applicant_id, JSON.stringify(r.review), r.model, req.user!.id])).rows[0];
+      await audit(req, 'hire_ai_review', String(pid), { verdict: r.review.verdict, recommendation: r.review.recommendation });
+      return { review: { ...row, by_name: req.user!.name }, consent: p.consent };
+    } catch (e) { return e instanceof AiUnavailable ? err(reply, 503, 'ai_unavailable', { reason: e.reason }) : err(reply, 502, 'ai_error'); }
+  });
+  app.post('/api/hire/ai-reviews/:id/note', R_ONLY, async (req, reply) => {
+    // короткая заметка ИИ в историю кандидата — только по нажатию рекрутёра
+    const r = (await q('SELECT applicant_id,pipeline_id,result FROM hire_ai_reviews WHERE id=$1', [Number((req.params as any).id)])).rows[0];
+    if (!r) return err(reply, 404, 'not_found');
+    const note = S(r.result?.note || r.result?.summary, 900);
+    if (!note) return err(reply, 400, 'empty');
+    await q("INSERT INTO hire_logs(applicant_id,pipeline_id,kind,body,author_id) VALUES($1,$2,'note',$3,$4)", [r.applicant_id, r.pipeline_id, `ИИ-заметка: ${note}`, req.user!.id]);
+    return { ok: true };
+  });
+
   app.post('/api/hire/applicants/:id/extras', R_ONLY, async (req, reply) => {
     const id = Number((req.params as any).id);
     if (!(await q('SELECT 1 FROM hire_applicants WHERE id=$1 AND NOT anonymized', [id])).rows.length) return err(reply, 404, 'not_found');

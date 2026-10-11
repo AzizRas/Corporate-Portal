@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { migrate } from './migrate.js';
 import { pool } from './db.js';
 import { ensureBase } from './seed.js';
+import { seedHireTemplates } from './hire-templates.js';
 import { cleanupPhotos } from './modules/attendance.js';
 import { applyDueTransfers } from './org-core.js';
 import { hireDigest } from './modules/hire.js';
@@ -14,6 +15,7 @@ async function main() {
   }
   await migrate();
   await ensureBase();
+  await seedHireTemplates().then((n) => n && console.log(`[portal] добавлено шаблонов найма: ${n}`)).catch((e) => console.error('[hire-templates]', e));
   const app = await buildApp();
   await app.listen({ port: config.port, host: '0.0.0.0' });
   console.log(`[portal] http://localhost:${config.port}`);

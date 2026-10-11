@@ -5,6 +5,7 @@ import { dismissCleanup, membershipChanged, placeUser, syncManager, syncUserDept
 import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
 import { hashPassword } from '../security.js';
+import { schedulePolicy } from './schedule.js';
 import { NAME_HEADERS, cellVal, findCol, findHeader, norm, normName } from './payroll.js';
 
 const TR: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o',
@@ -66,14 +67,15 @@ export async function usersRoutes(app: FastifyInstance) {
     if (!/^[a-z0-9_.-]{3,32}$/.test(login) || !b.name) return reply.code(400).send({ error: 'invalid' });
     const password = b.password ? String(b.password) : simplePassword();
     try {
+      const pol = await schedulePolicy();   // новый сотрудник: стандартные часы компании и плавающий выходной
       const id = await tx(async (c) => {
         const r = await c.query(
-          `INSERT INTO users(tab_number,login,pass_hash,name,position,position_code,dept_id,manager_id,node_id,employment,lang,phone,hired_at,shift_start,shift_end)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($14::time,'09:00'::time),COALESCE($15::time,'18:00'::time)) RETURNING id`,
+          `INSERT INTO users(tab_number,login,pass_hash,name,position,position_code,dept_id,manager_id,node_id,employment,lang,phone,hired_at,shift_start,shift_end,days_off)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($14::time,$16::time),COALESCE($15::time,$17::time),'{}') RETURNING id`,
           [b.tab_number || null, login, hashPassword(password), String(b.name).slice(0, 120), b.position || '',
            b.position_code || 'op', b.dept_id || null, b.manager_id || null, b.node_id || null,
            rolesOf(b).includes('newbie') || b.employment === 'intern' ? 'intern' : 'staff', b.lang === 'uz' ? 'uz' : 'ru',
-           b.phone || null, b.hired_at || null, b.shift_start || null, b.shift_end || null],
+           b.phone || null, b.hired_at || null, b.shift_start || null, b.shift_end || null, pol.start, pol.end],
         );
         for (const role of rolesOf(b)) await c.query('INSERT INTO user_roles VALUES($1,$2)', [r.rows[0].id, role]);
         return r.rows[0].id as number;

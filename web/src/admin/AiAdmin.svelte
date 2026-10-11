@@ -4,7 +4,7 @@
   import { fmtDateTime } from '../lib/format';
   import { at } from './a18n';
 
-  const ROLES = ['mentor', 'analyst', 'editor', 'supervisor', 'trainer', 'search'];
+  const ROLES = ['mentor', 'analyst', 'editor', 'supervisor', 'trainer', 'search', 'recruiter'];
   type Tab = 'settings' | 'usage' | 'log' | 'bad';
   let tab: Tab = $state('settings');
   let cfg: any = $state(null), loadErr = $state(false), saving = $state(false), msg = $state(''), msgBad = $state(false);
