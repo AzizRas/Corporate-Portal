@@ -357,7 +357,7 @@ test('Календарь встреч: диапазон дат, статусы, 
 
 test('Резюме: всё нераспознанное возвращается кусками с подсказкой, рекрутер раскладывает по полям (Telegram, WhatsApp, работа…)', async () => {
   const hr = await login('hr'), hm = await login('rustam'), adm = await admin();
-  const text = ['Сатторов Аскар', 'Мужчина, 26 лет, родился 9 февраля 2000', 'Ташкент (~12 км), не готов к переезду', 'Контакты', '+998 95 980-99-10', 'askar.s@example.com', '@azikra', 'https://wa.me/998959809910',
+  const text = ['Сатторов Аскар', 'Мужчина, 26 лет, родился 9 февраля 2000', 'Ташкент (~12 км), не готов к переезду', 'Контакты', '+998 95 980-99-10', 'askar.s@example.com', '@azikra', 'https://wa.me/998959809910', 'Хобби: шахматы',
     'Менеджер по работе с клиентами 700 $ на руки', 'Опыт работы: 1 год', 'Авг 2025 –', 'Янв 2026', '6 мес', 'СП ООО UNILAND', 'Оператор call-центра', 'Навыки', 'CRM', 'Работа с клиентами', 'Образование', 'Высшее', 'ЮКГУ, экономист'];
   const r = (await upload(hr, '/api/hire/import', Buffer.from(text.join('\n'), 'utf8'), 'cv.txt')).json();
   const f = r.fields;
@@ -367,9 +367,8 @@ test('Резюме: всё нераспознанное возвращается
   assert.deepEqual(by('telegram'), ['@azikra'], 'ник узнан по виду');
   assert.equal(by('whatsapp').length, 1);
   assert.deepEqual(by('salary'), ['700 $ на руки'], 'зарплата в долларах не попадает в поле в сумах, а остаётся подсказкой');
-  assert.ok(by('workplace')[0].includes('UNILAND') && by('workplace')[0].includes('Авг 2025'), 'место работы с периодом');
-  assert.ok(by('skills')[0].includes('CRM') && by('education')[0].includes('ЮКГУ'));
-  assert.ok(f.chunks.some((c: any) => c.target === '' && c.text.includes('Оператор call-центра')), 'непонятное тоже показывается, назначение выбирает человек');
+  const pr = f.profile; assert.equal(pr.experience[0].company, 'СП ООО UNILAND'); assert.ok(pr.experience[0].period.includes('Авг 2025')); assert.ok(pr.skills[0].text.includes('CRM') && pr.education[0].institution.includes('ЮКГУ'), 'опыт, навыки и образование идут в профиль');
+  assert.ok(f.chunks.some((c: any) => c.target === '' && c.text.includes('Хобби')), 'непонятное тоже показывается, назначение выбирает человек');
   assert.equal(f.salary_expect, null);
 
   // создаём кандидата с разложенными данными
@@ -400,9 +399,128 @@ test('Резюме: всё нераспознанное возвращается
 });
 
 
+const HH_RESUME = ['Тестов Иван', 'Мужчина, 30 лет, родился 1 мая 1996', 'Самарканд, не готов к переезду', 'Контакты', '+998 90 777 66 55', 'ivan.test@example.com',
+  'Оператор call-центра 5 000 000 сум на руки', 'Специализации: Оператор call-центра', 'Тип занятости: Полная занятость', 'Опыт работы: 2 года',
+  'Янв 2024 –', 'настоящее время', '2 года', 'ООО Альфа', 'Телекоммуникации', '• Услуги связи', 'Оператор контакт-центра', '— Приём входящих звонков.', '— Работа в CRM и ведение отчётности.',
+  'Навыки', 'Продвинутый уровень', 'CRM Продажи по телефону',
+  'Образование', 'Высшее', 'ТАТУ, Ташкент', 'Информатика, бакалавр 2018',
+  'Знание языков', 'Родной', 'Узбекский', 'Другие языки', 'Русский — C1 — Продвинутый',
+  'Обо мне', 'Люблю работать с людьми.', 'Дополнительная информация', 'Гражданство: Узбекистан', 'Опыт вождения: Права категории B'];
+
+test('Профиль резюме: опыт, образование, навыки и языки сохраняются структурой и показываются в карточке; заказчик не видит личное и исходный текст', async () => {
+  const hr = await login('hr'), hm = await login('rustam');
+  const text = HH_RESUME.join('\n');
+  const imp = (await upload(hr, '/api/hire/import', Buffer.from(text, 'utf8'), 'cv.txt')).json();
+  const pr = imp.fields.profile;
+  assert.equal(imp.text, text, 'полный текст возвращается целиком');
+  assert.equal(pr.experience.length, 1);
+  assert.equal(pr.experience[0].company, 'ООО Альфа'); assert.equal(pr.experience[0].position, 'Оператор контакт-центра');
+  assert.equal(pr.experience[0].duration, '2 года'); assert.deepEqual(pr.experience[0].description, ['Приём входящих звонков.', 'Работа в CRM и ведение отчётности.']);
+  assert.ok(pr.experience[0].industry.includes('Телекоммуникации') && pr.experience[0].industry.includes('Услуги связи'));
+  assert.equal(pr.education[0].institution, 'ТАТУ, Ташкент'); assert.equal(pr.education[0].level, 'Высшее');
+  assert.equal(pr.skills[0].level, 'Продвинутый уровень');
+  assert.deepEqual(pr.languages.map((l: any) => l.name), ['Узбекский', 'Русский']);
+  assert.equal(pr.about, 'Люблю работать с людьми.');
+  assert.equal(pr.desired.salary, '5 000 000 сум на руки'); assert.equal(imp.fields.salary_expect, 5000000);
+  assert.equal(pr.personal.gender, 'м'); assert.equal(pr.personal.age, '30');
+  assert.equal(imp.fields.chunks.filter((c: any) => !c.target).length, 0, 'всё разложено, нераспознанного нет');
+
+  const f = imp.fields;
+  const a = await send(hr, 'POST', '/api/hire/applicants', { first_name: f.first_name, last_name: f.last_name, phone: f.phone, email: f.email, position: f.position, resume_text: imp.text });
+  assert.equal(a.statusCode, 200, a.body);
+  const id = a.json().applicant.id;
+  const card = (await get(hr, `/api/hire/applicants/${id}`)).json();
+  assert.equal(card.profile.data.experience[0].company, 'ООО Альфа'); assert.equal(card.profile.source, 'rules'); assert.ok(card.profile.raw_text.includes('ivan.test@example.com'));
+  assert.equal(card.profile.data.personal.gender, 'м');
+  // заказчик видит опыт, но не личное и не исходный текст (там телефон и почта)
+  const v = (await send(hr, 'POST', '/api/hire/vacancies', { title: 'Профиль' })).json().vacancy;
+  await send(hr, 'PUT', `/api/hire/vacancies/${v.id}/members/${await uid('rustam')}`, { role: 'hm' });
+  await send(hr, 'POST', `/api/hire/vacancies/${v.id}/applicants`, { applicant_id: id });
+  const hmCard = (await get(hm, `/api/hire/applicants/${id}`)).json();
+  assert.equal(hmCard.profile.data.experience[0].company, 'ООО Альфа');
+  assert.equal(hmCard.profile.raw_text, ''); assert.equal(hmCard.profile.data.personal.gender, ''); assert.deepEqual(hmCard.reviews, []);
+  // правка исходного текста и повторный разбор
+  assert.equal((await send(hr, 'PUT', `/api/hire/applicants/${id}/profile`, { text: text.replace('ООО Альфа', 'ООО Бета') })).statusCode, 200);
+  assert.equal((await get(hr, `/api/hire/applicants/${id}`)).json().profile.data.experience[0].company, 'ООО Бета');
+  assert.equal((await send(hm, 'PUT', `/api/hire/applicants/${id}/profile`, { text })).statusCode, 403);
+  // загрузка резюме вручную тоже наполняет профиль, если его ещё нет
+  const b = (await send(hr, 'POST', '/api/hire/applicants', { first_name: 'Без', last_name: 'Профиля' })).json().applicant;
+  assert.equal((await get(hr, `/api/hire/applicants/${b.id}`)).json().profile, null);
+  assert.equal((await upload(hr, `/api/hire/applicants/${b.id}/resume`, Buffer.from(text, 'utf8'), 'cv.txt')).statusCode, 200);
+  assert.equal((await get(hr, `/api/hire/applicants/${b.id}`)).json().profile.data.education[0].institution, 'ТАТУ, Ташкент');
+});
+
+test('ИИ-оценка кандидата: без ключа сервис недоступен, с ключом совет сохраняется; модель не видит имя, контакты и личные признаки', async () => {
+  const hr = await login('hr'), hm = await login('rustam'), adm = await admin();
+  const text = HH_RESUME.join('\n');
+  const f = (await upload(hr, '/api/hire/import', Buffer.from(text, 'utf8'), 'cv.txt')).json();
+  const a = (await send(hr, 'POST', '/api/hire/applicants', { first_name: 'Иван', last_name: 'Тестов', phone: '+998907776655', email: 'ivan.test@example.com', position: 'Оператор', resume_text: f.text, force: true })).json().applicant;
+  const v1 = (await send(hr, 'POST', '/api/hire/vacancies', { title: 'Оператор колл-центра', description: 'Входящие звонки, CRM. Русский и узбекский.' })).json().vacancy;
+  const v2 = (await send(hr, 'POST', '/api/hire/vacancies', { title: 'Кладовщик', description: 'Склад, приёмка товара.' })).json().vacancy;
+  const p = (await send(hr, 'POST', `/api/hire/vacancies/${v1.id}/applicants`, { applicant_id: a.id })).json().pipeline;
+  const none = await send(hr, 'POST', `/api/hire/pipeline/${p.id}/ai-review`);
+  assert.equal(none.statusCode, 503, 'без ключа ИИ недоступен'); assert.equal(none.json().error, 'ai_unavailable');
+  assert.equal((await get(hr, '/api/hire/ai/status')).json().available, false);
+
+  const realFetch = globalThis.fetch; const sent: string[] = [];
+  process.env.ANTHROPIC_API_KEY = 'test';
+  let answer = JSON.stringify({ verdict: 'fit', score: 82, summary: 'Опыт в колл-центре 2 года.', strengths: ['CRM', 'Входящие звонки'], gaps: ['Нет данных об узбекском в работе'], risks: [], questions: ['Сколько звонков в день?', 'Какая CRM?', 'Как решали жалобы?'], recommendation: 'other_vacancy', other_vacancy_id: 999999, reason: 'Подходит.', note: 'Сильный кандидат на оператора.' });
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes('anthropic.com')) return realFetch(url, init);
+    const body = JSON.parse(init.body); sent.push(body.messages.map((m: any) => m.content).join('\n'));
+    return { ok: true, json: async () => ({ content: [{ type: 'text', text: answer }], usage: { input_tokens: 10, output_tokens: 5 } }) } as any;
+  }) as any;
+  try {
+    assert.equal((await get(hr, '/api/hire/ai/status')).json().available, true);
+    const r = await send(hr, 'POST', `/api/hire/pipeline/${p.id}/ai-review`);
+    assert.equal(r.statusCode, 200, r.body);
+    const rv = r.json().review.result;
+    assert.equal(rv.verdict, 'fit'); assert.equal(rv.score, 82); assert.equal(rv.questions.length, 3);
+    assert.equal(rv.recommendation, 'reserve', 'несуществующая «другая вакансия» не принимается');
+    const msg = sent[0];
+    assert.ok(msg.includes('Оператор колл-центра') && msg.includes('ООО Альфа') && msg.includes('Кладовщик'), 'вакансия, опыт и другие вакансии переданы');
+    for (const bad of ['Иван', 'Тестов', 'ivan.test@example.com', '+998 90 777', '+998907776655', 'Мужчина', '30 лет', 'Гражданство', 'Самарканд', 'Узбекистан']) assert.ok(!msg.includes(bad), `в модель не ушло: ${bad}`);
+    // рекомендация «другая вакансия» с настоящим id
+    answer = JSON.stringify({ verdict: 'maybe', score: 50, summary: 'Скорее склад.', recommendation: 'other_vacancy', other_vacancy_id: v2.id, reason: 'x', note: 'Рассмотреть склад.' });
+    const r2 = (await send(hr, 'POST', `/api/hire/pipeline/${p.id}/ai-review`)).json();
+    assert.equal(r2.review.result.other_vacancy_id, v2.id);
+    // мусор вместо JSON
+    answer = 'не знаю';
+    assert.equal((await send(hr, 'POST', `/api/hire/pipeline/${p.id}/ai-review`)).statusCode, 502);
+    // история и заметка в карточку по кнопке
+    const card = (await get(hr, `/api/hire/applicants/${a.id}`)).json();
+    assert.equal(card.reviews.length, 2);
+    assert.equal((await send(hr, 'POST', `/api/hire/ai-reviews/${card.reviews[0].id}/note`)).statusCode, 200);
+    assert.ok((await get(hr, `/api/hire/applicants/${a.id}`)).json().timeline.some((t: any) => String(t.text).startsWith('ИИ-заметка:')));
+    assert.equal((await send(hm, 'POST', `/api/hire/pipeline/${p.id}/ai-review`)).statusCode, 403, 'заказчик ИИ-оценку не запускает');
+    // админ отключает роль
+    await send(adm, 'PUT', '/api/admin/ai', { roles: { recruiter: false } }).catch(() => undefined);
+    assert.equal((await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='hire_ai_review'`)).rows[0].n, 2, 'оценки записаны в журнал');
+    // анонимизация стирает профиль и оценки
+    assert.equal((await send(adm, 'POST', `/api/hire/applicants/${a.id}/anonymize`)).statusCode, 200);
+    assert.equal(Number((await pool.query(`SELECT (SELECT count(*) FROM hire_applicant_profile WHERE applicant_id=$1)+(SELECT count(*) FROM hire_ai_reviews WHERE applicant_id=$1) AS n`, [a.id])).rows[0].n), 0);
+  } finally { globalThis.fetch = realFetch; delete process.env.ANTHROPIC_API_KEY; }
+});
+
+test('Шаблоны сообщений кандидатам: русские и узбекские на все случаи, повторный запуск ничего не дублирует, свои шаблоны не трогаются', async () => {
+  const { seedHireTemplates, HIRE_TEMPLATES } = await import('../src/hire-templates.js');
+  const hr = await login('hr');
+  await pool.query(`INSERT INTO hire_templates(name,subject,body,created_by) VALUES('Мой шаблон','т','тело',(SELECT id FROM users ORDER BY id LIMIT 1))`);
+  const n1 = await seedHireTemplates();
+  assert.equal(n1, HIRE_TEMPLATES.length * 2);
+  assert.equal(await seedHireTemplates(), 0, 'повтор ничего не добавляет');
+  const list = (await get(hr, '/api/hire/meta')).json().templates;
+  assert.ok(list.some((t: any) => t.name === 'Мой шаблон'));
+  assert.ok(list.filter((t: any) => t.name.startsWith('RU · ')).length === HIRE_TEMPLATES.length && list.filter((t: any) => t.name.startsWith('UZ · ')).length === HIRE_TEMPLATES.length);
+  const cases = ['interview_office', 'interview_online', 'reject_interview', 'offer', 'reserve', 'no_answer_1'];
+  for (const k of cases) assert.ok(HIRE_TEMPLATES.some((t) => t.key === k), `есть шаблон: ${k}`);
+  for (const t of HIRE_TEMPLATES) for (const v of [t.ru, t.uz]) { assert.ok(v[2].includes('{name}'), `${t.key}: есть имя`); assert.ok(v[2].length > 60 && v[2].length < 800, `${t.key}: длина`); }
+});
+
+
 test('Миграция найма ничего не меняет в существующих таблицах', async () => {
   const cols = (await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='users'`)).rows.map((r) => r.column_name);
   assert.ok(!cols.some((c: string) => c.startsWith('hire_')), 'в users нет колонок найма');
   const t = (await pool.query(`SELECT count(*)::int n FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'hire_%'`)).rows[0].n;
-  assert.equal(t, 22, 'создано 22 таблицы найма');
+  assert.equal(t, 24, 'создано 24 таблицы найма');
 });

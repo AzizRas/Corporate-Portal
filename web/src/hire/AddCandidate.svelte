@@ -51,7 +51,7 @@
   async function create(e: Event) {
     e.preventDefault(); busy = true; err = '';
     try {
-      const body = { ...f, birthday: f.birthday || null, salary_expect: f.salary_expect === '' ? null : Number(f.salary_expect), source_id: f.source_id || null, force,
+      const body = { ...f, birthday: f.birthday || null, salary_expect: f.salary_expect === '' ? null : Number(f.salary_expect), source_id: f.source_id || null, force, resume_text: tab === 'file' && imp ? imp.text : undefined,
         extras: chunks.filter((c) => (EXTRA_KINDS as readonly string[]).includes(c.target) && c.text.trim()).map((c) => ({ kind: c.target, value: c.text })),
         note: chunks.filter((c) => c.target === 'note').map((c) => c.text).join('\n\n') };
       const r = await api.post('/api/hire/applicants', body);

@@ -2,6 +2,9 @@
   import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
   import Extras from './Extras.svelte';
+  import ResumeView from './ResumeView.svelte';
+  import AiReview from './AiReview.svelte';
+  import Messenger from './Messenger.svelte';
   import { hs, isRec, isAdm, toast, errText, ht, hg, fullName, fmtDT } from './store.svelte';
   import { hn } from './h18n';
   import Offer from './Offer.svelte';
@@ -12,12 +15,13 @@
   let sched: null | number = $state(null), sf = $state({ starts_local: '', duration_min: 60, place: '', link: '', people: [] as number[] }), serr = $state('');
   let fbFor: null | number = $state(null), fbList: any[] = $state([]), fb = $state({ rating: 3, recommendation: 'yes', comment: '' }), fberr = $state('');
   let offerFor: null | number = $state(null);
-  let mail = $state({ tpl: '', subject: '', body: '' });
+  let ai = $state<{ available: boolean; reason: string | null }>({ available: false, reason: null });
   const rec = $derived(isRec());
 
   async function load() {
     try {
       d = await api.get(`/api/hire/applicants/${id}`); failed = false;
+      if (rec) { try { ai = await api.get('/api/hire/ai/status'); } catch { ai = { available: false, reason: null }; } }
       if (rec) openVacs = (await api.get('/api/hire/vacancies?state=open')).vacancies.filter((v: any) => !d.pipelines.some((p: any) => p.vacancy_id === v.id));
     } catch { failed = true; }
   }
@@ -56,19 +60,9 @@
     e.preventDefault();
     try { await api.post(`/api/hire/pipeline/${fbFor}/feedback`, fb); fbFor = null; toast(ht('hSaved')); } catch (x) { fberr = errText(x); }
   }
-  function applyTpl() {
-    const t = hs.meta!.templates.find((x) => x.id === Number(mail.tpl));
-    if (t) { mail.subject = t.subject; mail.body = t.body; }
-  }
-  const fill = (s: string) => s.split('{name}').join(d.applicant.first_name).split('{sender}').join('');
-  async function sendMail() {
-    const href = `mailto:${d.applicant.email}?subject=${encodeURIComponent(fill(mail.subject))}&body=${encodeURIComponent(fill(mail.body))}`;
-    await run(() => api.post(`/api/hire/applicants/${id}/notes`, { kind: 'email', body: `${ht('hMailNote')}: ${fill(mail.subject)}` }));
-    location.href = href;
-  }
   async function anonymize() { if (confirm(ht('hAnonAsk'))) { await run(() => api.post(`/api/hire/applicants/${id}/anonymize`)); toast(ht('hAnonDone')); } }
   async function remove() { if (confirm(ht('hDelAsk'))) { try { await api.del(`/api/hire/applicants/${id}`); location.hash = '#/hire/people'; } catch (e) { toast(errText(e), true); } } }
-  const kindLabel = (k: string) => (k === 'email' ? ht('hEmailT') : k === 'interview' ? ht('hInterview') : ht('hNote'));
+  const kindLabel = (k: string) => (k === 'email' ? ht('xMsg') : k === 'interview' ? ht('hInterview') : ht('hNote'));
 </script>
 
 {#if failed}<p class="alert">{hg('hErr', 'not_found')}</p>
@@ -90,6 +84,8 @@
         {#if rec}<label class="f" style="margin-top:12px;max-width:260px">{ht('hConsent')}<select value={a.consent} onchange={(e) => setConsent(e.currentTarget.value)}>{#each ['none', 'pending', 'given'] as s}<option value={s}>{hg('hConsentV', s)}</option>{/each}</select></label>{/if}
       </section>
 
+      <ResumeView profile={d.profile} {rec} applicantId={id} aiOn={ai.available} onchange={load} />
+
       <section class="card stack">
         <h3 class="card-title">{ht('hVacancies')}</h3>
         {#each d.pipelines as p (p.id)}
@@ -105,6 +101,8 @@
         {:else}<p class="muted">{ht('hNoItems')}</p>{/each}
         {#if rec && openVacs.length}<label class="f">{ht('hAddToVac')}<select onchange={(e) => { const v = e.currentTarget.value; e.currentTarget.value = ''; toVacancy(v); }}><option value="">{ht('hPick')}</option>{#each openVacs as v}<option value={v.id}>{v.title}</option>{/each}</select></label>{/if}
       </section>
+
+      {#if rec}<AiReview applicantId={id} pipelines={d.pipelines} reviews={d.reviews ?? []} aiOn={ai.available} aiReason={ai.reason} consent={a.consent} hasResume={!!d.profile} onchange={load} />{/if}
 
       <Extras applicantId={id} items={d.extras ?? []} editable={rec} onchange={load} />
 
@@ -129,15 +127,7 @@
         {#if rec}<label class="btn sm" style="cursor:pointer">{ht('hUpload')}<input type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg" hidden onchange={upload} /></label>{/if}
       </section>
 
-      {#if rec && a.email}
-        <section class="card stack">
-          <h3 class="card-title">{ht('hEmailT')}</h3>
-          <select aria-label={ht('hTemplate')} bind:value={mail.tpl} onchange={applyTpl}><option value="">{ht('hTemplate')}…</option>{#each hs.meta!.templates as t}<option value={t.id}>{t.name}</option>{/each}</select>
-          <input bind:value={mail.subject} placeholder={ht('hSubject')} aria-label={ht('hSubject')} />
-          <textarea bind:value={mail.body} placeholder={ht('hBody')} aria-label={ht('hBody')}></textarea>
-          <button class="btn grad" disabled={!mail.subject.trim() || !mail.body.trim()} onclick={sendMail}>{ht('hMailto')}</button>
-        </section>
-      {/if}
+      {#if rec}<Messenger applicant={a} applicantId={id} pipelines={d.pipelines} interviews={d.interviews ?? []} extras={d.extras ?? []} onchange={load} />{/if}
 
       {#if isAdm()}
         <section class="card stack"><button class="btn" onclick={anonymize}>{ht('hAnon')}</button><button class="btn danger" onclick={remove}>{ht('hDelete')}</button></section>

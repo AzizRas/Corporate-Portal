@@ -5,7 +5,7 @@ import { q } from '../db.js';
 import { branchNodes, isOnLeave } from '../org-core.js';
 import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
 import { notify } from '../notify.js';
-import { tzDate, tzMinutes } from '../settings.js';
+import { getSetting, setSetting, tzDate, tzMinutes } from '../settings.js';
 import { settingsFor } from './attendance.js';
 
 interface P { id: number; name: string; position: string; position_code: string; dept_id: number | null; node_id: number | null; manager_id: number | null; days_off: number[]; shift_start: string; shift_end: string; avatar_v: number; roles: string[] }
@@ -22,6 +22,10 @@ const monthDays = (ym: string) => {
   const n = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return Array.from({ length: n }, (_, i) => `${ym}-${String(i + 1).padStart(2, '0')}`);
 };
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+const weekStartOf = (d: string) => addDays(d, -(isoDow(d) - 1));
+/** Стандартный график компании: часы работы и один плавающий выходной в неделю. */
+export const schedulePolicy = () => getSetting<{ start: string; end: string }>('schedule_policy', { start: '09:00', end: '19:00' });
 const validMonth = (s: unknown) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(String(s)) ? String(s) : tzDate().slice(0, 7));
 
 /** Кого пользователь видит в графике (команда) и кого может подтверждать. Старший оператор — операторов своего отдела. */
@@ -60,7 +64,7 @@ function dayInfo(p: P, day: string, ov?: any): DayInfo {
 type Lv = { from: string; to: string; kind: string };
 async function leavesFor(ids: number[], ym: string) {
   const r = await q(`SELECT user_id,kind,to_char(from_date,'YYYY-MM-DD') AS f,to_char(to_date,'YYYY-MM-DD') AS t FROM user_leaves WHERE user_id = ANY($1::int[]) AND from_date <= $3::date AND to_date >= $2::date`,
-    [ids, `${ym}-01`, `${ym}-31`]);
+    [ids, `${ym}-01`, monthDays(ym).slice(-1)[0]]);   // раньше стояло «-31»: в месяцах из 30 дней и в феврале запрос падал
   const m = new Map<number, Lv[]>();
   for (const x of r.rows) m.set(x.user_id, [...(m.get(x.user_id) ?? []), { from: x.f, to: x.t, kind: x.kind }]);
   return m;
@@ -141,7 +145,7 @@ export async function scheduleRoutes(app: FastifyInstance) {
          FROM schedule_days JOIN users u ON u.id=schedule_days.user_id
         WHERE schedule_days.status='pending' AND schedule_days.day>=$2 AND u.id = ANY($1::int[]) ORDER BY schedule_days.day, u.name`, [ids, tzDate()])).rows
       .map((r) => ({ ...r, can_decide: !!team.find((t) => t.id === r.uid && canDecide(u, t)) }));
-    return { month: ym, days, rows, pending };
+    return { month: ym, days, rows, pending, policy: await schedulePolicy(), today: tzDate(), can_policy: hasRole(u, 'admin', 'hr') };
   });
 
   // решение по заявке
@@ -189,6 +193,145 @@ export async function scheduleRoutes(app: FastifyInstance) {
       await notify([t.id], 'dayoff', `📅 ${b.day}`, kind === 'off' ? '#off' : '#work', '#/schedule');
     }
     return { ok: true };
+  });
+
+  /* ===== массовые действия и стандартный график: 9:00–19:00, один плавающий выходной в неделю ===== */
+  const dayOk = (d: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(d));
+  const editable = async (u: AuthUser, ids: number[]) => {
+    const all = (await q(`${PEOPLE} AND u.id = ANY($1::int[])`, [ids])).rows as P[];
+    return { all, ok: all.filter((t) => canEditSchedule(u, t)) };
+  };
+
+  app.get('/api/schedule/policy', auth, async () => schedulePolicy());
+  app.put('/api/schedule/policy', auth, async (req, reply) => {
+    if (!hasRole(req.user!, 'admin', 'hr')) return reply.code(403).send({ error: 'forbidden' });
+    const b = (req.body ?? {}) as any, hm = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!hm.test(String(b.start)) || !hm.test(String(b.end)) || String(b.end) <= String(b.start)) return reply.code(400).send({ error: 'invalid' });
+    await setSetting('schedule_policy', { start: b.start, end: b.end });
+    await audit(req, 'schedule_policy', null as any, { start: b.start, end: b.end });
+    return { ok: true };
+  });
+
+  // отметить выбранные ячейки (сотрудник × день): выходной, рабочий день или вернуть по графику
+  app.post('/api/schedule/bulk', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { items?: { user_id?: number; days?: string[] }[]; action?: string };
+    const action = ['off', 'work', 'clear'].includes(String(b.action)) ? String(b.action) : null;
+    if (!action || !Array.isArray(b.items) || !b.items.length) return reply.code(400).send({ error: 'invalid' });
+    const items = b.items.map((i) => ({ id: Number(i.user_id), days: [...new Set((i.days ?? []).filter(dayOk).map(String))].slice(0, 62) })).filter((i) => i.id && i.days.length);
+    if (items.reduce((n, i) => n + i.days.length, 0) > 3000) return reply.code(400).send({ error: 'too_many' });
+    const { ok } = await editable(u, items.map((i) => i.id));
+    const okIds = new Set(ok.map((t) => t.id));
+    let changed = 0, skipped = 0;
+    for (const it of items) {
+      if (!okIds.has(it.id)) { skipped += it.days.length; continue; }
+      if (action === 'clear') await q('DELETE FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[])', [it.id, it.days]);
+      else await q(
+        `INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) SELECT $1,d,$3,'approved',$4,$4,now() FROM unnest($2::date[]) d
+         ON CONFLICT (user_id,day) DO UPDATE SET kind=$3,status='approved',decided_by=$4,decided_at=now(),shift_start=NULL,shift_end=NULL`, [it.id, it.days, action, u.id]);
+      changed += it.days.length;
+    }
+    await notify(items.filter((i) => okIds.has(i.id)).map((i) => i.id), 'dayoff', '📅', '#schedule', '#/schedule');
+    await audit(req, 'schedule_bulk', null as any, { action, cells: changed, people: okIds.size });
+    return { changed, skipped };
+  });
+
+  // постоянный график сразу нескольким: «стандартный» = часы из политики и один плавающий выходной в неделю (фиксированных нет)
+  app.post('/api/schedule/bulk-pattern', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { user_ids?: number[]; preset?: string; shift_start?: string; shift_end?: string; days_off?: number[] };
+    const ids = [...new Set((b.user_ids ?? []).map(Number).filter(Boolean))].slice(0, 500);
+    if (!ids.length) return reply.code(400).send({ error: 'invalid' });
+    const pol = await schedulePolicy(), hm = /^([01]\d|2[0-3]):[0-5]\d$/;
+    let ss = pol.start, se = pol.end, dow: number[] = [];
+    if (b.preset !== 'standard') {
+      if (!hm.test(String(b.shift_start)) || !hm.test(String(b.shift_end))) return reply.code(400).send({ error: 'invalid' });
+      ss = b.shift_start!; se = b.shift_end!;
+      dow = [...new Set((b.days_off ?? []).map(Number).filter((x) => x >= 1 && x <= 7))].sort();
+    }
+    const { ok } = await editable(u, ids);
+    if (ok.length) await q('UPDATE users SET days_off=$2,shift_start=$3,shift_end=$4 WHERE id = ANY($1::int[])', [ok.map((t) => t.id), dow, ss, se]);
+    await notify(ok.map((t) => t.id), 'dayoff', '📅', '#schedule', '#/schedule');
+    await audit(req, 'schedule_bulk_pattern', null as any, { people: ok.length, preset: b.preset ?? 'custom', shift: `${ss}-${se}`, days_off: dow });
+    return { changed: ok.length, skipped: ids.length - ok.length, shift_start: ss, shift_end: se };
+  });
+
+  // автоматически расставить плавающие выходные по неделям: по одному на человека, равномерно по дням недели
+  app.post('/api/schedule/auto-off', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { user_ids?: number[]; from?: string; to?: string; dry_run?: boolean };
+    const ids = [...new Set((b.user_ids ?? []).map(Number).filter(Boolean))].slice(0, 500);
+    if (!ids.length || !dayOk(b.from) || !dayOk(b.to) || String(b.to) < String(b.from)) return reply.code(400).send({ error: 'invalid' });
+    const today = tzDate();
+    const first = weekStartOf(String(b.from)), last = weekStartOf(String(b.to));
+    if (addDays(last, 7) > addDays(first, 7 * 14)) return reply.code(400).send({ error: 'too_long' });
+    const { ok } = await editable(u, ids);
+    const floating = ok.filter((t) => t.days_off.length === 0).sort((a, c) => a.name.localeCompare(c.name, 'ru'));
+    const plan: { user_id: number; day: string }[] = [];
+    const perDay: Record<string, number> = {};
+    for (let w = first, wi = 0; w <= last; w = addDays(w, 7), wi++) {
+      const wEnd = addDays(w, 6);
+      if (wEnd < today) continue;
+      // текущую неделю трогаем, только если в ней осталось хотя бы 4 дня (иначе выходные скучились бы на последних днях)
+      if (w < today && Math.round((Date.parse(`${wEnd}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5) + 1 < 4) continue;
+      const ex = (await q(`SELECT user_id,to_char(day,'YYYY-MM-DD') AS day FROM schedule_days WHERE kind='off' AND status<>'rejected' AND day BETWEEN $1 AND $2`, [w, wEnd])).rows as { user_id: number; day: string }[];
+      const lv = await q(`SELECT DISTINCT user_id FROM user_leaves WHERE from_date <= $2::date AND to_date >= $1::date`, [w, wEnd]);
+      const skip = new Set<number>([...ex.filter((e) => ids.includes(e.user_id)).map((e) => e.user_id), ...lv.rows.map((r) => r.user_id)]);
+      const load = Array.from({ length: 7 }, (_, i) => ex.filter((e) => e.day === addDays(w, i)).length + plan.filter((p) => p.day === addDays(w, i)).length);
+      floating.filter((t) => !skip.has(t.id)).forEach((t, k) => {
+        const cand = Array.from({ length: 7 }, (_, i) => i).filter((i) => addDays(w, i) >= today);
+        if (!cand.length) return;
+        const rot = (wi * 3 + k) % 7;
+        cand.sort((a, c) => load[a] - load[c] || ((a - rot + 7) % 7) - ((c - rot + 7) % 7));
+        const day = addDays(w, cand[0]);
+        load[cand[0]]++; plan.push({ user_id: t.id, day });
+      });
+    }
+    for (const p of plan) perDay[p.day] = (perDay[p.day] ?? 0) + 1;
+    if (!b.dry_run && plan.length) {
+      for (const p of plan) await q(
+        `INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) VALUES($1,$2,'off','approved',$3,$3,now())
+         ON CONFLICT (user_id,day) DO NOTHING`, [p.user_id, p.day, u.id]);
+      await notify([...new Set(plan.map((p) => p.user_id))], 'dayoff', '📅', '#schedule', '#/schedule');
+      await audit(req, 'schedule_auto_off', null as any, { people: floating.length, assigned: plan.length, from: first, to: last });
+    }
+    return { planned: plan.length, people: floating.length, skipped_fixed: ok.length - floating.length, skipped_forbidden: ids.length - ok.length, per_day: perDay, dry_run: !!b.dry_run };
+  });
+
+  // повторить выходные одной недели на другой неделе
+  app.post('/api/schedule/copy-week', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { user_ids?: number[]; from_week?: string; to_week?: string };
+    const ids = [...new Set((b.user_ids ?? []).map(Number).filter(Boolean))].slice(0, 500);
+    if (!ids.length || !dayOk(b.from_week) || !dayOk(b.to_week)) return reply.code(400).send({ error: 'invalid' });
+    const src = weekStartOf(String(b.from_week)), dst = weekStartOf(String(b.to_week)), today = tzDate();
+    if (src === dst) return reply.code(400).send({ error: 'invalid' });
+    const { ok } = await editable(u, ids);
+    let changed = 0;
+    for (const t of ok) {
+      const offs = (await q(`SELECT to_char(day,'YYYY-MM-DD') AS day FROM schedule_days WHERE user_id=$1 AND kind='off' AND status='approved' AND day BETWEEN $2 AND $3`, [t.id, src, addDays(src, 6)])).rows;
+      if (!offs.length) continue;
+      await q(`DELETE FROM schedule_days WHERE user_id=$1 AND kind='off' AND day BETWEEN $2 AND $3 AND day >= $4`, [t.id, dst, addDays(dst, 6), today]);
+      for (const o of offs) {
+        const day = addDays(dst, Math.round((Date.parse(`${o.day}T00:00:00Z`) - Date.parse(`${src}T00:00:00Z`)) / 864e5));
+        if (day < today) continue;
+        await q(`INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) VALUES($1,$2,'off','approved',$3,$3,now()) ON CONFLICT (user_id,day) DO UPDATE SET kind='off',status='approved',decided_by=$3,decided_at=now()`, [t.id, day, u.id]);
+        changed++;
+      }
+    }
+    await audit(req, 'schedule_copy_week', null as any, { from: src, to: dst, changed });
+    return { changed };
+  });
+
+  // решить сразу несколько заявок на выходной
+  app.post('/api/schedule/decide-bulk', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { items?: { user_id?: number; day?: string }[]; approve?: boolean };
+    if (!Array.isArray(b.items) || !b.items.length) return reply.code(400).send({ error: 'invalid' });
+    let done = 0, skipped = 0;
+    for (const it of b.items.slice(0, 300)) {
+      const t = await getP(Number(it.user_id));
+      if (!t || !dayOk(it.day) || !canDecide(u, t)) { skipped++; continue; }
+      const r = await q(`UPDATE schedule_days SET status=$3, decided_by=$4, decided_at=now() WHERE user_id=$1 AND day=$2 AND status='pending'`, [t.id, it.day, b.approve ? 'approved' : 'rejected', u.id]);
+      if (r.rowCount) { done++; await notify([t.id], 'dayoff', b.approve ? `✅ ${it.day}` : `✖ ${it.day}`, b.approve ? '#approved' : '#rejected', '#/schedule'); } else skipped++;
+    }
+    await audit(req, 'dayoff_decide_bulk', null as any, { approve: !!b.approve, done, skipped });
+    return { done, skipped };
   });
 
   // напоминание «не забудь отметиться»: показывать, если сегодня рабочий день, прихода ещё нет и смена скоро/уже идёт

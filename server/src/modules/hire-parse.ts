@@ -141,6 +141,7 @@ export interface ResumeFields {
   position: string; company: string; city: string; salary_expect: number | null; skills: string;
   /** Всё, что в файле осталось: текст и куда его, возможно, подставить (target пустой, если непонятно). Рекрутер сам выбирает назначение. */
   chunks: { text: string; target: string }[];
+  profile?: unknown;
 }
 const CITIES = ['Ташкент', 'Самарканд', 'Бухара', 'Андижан', 'Наманган', 'Фергана', 'Нукус', 'Карши', 'Навои', 'Ургенч', 'Термез', 'Джизак', 'Гулистан', 'Коканд', 'Москва', 'Санкт-Петербург', 'Алматы', 'Астана', 'Бишкек', 'Тошкент', 'Samarqand', 'Buxoro', 'Toshkent', 'Tashkent', 'Samarkand'];
 const BAD_NAME = /резюме|resume|curriculum|\bcv\b|анкета|контакт|телефон|phone|e-?mail|почта|опыт|образование|навыки|должность|желаем|зарплата|город|адрес|ташкент|узбекистан|о себе|цель|ish tajriba|ma.lumot/i;
@@ -173,7 +174,7 @@ const label = (text: string, names: string[], maxLen = 120): string => {
   return re.exec(text)?.[1].trim() ?? '';
 };
 
-function parseBasic(text: string): ResumeFields {
+export function parseBasic(text: string): ResumeFields {
   const out: ResumeFields = { first_name: '', last_name: '', middle_name: '', phone: '', email: '', birthday: null, position: '', company: '', city: '', salary_expect: null, skills: '', chunks: [] };
   if (!text) return out;
   out.email = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/.exec(text)?.[0] ?? '';
@@ -209,102 +210,5 @@ function parseBasic(text: string): ResumeFields {
     if (n >= 100 && n < 2_000_000_000) out.salary_expect = n;
   }
   out.skills = label(text, ['Ключевые навыки', 'Навыки', 'Skills', 'Key skills', 'Ko.nikmalar'], 300);
-  return out;
-}
-
-// ---------- разбор «по-человечески»: резюме с hh.ru и похожие, плюс всё, что не удалось разложить по полям ----------
-const rePeriodStart = /^(?:Янв|Фев|Мар|Апр|Май|Июн|Июл|Авг|Сен|Окт|Ноя|Дек)[а-я]*\.?\s+\d{4}\s*[–—-]?\s*$/i;
-const rePeriodOne = /^(?:Янв|Фев|Мар|Апр|Май|Июн|Июл|Авг|Сен|Окт|Ноя|Дек)[а-я]*\.?\s+\d{4}\s*[–—-]\s*(?:(?:Янв|Фев|Мар|Апр|Май|Июн|Июл|Авг|Сен|Окт|Ноя|Дек)[а-я]*\.?\s+\d{4}|(?:по\s+)?настоящее время)(?:\s+\d+.*)?$/i;
-const rePeriodPart = /^(?:(?:Янв|Фев|Мар|Апр|Май|Июн|Июл|Авг|Сен|Окт|Ноя|Дек)[а-я]*\.?\s+\d{4}|(?:по\s+)?настоящее время)\s*$/i;
-const reDur = /^\d+\s+(?:год|года|лет|мес\w*)(?:\s+\d+\s+мес\w*)?$/i;
-const HEADINGS: Record<string, string> = {
-  'навыки': 'skills', 'ключевые навыки': 'skills', 'образование': 'education', 'повышение квалификации, курсы': 'education', 'курсы': 'education',
-  'знание языков': 'languages', 'языки': 'languages', 'обо мне': 'note', 'о себе': 'note', 'дополнительная информация': 'note',
-};
-const STOP = new Set([...Object.keys(HEADINGS), 'опыт работы', 'контакты', 'резюме']);
-const SAL = /^(.{3,90}?)\s+(\d[\d\s]{1,11}\d)\s*(\$|usd|долл\w*|сум\w*|uzs|so.?m|₽|руб\w*|€|eur)\s*(на руки|до вычета налогов|gross|net)?\.?$/i;
-
-export function parseResume(text: string): ResumeFields {
-  const out = parseBasic(text);
-  if (!text) return out;
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const used = new Set<number>();
-  const auto: { text: string; target: string }[] = [];
-  const phoneD = out.phone.replace(/\D/g, '');
-  const isJunk = (l: string) => /^\d+\s*\/\s*\d+$/.test(l) || l.length < 2;
-
-  lines.forEach((l, i) => {
-    if (isJunk(l)) { used.add(i); return; }
-    if (out.email && l.includes(out.email)) used.add(i);
-    if (phoneD && !/[A-Za-zА-Яа-я]/.test(l) && l.replace(/\D/g, '') === phoneD) used.add(i);
-    if (/^(контакты|резюме)$/i.test(l)) used.add(i);
-    if (out.last_name && out.first_name && l.length <= 60 && l.includes(out.last_name) && l.includes(out.first_name)) used.add(i);
-    if (/родил(ся|ась)/i.test(l) && /\d{4}/.test(l)) used.add(i);
-    if (out.city && l.startsWith(out.city)) used.add(i);
-  });
-
-  // «Должность 700 $ на руки» в одной строке
-  for (let i = 0; i < lines.length; i++) {
-    const m = SAL.exec(lines[i]);
-    if (!m || /\d/.test(m[1]) || used.has(i)) continue;
-    const n = Number(m[2].replace(/\s/g, '')), cur = m[3].toLowerCase();
-    if (!out.position) out.position = m[1].replace(/[:\-–—]\s*$/, '').trim();
-    if (/^(сум|uzs|so)/.test(cur) && out.salary_expect == null) out.salary_expect = n;
-    else auto.push({ text: `${n.toLocaleString('ru-RU')} ${m[3]}${m[4] ? ` ${m[4]}` : ''}`, target: 'salary' });
-    used.add(i); break;
-  }
-
-  // места работы: «Авг 2025 –» / «Янв 2026» / «6 мес» / компания
-  let firstJob = true;
-  for (let i = 0; i < lines.length; i++) {
-    if (used.has(i)) continue;
-    const single = rePeriodOne.test(lines[i]);
-    if (!single && !rePeriodStart.test(lines[i])) continue;
-    const parts = [lines[i]]; used.add(i);
-    let j = i + 1;
-    if (!single) while (j < lines.length && parts.length < 4 && (rePeriodPart.test(lines[j]) || reDur.test(lines[j]))) { parts.push(lines[j]); used.add(j); j++; }
-    const company = j < lines.length && !STOP.has(lines[j].toLowerCase()) ? lines[j] : '';
-    if (company) used.add(j);
-    const range = parts.filter((p) => !reDur.test(p)).join(' ').replace(/\s+/g, ' ').replace(/[–—-]\s*$/, '').trim();
-    const dur = parts.find((p) => reDur.test(p));
-    auto.push({ text: [company, `${range}${dur ? ` (${dur})` : ''}`].filter(Boolean).join(' · '), target: 'workplace' });
-    if (firstJob && company && !out.company) out.company = company;
-    firstJob = false;
-  }
-
-  // разделы с заголовками
-  for (let i = 0; i < lines.length; i++) {
-    const t = HEADINGS[lines[i].toLowerCase()];
-    if (!t) continue;
-    used.add(i);
-    const body: string[] = [];
-    for (let j = i + 1; j < lines.length && !STOP.has(lines[j].toLowerCase()); j++) {
-      if (used.has(j) && isJunk(lines[j])) continue;
-      if (/^уровень$/i.test(lines[j])) { used.add(j); continue; }
-      body.push(lines[j]); used.add(j);
-    }
-    if (body.length) auto.push({ text: body.join(t === 'note' ? ' ' : '; ').slice(0, 700), target: t });
-  }
-  if (out.city) auto.unshift({ text: out.city, target: 'city' });
-
-  // остальное: ссылки и контакты узнаём по виду, прочее оставляем без назначения
-  const rest: { text: string; target: string }[] = [];
-  for (let i = 0; i < lines.length && rest.length < 100; i++) {
-    if (used.has(i)) continue;
-    let l = lines[i].replace(/^[•—–\-]\s*/, '').trim();
-    if (l.length < 2) continue;
-    let target = '';
-    const tg = /^(?:tg|telegram|телеграм\w*|тг)?\s*[:\-–]?\s*(@[A-Za-z0-9_]{4,32})\s*$/i.exec(l) ?? /(?:^|\s)((?:https?:\/\/)?t\.me\/[A-Za-z0-9_]{4,32})\b/i.exec(l);
-    if (tg) { target = 'telegram'; l = tg[1]; }
-    else if (/wa\.me|whatsapp|ватсап|вотсап/i.test(l)) { target = 'whatsapp'; l = l.replace(/^(whatsapp|ватсап|вотсап)\s*[:\-–]?\s*/i, ''); }
-    else if (/instagram\.com|инстаграм|instagram/i.test(l)) { target = 'instagram'; l = l.replace(/^(instagram|инстаграм)\s*[:\-–]?\s*/i, ''); }
-    else if (/linkedin\.com/i.test(l)) target = 'linkedin';
-    else if (/^(https?:\/\/|www\.)\S+$/i.test(l)) target = 'website';
-    else if (/^[\w.%+-]+@[\w-]+\.[\w.-]+$/.test(l) && l !== out.email) target = 'email2';
-    else if (/^\+?\d[\d\s().-]{8,16}\d$/.test(l) && l.replace(/\D/g, '') !== phoneD) target = 'phone2';
-    rest.push({ text: l.slice(0, 300), target });
-  }
-  rest.sort((a, b) => Number(!!b.target) - Number(!!a.target));
-  out.chunks = [...auto, ...rest];
   return out;
 }
