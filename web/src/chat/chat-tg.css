@@ -1,0 +1,105 @@
+/* ======== Вид мессенджера (в стиле Telegram); подключается после chat.css и переопределяет его ======== */
+.ch { grid-template-columns: 320px minmax(0, 1fr); }
+.ch-side { padding: 10px 8px; gap: 2px; }
+.ch-ch { padding: 8px 10px; border-radius: 12px; gap: 12px; position: relative; color: var(--text); font-weight: 400; }
+.ch-ch.on { background: var(--nav-on); }
+.ch-ch.on::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--accent); }
+.ch-ava { position: relative; flex: none; width: 42px; height: 42px; display: grid; place-items: center; }
+.ch-ava .ch-h { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--grad); color: #fff; font-weight: 700; font-size: 17px; }
+.dot-on { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%; background: #22c55e; border: 2px solid var(--card); }
+.ch-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ch-r1, .ch-r2 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ch-r1 .ch-nm { font-weight: 700; flex: 1; min-width: 0; }
+.ch-r1 time { font-size: 12px; color: var(--muted); flex: none; }
+.ch-pv { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; color: var(--muted); }
+.ch-r2 em { margin-left: auto; flex: none; }
+.ch-r2 em.quiet { background: var(--muted); }
+
+.ch-head { padding: 10px 18px; }
+.ch-status { color: var(--muted); }
+.ch-status.live { color: var(--accent-ink, var(--accent)); }
+.ch-list { gap: 0; padding: 14px 22px 8px; }
+
+/* пузыри */
+.ch-m { max-width: min(78%, 620px); margin-top: 8px; gap: 8px; align-items: flex-end; }
+.ch-m.cont { margin-top: 2px; }
+.ch-m .sp-av { width: 34px; }
+.ch-bub { position: relative; padding: 7px 11px 6px; border: 0; background: var(--card-2); min-width: 64px; border-radius: 6px 16px 16px 6px; cursor: default; }
+.ch-m:not(.cont) .ch-bub { border-top-left-radius: 16px; }
+.ch-m.tail .ch-bub { border-bottom-left-radius: 4px; }
+.ch-m.me .ch-bub { background: #eeffde; color: #14301a; border-radius: 16px 6px 6px 16px; }
+.ch-m.me:not(.cont) .ch-bub { border-top-right-radius: 16px; }
+.ch-m.me.tail .ch-bub { border-bottom-right-radius: 4px; }
+:root:not([data-theme='light']) .ch-m.me .ch-bub { background: #2b5278; color: #fff; }
+.ch-m.me .ch-quote span { color: inherit; opacity: .8; }
+/* хвостик в нижнем углу последнего сообщения цепочки */
+.ch-m.tail .ch-bub::after { content: ''; position: absolute; bottom: 0; left: -6px; width: 10px; height: 12px; background: var(--card-2); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.ch-m.me.tail .ch-bub::after { left: auto; right: -6px; background: #eeffde; clip-path: polygon(0 0, 100% 100%, 0 100%); }
+:root:not([data-theme='light']) .ch-m.me.tail .ch-bub::after { background: #2b5278; }
+.ch-m.sticker .ch-bub, .ch-m.sticker.me .ch-bub { background: none; padding: 0; }
+.ch-m.sticker .ch-bub::after { display: none; }
+.ch-m.sticker .ch-time { float: none; display: block; position: relative; background: rgba(0,0,0,.4); color: #fff; opacity: 1; border-radius: 10px; padding: 1px 7px; width: max-content; margin: -22px 6px 0 auto; }
+.ch-m.hit .ch-bub { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.ch-who { color: var(--accent-ink, var(--accent)); margin-bottom: 1px; }
+.ch-body { white-space: pre-wrap; word-break: break-word; }
+/* время и галочки внутри пузыря, справа внизу, обтекают текст */
+.ch-time { float: right; margin: 6px 0 -2px 10px; font-size: 11px; opacity: .72; text-align: right; line-height: 1.2; white-space: nowrap; }
+.ch-time i { font-style: italic; }
+.tick { letter-spacing: -3px; margin-left: 4px; }
+.tick.seen { color: #3b9ce8; opacity: 1; }
+.ch-m.me .tick.seen { color: #2fb344; }
+:root:not([data-theme='light']) .ch-m.me .tick.seen { color: #7cc5ff; }
+.ch-stk { width: 150px; height: 150px; }
+.ch-stk svg { width: 100%; height: 100%; }
+.ch-fwd { font-size: 12.5px; color: var(--accent-ink, var(--accent)); margin-bottom: 2px; }
+.ch-img { margin-bottom: 2px; max-width: min(340px, 100%); }
+
+/* реакции */
+.ch-rx { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; clear: both; }
+.ch-rx button { border: 0; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border-radius: 99px; font: inherit; font-size: 13px; color: inherit; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ch-rx button.mine { background: var(--accent); color: #fff; }
+
+/* меню сообщения */
+.ch-menu { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 4px; min-width: 190px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 14px; padding: 6px; box-shadow: 0 12px 34px rgba(0,0,0,.35); display: flex; flex-direction: column; gap: 1px; clear: both; }
+.ch-menu.up { top: auto; bottom: 100%; margin: 0 0 4px; }
+.ch-m.me .ch-menu { left: auto; right: 0; }
+.ch-menu button { border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 8px 10px; border-radius: 9px; cursor: pointer; }
+.ch-menu button:hover { background: var(--card-2); }
+.ch-menu button.danger { color: #ef4444; }
+.ch-pick { display: flex; gap: 2px; padding: 2px 2px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.ch-menu .ch-pick button { font-size: 20px; padding: 4px 6px; flex: 1; text-align: center; }
+
+/* ввод: шторка эмодзи/стикеров, превью вложения, правка */
+.ch-form .rep.edit { background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.ch-note { font-size: 13px; color: var(--accent-ink, var(--accent)); }
+.ch-pend { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 12px; background: var(--card-2); }
+.ch-pend img { max-height: 90px; max-width: 160px; border-radius: 8px; }
+.ch-in { align-items: center; }
+.ch-tray { position: absolute; left: 12px; bottom: 100%; width: min(360px, calc(100% - 24px)); background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 -8px 30px rgba(0,0,0,.3); z-index: 6; padding: 8px; }
+.ch-tabs2, .ch-egroups { display: flex; gap: 4px; margin-bottom: 6px; }
+.ch-tabs2 button, .ch-egroups button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px 12px; border-radius: 99px; font: inherit; font-weight: 600; }
+.ch-tabs2 button.on, .ch-egroups button.on { background: var(--nav-on); color: var(--text); }
+.ch-egrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; max-height: 210px; overflow: auto; }
+.ch-egrid button { border: 0; background: none; font-size: 22px; padding: 4px; border-radius: 8px; cursor: pointer; }
+.ch-egrid button:hover { background: var(--card-2); }
+.ch-sgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 260px; overflow: auto; }
+.ch-sgrid button { border: 0; background: none; cursor: pointer; border-radius: 12px; padding: 4px; }
+.ch-sgrid button:hover { background: var(--card-2); }
+.ch-sgrid svg { width: 100%; height: auto; display: block; }
+.ch-main { position: relative; }
+.ch-main.drag { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.ch-drop { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: color-mix(in srgb, var(--card) 85%, transparent); font-size: 18px; font-weight: 700; pointer-events: none; }
+
+/* пересылка */
+.ch-fwdwrap { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.5); display: grid; place-items: center; padding: 16px; }
+.ch-fwdbox { width: min(380px, 100%); max-height: 80vh; display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.ch-fwdlist { overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.ch-fwdlist button { border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+.ch-fwdlist button:hover { background: var(--card-2); }
+
+@media (max-width: 880px) {
+  .ch-m { max-width: 92%; }
+  .ch-stk { width: 120px; height: 120px; }
+  .ch-menu { min-width: 170px; }
+  .ch-tray { left: 8px; }
+}

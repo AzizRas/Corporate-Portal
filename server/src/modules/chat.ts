@@ -72,7 +72,7 @@ export async function chatRoutes(app: FastifyInstance) {
                            FROM chat_messages m JOIN users u ON u.id=m.user_id LEFT JOIN chat_files f ON f.message_id=m.id
                           WHERE m.channel = ANY($1::text[]) ORDER BY m.channel, m.id DESC`, [list.map((c) => c.id)])).rows;
     const prev = new Map(lm.map((r) => [r.channel, { last_body: r.sys ? '' : r.sticker ? '🖼 Стикер' : (r.body || (r.has_file ? `📎 ${r.file_name}` : '')).slice(0, 80), last_author: r.sys ? null : String(r.name).split(' ')[0], last_user_id: r.user_id }]));
-    return { channels: list.map((c) => ({ ...c, last_at: at.get(c.id) ?? null, ...(prev.get(c.id) ?? {}) })) };
+    return { channels: list.map((c) => ({ ...c, last_at: at.get(c.id) ?? null, ...(prev.get(c.id) ?? {}), online: c.kind === 'dm' && !!c.peer && Date.now() - seenAt(c.peer.id) < 45_000 })) };
   });
 
   /* ----- сообщения ----- */
