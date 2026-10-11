@@ -12,7 +12,7 @@ const l = (ru: string[], uz: string[]): L2 => ({ ru, uz });
 const o = (cat: string, ru: string, uz: string) => ({ cat, t: t(ru, uz) });
 
 export interface SeedTest {
-  slug: string; kind: 'psych' | 'prof'; title: T2; descr: T2; minutes: number; scoring: 'categories' | 'scale' | 'quiz'; sort: number; ver: number;
+  slug: string; kind: 'psych' | 'prof'; title: T2; descr: T2; minutes: number; scoring: 'categories' | 'scale' | 'quiz' | 'profile'; sort: number; ver: number;
   config: any;
 }
 

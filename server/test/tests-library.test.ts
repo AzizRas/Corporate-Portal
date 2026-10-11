@@ -138,10 +138,12 @@ test('без входа тесты, библиотека и советы зак�
   for (const u of ['/api/tests', '/api/library', '/api/wellness/tips', '/api/wellness/stats']) assert.equal((await app.inject({ url: u })).statusCode, 401, u);
 });
 
-test('каталог: 7 встроенных тестов; проходящему не отдаются ключи ответов', async () => {
+test('каталог: 14 встроенных тестов; проходящему не отдаются ключи ответов', async () => {
   const op1 = await login('op1');
   const r = (await get(op1, '/api/tests')).json();
-  assert.equal(r.tests.length, 7);
+  assert.equal(r.tests.length, 14);
+  const big5 = (await get(op1, '/api/tests/big5')).json();
+  assert.equal(JSON.stringify(big5.questions).includes('rev') || JSON.stringify(big5.questions).includes('"s"'), false, 'ключи шкал не раскрываются');
   assert.equal(r.can_team, false);
   const paei = (await get(op1, '/api/tests/paei')).json();
   assert.equal(paei.questions.length, 12);

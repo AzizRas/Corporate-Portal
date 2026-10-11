@@ -91,6 +91,33 @@
       {#if c.disclaimer}<div class="t-warn"><b>{tt('r_note')}.</b> {tl(c.disclaimer)}</div>{/if}
       <div class="card"><div class="t-h">{tt('r_advice')}</div><ul class="t-list">{#each tlist(level.tips) as s}<li>{s}</li>{/each}</ul></div>
       {#if c.note}<p class="muted small">{tl(c.note)}</p>{/if}
+    {:else if kind === 'profile'}
+      {@const lvl = res.total && c.total ? c.total.levels.find((l: any) => l.id === res.total.level) : null}
+      <div class="card hl">
+        <div class="t-h">{tt('r_scale_level')}</div>
+        <div class="t-big">{tl(res.headline)}</div>
+        {#if res.total}<p class="u-fe7b497"><span class="t-badge {res.tone}">{tt('r_score')}: {res.total.value}</span></p>{/if}
+        {#if lvl?.descr && tl(lvl.descr)}<p class="u-d6f2af6">{tl(lvl.descr)}</p>{/if}
+        {#if res.too_fast}<div class="t-warn">{tt('r_too_fast')}</div>{/if}
+      </div>
+      {#if c.scales.filter((s: any) => res.scales[s.id]).length >= 3}
+        <div class="card"><Radar axes={c.scales.filter((s: any) => res.scales[s.id]).map((s: any) => ({ id: s.id, value: res.scales[s.id].pct, title: tl(s.name) }))} label={tl(d.test.title)} /></div>
+      {/if}
+      {#if c.scales.length > 1}
+        <div class="card t-bars">
+          {#each c.scales.filter((s: any) => res.scales[s.id]) as s}
+            {@const v = res.scales[s.id]}
+            <div class="t-bar" class:lead={v.band === 'high'}>
+              <div class="top">{tl(s.name)}<span>{v.pct}%</span></div>
+              <div class="tr"><i style:width={`${v.pct}%`}></i></div>
+              {#if v.band !== 'mid' && tl(v.band === 'high' ? s.high : s.low)}<p class="small muted u-fe7b497">{tl(v.band === 'high' ? s.high : s.low)}</p>{/if}
+            </div>
+          {/each}
+        </div>
+      {:else if c.scales[0] && res.scales[c.scales[0].id] && tl(res.scales[c.scales[0].id].band === 'high' ? c.scales[0].high : c.scales[0].low)}
+        <div class="card"><p>{tl(res.scales[c.scales[0].id].band === 'high' ? c.scales[0].high : c.scales[0].low)}</p></div>
+      {/if}
+      {#if c.note}<p class="muted small">{tl(c.note)}</p>{/if}
     {:else}
       <div class="card hl">
         <div class="t-hero">
