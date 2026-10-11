@@ -38,13 +38,16 @@ const get = async (who: any, url: string) => app.inject({ method: 'GET', url, ..
 const send = async (who: any, method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', url: string, payload?: unknown) =>
   app.inject({ method, url, payload: payload as any, ...who });
 
-test('вход: неверный пароль и блокировка после 10 попыток', async () => {
-  for (let i = 0; i < 10; i++) {
+test('вход: неверный пароль, после 5 ошибок — пауза (не 15 минут), правильный пароль в паузу не принимается', async () => {
+  for (let i = 0; i < 5; i++) {
     const r = await app.inject({ method: 'POST', url: '/api/login', payload: { login: 'op4', password: 'bad' } });
     assert.equal(r.statusCode, 401);
   }
   const r = await app.inject({ method: 'POST', url: '/api/login', payload: { login: 'op4', password: 'demo12345' } });
   assert.equal(r.statusCode, 429);
+  assert.ok(r.json().retry_after <= 30, 'пауза 30 секунд, а не 15 минут');
+  await pool.query(`UPDATE users SET failed_attempts=0, locked_until=NULL WHERE login='op4'`);       // дальше тесты входят под op4
+  (await import('../src/login-guard.js')).ipReset();
 });
 
 test('без входа API закрыт', async () => {
