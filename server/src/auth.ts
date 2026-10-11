@@ -3,7 +3,7 @@ import { q } from './db.js';
 import { config } from './config.js';
 import { randomToken, sha256 } from './security.js';
 import { orgContext } from './org-core.js';
-import { sectionsFor, sectionOfUrl } from './access.js';
+import { sectionsFor, urlAllowed } from './access.js';
 
 // Иерархия операторов: employee (оператор) → senior (старший оператор) → manager (супервайзер) → head (руководитель отдела)
 export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'recruiter' | 'accountant' | 'editor' | 'admin';
@@ -103,9 +103,8 @@ export function registerAuth(app: FastifyInstance) {
   });
   app.addHook('preHandler', async (req, reply) => {
     if (req.user?.external && !externalAllowed(req.url, req.user.external)) return reply.code(403).send({ error: 'external_forbidden' });
-    // разделы, закрытые для подразделения (помощник оператора, тренажёр, готовность к линии)
-    const sec = req.user ? sectionOfUrl(req.url) : null;
-    if (req.user && sec && !req.user.sections.includes(sec)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'section_forbidden' }); }
+    // разделы, закрытые для подразделения: данные закрыты на сервере, а не только убраны из меню (см. GATES в access.ts)
+    if (req.user && !urlAllowed(req.url, req.user.sections, req.user.roles)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'section_forbidden' }); }
   });
 }
 

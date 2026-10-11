@@ -20,6 +20,8 @@
     try { await api.patch('/api/me', { password: newPw, old_password: oldPw }); msg = t('pw_ok'); ok = true; oldPw = newPw = ''; }
     catch (x) { msg = x instanceof ApiError && x.code === 'bad_old' ? t('login_bad') : t('error'); ok = false; }
   }
+  let loMsg = $state('');
+  async function logoutOthers() { loMsg = ''; try { const r = await api.post('/api/me/logout-others'); loMsg = wt('lo_done', { n: r.closed }); } catch { loMsg = t('error'); } }
   let status = $state(app.user?.status ?? ''), birthday = $state(app.user?.birthday ?? ''), pmsg = $state(''), perr = $state(''), busy = $state(false);
   async function saveProfile(e: Event) {
     e.preventDefault(); pmsg = '';
@@ -60,7 +62,8 @@
           <button class:on={app.theme === v} onclick={() => setTheme(v as any)}>{t(k as any)}</button>
         {/each}</div></div>
     <div><div class="muted small">{t('role')}</div><div class="row wrap" style="margin-top:8px">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
-    <button class="btn danger" onclick={logout}>{t('nav_logout')}</button>
+    <div class="row wrap" style="gap:8px"><button class="btn danger" onclick={logout}>{t('nav_logout')}</button><button class="btn" onclick={logoutOthers}>{wt('lo_others')}</button></div>
+    <p class="muted xs">{loMsg || wt('lo_others_hint')}</p>
   </section>
   <section class="card stack"><h3 class="card-title">{wt('tr_restart')}</h3><p class="muted small">{wt('tr_restart_hint')}</p><button class="btn grad" style="align-self:flex-start" onclick={restartTour}>{wt('tr_restart')}</button></section>
   <NotifyPrefs />

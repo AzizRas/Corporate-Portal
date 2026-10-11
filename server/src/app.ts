@@ -6,6 +6,7 @@ import fstatic from '@fastify/static';
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
+import { securityHeaders } from './security-headers.js';
 import { q } from './db.js';
 import { registerAuth } from './auth.js';
 import { authRoutes } from './modules/auth.js';
@@ -59,6 +60,7 @@ export async function buildApp() {
     reply.header('x-request-id', req.id);
     reply.header('x-content-type-options', 'nosniff');
     reply.header('referrer-policy', 'same-origin');
+    for (const [k, v] of Object.entries(securityHeaders(req.url, config.isProd))) reply.header(k, v);
     if (req.url.startsWith('/api/')) reply.header('cache-control', 'no-store');
   });
 

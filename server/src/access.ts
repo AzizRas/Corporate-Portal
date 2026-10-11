@@ -20,14 +20,36 @@ export const DEFAULT_MATRIX: Record<Profile, Section[]> = {
   accounting: ['home', 'news', 'chat', 'schedule', 'tasks', 'help', 'pay', ...ALWAYS],
 };
 
-/** API, которые закрываются на сервере вместе с разделом (остальные разделы скрываются в меню, их права проверяются по ролям). */
-const SECTION_API: [string, Section][] = [
-  ['/api/training/trainer', 'trainer'], ['/api/training/ready', 'ready'],
-  ['/api/assist/data', 'assist'], ['/api/assist/search-log', 'assist'], ['/api/search/chat', 'assist'],
+/** Какие API закрываются на сервере вместе с разделом. Раздел из набора подразделения скрывает пункт меню, а эти правила не дают открыть данные прямым запросом.
+ *  any — достаточно любого из разделов; except — роли, для которых это рабочий инструмент (HR и редактор ведут базу знаний): они ходят по своим ролевым правам.
+ *  Эндпоинты руководителя (`/api/path/user`, `/api/path/team`, `/api/growth/settings` и др.) здесь не перечислены: их закрывают проверки ролей. */
+interface Gate { prefix: string; any: Section[]; except?: string[] }
+const G = (prefix: string, any: Section[], except?: string[]): Gate => ({ prefix, any, except });
+const GATES: Gate[] = [
+  G('/api/training/trainer', ['trainer']), G('/api/training/ready', ['ready']),
+  G('/api/assist/data', ['assist']), G('/api/assist/search-log', ['assist']), G('/api/search/chat', ['assist']),
+  G('/api/feed', ['news']), G('/api/birthdays', ['news']),
+  G('/api/tasks', ['tasks']),
+  G('/api/chat', ['chat']),
+  G('/api/training/me', ['plan']), G('/api/training/enroll', ['plan']), G('/api/training/lessons', ['plan']),
+  // «Мой путь» открывается и из раздела «Развитие» (карточка человека), поэтому любой из двух
+  G('/api/path/me', ['path', 'growth']), G('/api/path/rate', ['path', 'growth']), G('/api/path/traits', ['path', 'growth']),
+  G('/api/growth/target', ['path', 'growth']), G('/api/growth/traits', ['path', 'growth']), G('/api/growth/personal', ['path', 'growth']),
+  ...['mentor', 'survey', 'reserve', 'talks', 'recs', 'analysis', '360', 'goals', 'model', 'badges'].map((x) => G(`/api/growth/${x}`, ['growth'])),
+  G('/api/kb', ['kb'], ['hr', 'editor']),
 ];
-export const sectionOfUrl = (url: string): Section | null => {
+const hitPrefix = (p: string, pre: string) => p === pre || p.startsWith(pre + '/');
+/** Первое подходящее правило для адреса (самое длинное совпадение префикса). */
+export const gateOfUrl = (url: string): { any: Section[]; except?: string[] } | null => {
   const p = url.split('?')[0];
-  return SECTION_API.find(([pre]) => p === pre || p.startsWith(pre + '/'))?.[1] ?? null;
+  let best: Gate | null = null;
+  for (const g of GATES) if (hitPrefix(p, g.prefix) && (!best || g.prefix.length > best.prefix.length)) best = g;
+  return best;
+};
+/** Можно ли пользователю с такими разделами и ролями обращаться к адресу. */
+export const urlAllowed = (url: string, sections: string[], roles: string[]): boolean => {
+  const g = gateOfUrl(url);
+  return !g || g.any.some((s) => sections.includes(s)) || !!g.except?.some((r) => roles.includes(r));
 };
 
 let cache: { at: number; matrix: Partial<Record<Profile, Section[]>> } | null = null;
