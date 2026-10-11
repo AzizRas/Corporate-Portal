@@ -71,3 +71,71 @@ test('UX 7: тур показывает только шаги по доступ�
   assert.match(tours, /S\('hire',[\s\S]*\['hr', 'recruiter', 'admin'\]/); assert.match(tours, /S\('kb',/);
   assert.match(tours, /\.filter\(\(s\) => stepAllowed\(s\.id, can\)\)/);
 });
+
+test('Меню: 7 разделов первого уровня, у каждого вкладки; все пункты меню попадают в раздел', async () => {
+  const nav = await import('../../web/src/lib/nav-core.ts');
+  assert.deepEqual(nav.HUBS.map((h) => h.id), ['home', 'chat', 'know', 'learn', 'grow', 'work', 'manage'], 'ровно 7 пунктов первого уровня (ТЗ: 6–7)');
+  const src = fs.readFileSync(new URL('../../web/src/lib/nav.ts', import.meta.url), 'utf8');
+  const ids = [...src.matchAll(/\bit\('(\w+)'/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 20, 'пункты найдены');
+  const inHubs = [...nav.HUBS, nav.PROFILE_HUB].flatMap((h) => h.items);
+  assert.deepEqual(ids.filter((i) => !inHubs.includes(i)), [], 'каждый пункт меню лежит в каком-то разделе');
+  assert.equal(new Set(inHubs).size, inHubs.length, 'пункт не может быть в двух разделах');
+  assert.deepEqual(nav.HUBS.find((h) => h.id === 'know')!.items, ['kb', 'assist', 'assistant', 'queue', 'help'], '«Знания»: ЧАВО, помощник, очередь и помощь вместе');
+  assert.equal(nav.hubOfItem('trainer'), 'learn'); assert.equal(nav.hubOfItem('settings'), 'profile'); assert.equal(nav.hubOfItem('нет'), null);
+  // сборка: недоступные пункты пропускаются, пустые разделы исчезают, порядок вкладок как в описании
+  const it = (id: string) => ({ id, label: id, href: `/${id}`, icon: 'x' });
+  const hubs = nav.buildHubs(['library', 'tests', 'chat', 'home'].map(it));
+  assert.deepEqual(hubs.map((h) => h.id), ['home', 'chat', 'learn']);
+  assert.deepEqual(hubs.find((h) => h.id === 'learn')!.items.map((i) => i.id), ['tests', 'library'], 'порядок вкладок задан описанием, а не порядком данных');
+  assert.deepEqual(nav.buildHubs([]), []);
+  assert.equal(nav.hubOfActive(hubs, 'library')?.id, 'learn'); assert.equal(nav.hubOfActive(hubs, undefined), null); assert.equal(nav.hubOfActive(hubs, 'admin'), null);
+  // оболочка рисует разделы и вкладки; тур находит раздел, если самого пункта на экране нет
+  const shell = fs.readFileSync(new URL('../../web/src/components/Shell.svelte', import.meta.url), 'utf8');
+  assert.match(shell, /navHubs\(/); assert.match(shell, /<HubTabs/); assert.doesNotMatch(shell, /toggleGroup/);
+  assert.match(fs.readFileSync(new URL('../../web/src/components/Tour.svelte', import.meta.url), 'utf8'), /nav-hub-/);
+  assert.match(fs.readFileSync(new URL('../../web/src/components/HubTabs.svelte', import.meta.url), 'utf8'), /aria-current/);
+});
+
+test('«Удалено · Отменить»: запись убирается сразу, настоящее удаление — через 8 секунд, отмена возвращает; сбой сервера тоже возвращает', async (t) => {
+  const { scheduleDelete, UNDO_MS } = await import('../../web/src/lib/defer-delete.ts');
+  assert.equal(UNDO_MS, 8000);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const log: string[] = [], bar: { id: number; undo: () => void }[] = [];
+  const hooks = { onAdd: (i: { id: number; undo: () => void }) => bar.push(i), onDrop: (id: number) => { const k = bar.findIndex((x) => x.id === id); if (k >= 0) bar.splice(k, 1); }, onFail: () => log.push('fail') };
+  const mk = (name: string, commit: () => Promise<unknown> = async () => { log.push(`commit:${name}`); }) => ({ hide: () => log.push(`hide:${name}`), restore: () => log.push(`restore:${name}`), commit });
+  // без отмены: скрыто сразу, удалено в срок
+  scheduleDelete(mk('a'), hooks);
+  assert.deepEqual(log, ['hide:a']); assert.equal(bar.length, 1);
+  t.mock.timers.tick(7_999); assert.deepEqual(log, ['hide:a'], 'до срока сервер не трогаем');
+  t.mock.timers.tick(1); await Promise.resolve(); await Promise.resolve();
+  assert.deepEqual(log, ['hide:a', 'commit:a']); assert.equal(bar.length, 0, 'плашка убрана');
+  // с отменой: запись вернулась, на сервере ничего не произошло
+  log.length = 0;
+  scheduleDelete(mk('b'), hooks);
+  bar[0].undo();
+  assert.deepEqual(log, ['hide:b', 'restore:b']); assert.equal(bar.length, 0);
+  t.mock.timers.tick(20_000); await Promise.resolve();
+  assert.deepEqual(log, ['hide:b', 'restore:b'], 'после отмены удаление не выполняется');
+  bar.length = 0;
+  // отмена после срока ничего не ломает
+  log.length = 0;
+  scheduleDelete(mk('c'), hooks); const undoC = bar[0].undo;
+  t.mock.timers.tick(8_000); await Promise.resolve(); await Promise.resolve();
+  undoC(); assert.deepEqual(log, ['hide:c', 'commit:c'], 'поздняя отмена игнорируется');
+  // сервер отказал: запись возвращается и человек видит сообщение
+  log.length = 0;
+  scheduleDelete(mk('d', async () => { throw new Error('403'); }), hooks);
+  t.mock.timers.tick(8_000); await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  assert.deepEqual(log, ['hide:d', 'restore:d', 'fail']);
+  // свой срок и несколько плашек сразу
+  log.length = 0;
+  scheduleDelete({ ...mk('e'), ms: 1000 }, hooks); scheduleDelete(mk('f'), hooks);
+  assert.equal(bar.length, 2);
+  t.mock.timers.tick(1_000); await Promise.resolve(); await Promise.resolve();
+  assert.deepEqual(log, ['hide:e', 'hide:f', 'commit:e']); assert.equal(bar.length, 1);
+  // применено там, где раньше был вопрос «Вы уверены?» про обычные записи
+  for (const [file, name] of [['chat/Chat.svelte', 'сообщение чата'], ['news/News.svelte', 'запись ленты'], ['growth/Person.svelte', 'рекомендация'], ['growth/Talk.svelte', 'цель'], ['components/PersonalGoals.svelte', 'личная цель']]) {
+    assert.match(fs.readFileSync(new URL(`../../web/src/${file}`, import.meta.url), 'utf8'), /deferDelete\(/, `${name}: удаление с «Отменить»`);
+  }
+});

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmBox } from '../lib/dialog.svelte';
+  import { deferDelete } from '../lib/dialog.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
@@ -26,7 +26,7 @@
     open[p.id] = (await api.get(`/api/feed/${p.id}/comments`)).comments; p.comments = open[p.id].length;
   }
   async function pin(p: any) { await api.post(`/api/feed/${p.id}/pin`); await load(); }
-  async function del(p: any) { if (await confirmBox(st('nw_del_q'))) { await api.del(`/api/feed/${p.id}`); await load(); } }
+  function del(p: any) { const prev = posts; deferDelete(st('nw_post_short'), { hide: () => (posts = posts.filter((x) => x.id !== p.id)), restore: () => (posts = prev), commit: async () => { await api.del(`/api/feed/${p.id}`); await load(); } }); }
   const kinds = $derived(['thought', 'kudos', 'win', ...(canAnnounce ? ['announce'] : [])]);
   const mine = (p: any) => p.user_id === app.user!.id || has('admin', 'hr');
   const shown = $derived(filter === 'all' ? posts : posts.filter((p) => p.kind === filter));

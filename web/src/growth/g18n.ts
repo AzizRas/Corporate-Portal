@@ -4,7 +4,7 @@ import { app } from '../lib/state.svelte';
 const ru: Record<string, string> = {
   title: 'Развитие', sub: 'Опросы, беседы с руководителем, цели и поддержка — всё, что помогает расти',
   tab_survey: 'Опросы 360°', tab_talk: 'Беседа 1:1 и ИПР', tab_mentor: 'ИИ-наставник', tab_feed: 'Лента', tab_chat: 'Чат', tab_reserve: 'Кадровый резерв', nav_growth: 'Развитие',
-  send: 'Отправить', save: 'Сохранить', saved: 'Сохранено', add: 'Добавить', delete: 'Удалить', del_confirm: 'Удалить?',
+  rec_short: 'рекомендация', goal_short: 'цель', send: 'Отправить', save: 'Сохранить', saved: 'Сохранено', add: 'Добавить', delete: 'Удалить', del_confirm: 'Удалить?',
   // опросы
   sv_title: 'Опросы этого месяца', sv_hint: 'Два коротких опроса и один полный в месяц. Ответы о коллегах анонимны: цифры показываются, только когда ответили минимум двое. Результаты считаются в готовность к должности: самооценка 20%, руководитель 40%, коллеги 40%.',
   sv_full: 'Полный опрос', sv_short: 'Короткий опрос', sv_self: 'Оценить себя', sv_self_h: 'Самооценка', sv_go: 'Пройти', sv_done: 'готово', sv_anon: 'ответ анонимный',
@@ -33,7 +33,7 @@ const ru: Record<string, string> = {
 const uz: Record<string, string> = {
   title: 'Rivojlanish', sub: 'So‘rovnomalar, rahbar bilan suhbat, maqsadlar va qo‘llab-quvvatlash — o‘sishga yordam beradigan hamma narsa',
   tab_survey: '360° so‘rovnomalar', tab_talk: '1:1 suhbat va IRR', tab_mentor: 'AI-murabbiy', tab_feed: 'Lenta', tab_chat: 'Chat', tab_reserve: 'Kadrlar zaxirasi', nav_growth: 'Rivojlanish',
-  send: 'Yuborish', save: 'Saqlash', saved: 'Saqlandi', add: 'Qo‘shish', delete: 'O‘chirish', del_confirm: 'O‘chirilsinmi?',
+  rec_short: 'tavsiya', goal_short: 'maqsad', send: 'Yuborish', save: 'Saqlash', saved: 'Saqlandi', add: 'Qo‘shish', delete: 'O‘chirish', del_confirm: 'O‘chirilsinmi?',
   sv_title: 'Shu oydagi so‘rovnomalar', sv_hint: 'Oyiga ikkita qisqa va bitta to‘liq so‘rovnoma. Hamkasblar haqidagi javoblar anonim: raqamlar kamida ikki kishi javob bergandagina ko‘rsatiladi. Natijalar lavozimga tayyorlikka kiradi: o‘z bahosi 20%, rahbar 40%, hamkasblar 40%.',
   sv_full: 'To‘liq so‘rovnoma', sv_short: 'Qisqa so‘rovnoma', sv_self: 'O‘zimni baholash', sv_self_h: 'O‘z-o‘zini baholash', sv_go: 'Topshirish', sv_done: 'tayyor', sv_anon: 'javob anonim',
   sv_t_self: 'o‘z-o‘zini baholash', sv_t_manager: 'sizning xodimingiz', sv_t_sub: 'sizning rahbaringiz', sv_t_peer: 'hamkasb', sv_already: 'Siz bu so‘rovnomani allaqachon topshirgansiz.', sv_err: 'Yuborib bo‘lmadi. Qayta urinib ko‘ring.',

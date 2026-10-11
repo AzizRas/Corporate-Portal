@@ -1,7 +1,8 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
-  import { navGroups } from '../lib/nav';
+  import { navGroups, hubLabel } from '../lib/nav';
+  import { hubOfItem } from '../lib/nav-core';
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
   import { portal } from '../lib/portal';
@@ -42,7 +43,7 @@
     const text = q.trim().toLowerCase();
     if (text.length < 2) return [];
     const out: Row[] = [];
-    for (const g of navGroups(0)) for (const i of g.items) if (i.label.toLowerCase().includes(text)) out.push({ key: `s${i.id}`, group: wt('sr_sections'), label: i.label, sub: g.label, href: i.href });
+    for (const g of navGroups(0)) for (const i of g.items) if (i.label.toLowerCase().includes(text)) out.push({ key: `s${i.id}`, group: wt('sr_sections'), label: i.label, sub: hubLabel(hubOfItem(i.id) ?? g.id), href: i.href });
     if (res) {
       for (const a of res.kb) out.push({ key: `k${a.id}`, group: wt('sr_kb'), label: tr(a, 'title'), sub: (lang === 'uz' && a.snippet_uz ? a.snippet_uz : a.snippet_ru)?.slice(0, 90), href: `/kb/${a.id}` });
       for (const x of res.tests) out.push({ key: `t${x.slug}`, group: wt('sr_tests'), label: tr(x, 'title'), href: `/tests/${x.slug}` });

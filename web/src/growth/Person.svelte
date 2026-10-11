@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmBox } from '../lib/dialog.svelte';
+  import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { app, has } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
@@ -31,7 +31,7 @@
 
   async function addRec() { if (!newRec.trim()) return; await api.post(`/api/growth/recs/${id}`, { text: newRec, comp: recComp || undefined }); newRec = ''; recs = await api.get(`/api/growth/recs/${id}`); }
   async function saveRec(r: any) { await api.patch(`/api/growth/recs/item/${r.id}`, { text: editText }); editing = null; recs = await api.get(`/api/growth/recs/${id}`); }
-  async function delRec(r: any) { if (await confirmBox(gt('del_confirm'))) { await api.del(`/api/growth/recs/item/${r.id}`); recs = await api.get(`/api/growth/recs/${id}`); } }
+  function delRec(r: any) { const prev = recs; deferDelete(gt('rec_short'), { hide: () => (recs = recs.filter((x: any) => x.id !== r.id)), restore: () => (recs = prev), commit: async () => { await api.del(`/api/growth/recs/item/${r.id}`); recs = await api.get(`/api/growth/recs/${id}`); } }); }
   async function addTrait() { if (!newTrait.trim()) return; await api.post(`/api/growth/traits/${id}`, { text: newTrait, kind: traitKind }); newTrait = ''; traits = await api.get(`/api/growth/traits/${id}`); }
   async function vote(tr: any) { await api.post(`/api/path/traits/${tr.id}/vote`); traits = await api.get(`/api/growth/traits/${id}`); }
   async function delTrait(tr: any) { await api.del(`/api/growth/traits/item/${tr.id}`); traits = await api.get(`/api/growth/traits/${id}`); }

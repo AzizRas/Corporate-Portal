@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmBox } from '../lib/dialog.svelte';
+  import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { app, has, go } from '../lib/state.svelte';
   import { gt } from './g18n';
@@ -46,7 +46,7 @@
     goalTitle = gm = gd = ''; await load();
   }
   async function prog(g: any, v: number) { await api.patch(`/api/growth/goals/item/${g.id}`, { progress: v }); await load(); }
-  async function delGoal(g: any) { if (await confirmBox(gt('del_confirm'))) { await api.del(`/api/growth/goals/item/${g.id}`); await load(); } }
+  function delGoal(g: any) { const prev = goals; deferDelete(gt('goal_short'), { hide: () => (goals = goals.filter((x: any) => x.id !== g.id)), restore: () => (goals = prev), commit: async () => { await api.del(`/api/growth/goals/item/${g.id}`); await load(); } }); }
 </script>
 
 <div class="row wrap" style="margin-bottom:16px">

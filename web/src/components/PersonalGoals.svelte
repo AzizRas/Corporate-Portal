@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { deferDelete } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { app } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
@@ -14,7 +15,7 @@
   $effect(() => { userId; load(); });
   async function add() { const t = text.trim(); if (!t) return; text = ''; await api.post('/api/growth/personal', { text: t }); await load(); }
   async function toggle(g: any) { await api.patch(`/api/growth/personal/${g.id}`, { done: !g.done }); await load(); }
-  async function del(g: any) { await api.del(`/api/growth/personal/${g.id}`); await load(); }
+  function del(g: any) { const prev = items; deferDelete(st('pg_short'), { hide: () => (items = items.filter((x) => x.id !== g.id)), restore: () => (items = prev), commit: async () => { await api.del(`/api/growth/personal/${g.id}`); await load(); } }); }
 </script>
 
 {#if loaded && allowed}

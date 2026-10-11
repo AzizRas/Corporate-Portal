@@ -3,7 +3,7 @@ import { app } from './state.svelte';
 
 const ru: Record<string, string> = {
   // меню
-  n_chat: 'Чат', n_news: 'Новости', n_home: 'Главная', n_path: 'Мой путь', n_growth: 'Развитие', n_training: 'Обучение', n_tests: 'Тесты', n_library: 'Библиотека',
+  c_msg_short: 'сообщение', nw_post_short: 'запись', pg_short: 'цель', n_chat: 'Чат', n_news: 'Новости', n_home: 'Главная', n_path: 'Мой путь', n_growth: 'Развитие', n_training: 'Обучение', n_tests: 'Тесты', n_library: 'Библиотека',
   n_schedule: 'График', n_pay: 'ЗП и KPI', n_kb: 'ЧАВО', n_assist: 'Помощник оператора', n_team: 'Команда', n_admin: 'Админка', n_more: 'Ещё', n_collapse: 'Свернуть меню', n_expand: 'Развернуть меню', n_logout: 'Выйти', n_profile: 'Профиль',
   // уведомления
   nt_title: 'Уведомления', nt_none: 'Пока ничего нового', nt_read_all: 'Прочитать все', nt_enable: 'Включить уведомления в браузере', nt_enabled: 'Уведомления в браузере включены',
@@ -31,7 +31,7 @@ const ru: Record<string, string> = {
   gz_title: 'Зоны роста', gz_hidden: 'Зоны роста видят сам сотрудник, его супервайзер, руководитель отдела и администратор.',
 };
 const uz: Record<string, string> = {
-  n_chat: 'Chat', n_news: 'Yangiliklar', n_home: 'Bosh sahifa', n_path: 'Mening yo‘lim', n_growth: 'Rivojlanish', n_training: 'O‘qitish', n_tests: 'Testlar', n_library: 'Kutubxona',
+  c_msg_short: 'xabar', nw_post_short: 'yozuv', pg_short: 'maqsad', n_chat: 'Chat', n_news: 'Yangiliklar', n_home: 'Bosh sahifa', n_path: 'Mening yo‘lim', n_growth: 'Rivojlanish', n_training: 'O‘qitish', n_tests: 'Testlar', n_library: 'Kutubxona',
   n_schedule: 'Jadval', n_pay: 'Maosh va KPI', n_kb: 'Savol-javob', n_assist: 'Operator yordamchisi', n_team: 'Jamoa', n_admin: 'Boshqaruv', n_more: 'Yana', n_collapse: 'Menyuni yig‘ish', n_expand: 'Menyuni yoyish', n_logout: 'Chiqish', n_profile: 'Profil',
   nt_title: 'Bildirishnomalar', nt_none: 'Hozircha yangilik yo‘q', nt_read_all: 'Hammasini o‘qilgan qilish', nt_enable: 'Brauzerda bildirishnomalarni yoqish', nt_enabled: 'Brauzer bildirishnomalari yoqilgan',
   nt_new_msgs: 'Chatda yangi xabarlar', nt_mention: 'Sizni belgilashdi', nt_news: 'Yangiliklar',

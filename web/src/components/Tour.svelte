@@ -4,6 +4,7 @@
   import { wt } from '../lib/w18n';
   import { tour, next, back, skip, closePoint } from '../lib/tour.svelte';
   import { portal } from '../lib/portal';
+  import { hubOfItem } from '../lib/nav-core';
 
   const cur = $derived(tour.active ? tour.steps[tour.i] : null);
   const spec = $derived(cur ? { targets: cur.targets, title: cur.title[app.lang], text: cur.text[app.lang] } : tour.point ? { targets: tour.point.targets, title: tour.point.title, text: tour.point.text } : null);
@@ -13,7 +14,10 @@
   const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
   /** Первый видимый элемент из списка (на телефоне боковое меню скрыто — берём нижнюю панель, а если пункта там нет — «Ещё»). */
   function find(targets: string[]): { el: HTMLElement | null; more: boolean } {
-    for (const [i, t] of targets.entries()) { const el = document.querySelector(`[data-tour="${t}"]`); if (visible(el)) return { el, more: t === 'tab-more' && i > 0 }; }
+    // пункты меню теперь собраны в разделы: если самого пункта на экране нет, подсвечиваем его раздел
+    const hubs = targets.filter((t) => t.startsWith('nav-') && !t.startsWith('nav-hub-')).map((t) => hubOfItem(t.slice(4))).filter(Boolean).map((h) => `nav-hub-${h}`);
+    const list = [...targets.filter((t) => t !== 'tab-more'), ...hubs, ...targets.filter((t) => t === 'tab-more')];
+    for (const [i, t] of list.entries()) { const el = document.querySelector(`[data-tour="${t}"]`); if (visible(el)) return { el, more: t === 'tab-more' && i > 0 }; }
     return { el: null, more: false };
   }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmBox } from '../lib/dialog.svelte';
+  import { deferDelete } from '../lib/dialog.svelte';
   import { onMount, tick } from 'svelte';
   import { api } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
@@ -116,7 +116,8 @@
     try { await api.upload(`/api/chat/${encodeURIComponent(channel)}/upload`, fd); text = ''; replyTo = null; if (ta) ta.style.height = '46px'; await poll(); }
     catch { err = wt('ch_file_err'); } finally { uploading = false; }
   }
-  async function del(m: any) { if (!await confirmBox(st('c_del_q'))) return; await api.del(`/api/chat/message/${m.id}`); msgs = msgs.filter((x) => x.id !== m.id); loadPins(); }
+  // удаление сообщения: сначала «Отменить» на 8 секунд, потом по-настоящему
+  function del(m: any) { deferDelete(st('c_msg_short'), { hide: () => (msgs = msgs.filter((x) => x.id !== m.id)), restore: () => (msgs = [...msgs, m].sort((a, b) => a.id - b.id)), commit: async () => { await api.del(`/api/chat/message/${m.id}`); loadPins(); } }); }
   async function pin(m: any) { const r = await api.post(`/api/chat/message/${m.id}/pin`); m.pinned = r.pinned; await loadPins(); }
   async function mute() { await api.put(`/api/chat/${encodeURIComponent(channel)}/mute`, { muted: !cur.muted }); await loadChannels(); await refreshNotify(); }
   async function search() {
