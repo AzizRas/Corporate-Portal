@@ -9,6 +9,7 @@
   import Search from './Search.svelte';
   import AssistChat from './AssistChat.svelte';
   import Tour from './Tour.svelte';
+  import Dialogs from './Dialogs.svelte';
   import { tour, maybeAutoStart, visit, visitSearch } from '../lib/tour.svelte';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
@@ -111,4 +112,5 @@
   <Wellness />
   {#if can('assist')}<AssistChat />{/if}
   <Tour />
+  <Dialogs />
 </div>

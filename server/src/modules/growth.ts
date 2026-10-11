@@ -58,7 +58,7 @@ async function rounds() {
 async function tasksFor(r: AuthUser, period: string) {
   const all = (await q(`SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.manager_id,
                                EXISTS(SELECT 1 FROM user_roles x WHERE x.user_id=u.id AND x.role='admin') AS is_admin
-                          FROM users u WHERE u.active`)).rows;
+                          FROM users u WHERE u.active ORDER BY u.id`)).rows;      // порядок фиксирован: иначе набор коллег для оценки менялся от запуска к запуску
   const tasks: { target: any; type: 'self' | 'manager' | 'sub' | 'peer' }[] = [{ target: all.find((u) => u.id === r.id), type: 'self' }];
   for (const t of all) if (t.manager_id === r.id) tasks.push({ target: t, type: 'manager' });
   if (r.manager_id) { const m = all.find((u) => u.id === r.manager_id); if (m) tasks.push({ target: m, type: 'sub' }); }

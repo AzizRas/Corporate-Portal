@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { onMount, tick } from 'svelte';
   import { api } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
@@ -115,7 +116,7 @@
     try { await api.upload(`/api/chat/${encodeURIComponent(channel)}/upload`, fd); text = ''; replyTo = null; if (ta) ta.style.height = '46px'; await poll(); }
     catch { err = wt('ch_file_err'); } finally { uploading = false; }
   }
-  async function del(m: any) { if (!confirm(st('c_del_q'))) return; await api.del(`/api/chat/message/${m.id}`); msgs = msgs.filter((x) => x.id !== m.id); loadPins(); }
+  async function del(m: any) { if (!await confirmBox(st('c_del_q'))) return; await api.del(`/api/chat/message/${m.id}`); msgs = msgs.filter((x) => x.id !== m.id); loadPins(); }
   async function pin(m: any) { const r = await api.post(`/api/chat/message/${m.id}/pin`); m.pinned = r.pinned; await loadPins(); }
   async function mute() { await api.put(`/api/chat/${encodeURIComponent(channel)}/mute`, { muted: !cur.muted }); await loadChannels(); await refreshNotify(); }
   async function search() {

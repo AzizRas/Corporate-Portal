@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
   import { app, go, has } from '../lib/state.svelte';
@@ -153,7 +154,7 @@
     catch (e) { dErr = emsg(e); } finally { saving = false; }
   }
   async function act(a: 'apply' | 'reject' | 'rollback') {
-    if (a !== 'reject' && !confirm(et(a === 'apply' ? 'e_confirm_apply' : 'e_confirm_rollback'))) return;
+    if (a !== 'reject' && !await confirmBox(et(a === 'apply' ? 'e_confirm_apply' : 'e_confirm_rollback'))) return;
     working = a; dErr = ''; dMsg = '';
     try {
       await api.post(`/api/ai/drafts/${d.id}/${a}`);

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import PageHelp from '../components/PageHelp.svelte';
   // Страница #/library: поиск и фильтры, «Рекомендовано мне» по зонам роста, статусы «хочу / читаю / изучено».
   import { api } from '../lib/api';
@@ -45,7 +46,7 @@
     } catch { patchLocal(id, before); }
   }
   async function toggle(it: any) {
-    if (it.active && !confirm(lt('hide_q'))) return;
+    if (it.active && !await confirmBox(lt('hide_q'))) return;
     try {
       if (it.active) await api.del(`/api/library/${it.id}`);
       else await api.put(`/api/library/${it.id}`, { ...it, comp: it.comp, active: true });

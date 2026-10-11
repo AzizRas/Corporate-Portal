@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { go } from '../lib/state.svelte';
   import { tt, tl } from './t18n';
@@ -26,7 +27,7 @@
     clearTimeout(timer);
     if (i < total - 1) timer = setTimeout(() => { if (answers[i] === v) i++; }, 220);
   }
-  function leave() { if (confirm(tt('leave_q'))) go('/tests'); }
+  async function leave() { if (await confirmBox(tt('leave_q'))) go('/tests'); }
   async function finish() {
     busy = true; sendErr = false;
     try { const r = await api.post(`/api/tests/${slug}/submit`, { answers: $state.snapshot(answers) }); go(`/tests/result/${r.id}`); }

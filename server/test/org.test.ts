@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ExcelJS from 'exceljs';
 import pg from 'pg';
+import { createDb } from './helpers.js';
 
 const base = process.env.TEST_DATABASE_URL || 'postgres://portal:portal@localhost:5432';
 process.env.DATABASE_URL = `${base}/portal_test_org`;
@@ -19,7 +20,7 @@ before(async () => {
   const admin = new pg.Client({ connectionString: `${base}/postgres` });
   await admin.connect();
   await admin.query('DROP DATABASE IF EXISTS portal_test_org WITH (FORCE)');
-  await admin.query('CREATE DATABASE portal_test_org');
+  await createDb(admin, 'portal_test_org');
   await admin.end();
   fs.mkdirSync(process.env.UPLOAD_DIR!, { recursive: true });
   const { migrate } = await import('../src/migrate.js');

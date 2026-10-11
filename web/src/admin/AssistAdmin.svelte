@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox, promptBox, alertBox } from '../lib/dialog.svelte';
   import { api, ApiError } from '../lib/api';
   import { fmtDateTime } from '../lib/format';
   import FormNode from './FormNode.svelte';
@@ -21,7 +22,7 @@
     await api.post('/api/admin/assist/publish', { note }); note = ''; await loadCols(); await loadReleases(); say('Выпуск опубликован — операторы видят новую версию');
   }
   async function activate(r: any, restore: boolean) {
-    if (!confirm(restore ? `Вернуть и рабочую копию, и выпуск к версии №${r.id}? Несохранённые правки пропадут.` : `Сделать активным выпуск №${r.id}? Рабочая копия останется как есть.`)) return;
+    if (!await confirmBox(restore ? `Вернуть и рабочую копию, и выпуск к версии №${r.id}? Несохранённые правки пропадут.` : `Сделать активным выпуск №${r.id}? Рабочая копия останется как есть.`)) return;
     await api.post(`/api/admin/assist/releases/${r.id}/activate`, { restore }); await loadCols(); await loadReleases(); say('Готово');
   }
 
@@ -36,8 +37,8 @@
   }
   $effect(() => { if (collection) { sel = null; draft = null; q = ''; loadItems(); } });
 
-  function pick(key: string) {
-    if (dirty && !confirm('Есть несохранённые правки. Перейти без сохранения?')) return;
+  async function pick(key: string) {
+    if (dirty && !await confirmBox('Есть несохранённые правки. Перейти без сохранения?')) return;
     const it = items.find((i) => i.key === key)!;
     sel = key; draft = $state.snapshot(it.data) as any; orig = JSON.stringify(it.data); tab = 'form'; jsonErr = '';
   }
@@ -61,16 +62,16 @@
     finally { saving = false; }
   }
   async function remove() {
-    if (!confirm('Удалить элемент?')) return;
+    if (!await confirmBox('Удалить элемент?')) return;
     await api.del(`/api/admin/assist/${collection}/items/${encodeURIComponent(sel!)}`); sel = null; draft = null; await loadItems(); await loadCols();
   }
   const blankOf = (v: any): any => Array.isArray(v) ? [] : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, blankOf(x)])) : typeof v === 'number' ? 0 : typeof v === 'boolean' ? false : '';
   async function addItem() {
     let key: string | undefined; let data: any = items.length ? blankOf(items[0].data) : {};
-    if (meta.kind === 'map') { key = prompt('Ключ нового элемента (латиница, без пробелов)') ?? ''; if (!key) return; }
-    else if (meta.id_field) { const id = prompt(`Значение поля «${meta.id_field}» (уникальный id)`); if (!id) return; data[meta.id_field] = id; }
+    if (meta.kind === 'map') { key = await promptBox('Ключ нового элемента (латиница, без пробелов)') ?? ''; if (!key) return; }
+    else if (meta.id_field) { const id = await promptBox(`Значение поля «${meta.id_field}» (уникальный id)`); if (!id) return; data[meta.id_field] = id; }
     try { const r = await api.post(`/api/admin/assist/${collection}/items`, { key, data }); await loadItems(); await loadCols(); pick(r.key); }
-    catch (e) { if (e instanceof ApiError && e.code === 'exists') alert('Такой ключ уже есть'); else throw e; }
+    catch (e) { if (e instanceof ApiError && e.code === 'exists') alertBox('Такой ключ уже есть'); else throw e; }
   }
 
   let importing = $state(false);
@@ -78,16 +79,16 @@
     const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (!f) return;
     try {
       const value = JSON.parse(await f.text());
-      if (!confirm(`Заменить всю коллекцию «${meta.title}» содержимым файла?`)) return;
+      if (!await confirmBox(`Заменить всю коллекцию «${meta.title}» содержимым файла?`)) return;
       await api.post(`/api/admin/assist/${collection}/import.json`, { value }); await loadItems(); await loadCols(); say('Импортировано');
-    } catch (x) { alert(x instanceof ApiError && x.code === 'bad_shape' ? `Неверная структура: нужен ${x.body.expected}` : 'Файл не разобран'); }
+    } catch (x) { alertBox(x instanceof ApiError && x.code === 'bad_shape' ? `Неверная структура: нужен ${x.body.expected}` : 'Файл не разобран'); }
     (e.currentTarget as HTMLInputElement).value = '';
   }
   async function importXlsx(e: Event) {
     const f = (e.currentTarget as HTMLInputElement).files?.[0]; if (!f) return;
-    if (!confirm(`Заменить всю коллекцию «${meta.title}» данными из Excel?`)) return;
+    if (!await confirmBox(`Заменить всю коллекцию «${meta.title}» данными из Excel?`)) return;
     const fd = new FormData(); fd.append('file', f);
-    try { const r = await api.upload(`/api/admin/assist/${collection}/import.xlsx`, fd); await loadItems(); await loadCols(); say(`Импортировано строк: ${r.rows}`); } catch { alert('Не удалось разобрать Excel'); }
+    try { const r = await api.upload(`/api/admin/assist/${collection}/import.xlsx`, fd); await loadItems(); await loadCols(); say(`Импортировано строк: ${r.rows}`); } catch { alertBox('Не удалось разобрать Excel'); }
     (e.currentTarget as HTMLInputElement).value = '';
   }
 </script>

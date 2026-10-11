@@ -151,7 +151,20 @@ export const requireRole = (...roles: Role[]) => async (req: FastifyRequest, rep
   }
 };
 
+/** Отказы в доступе пишем в журнал не чаще раза в минуту на человека и адрес: иначе страница, опрашивающая закрытый раздел, засоряет журнал. */
+const deniedSeen = new Map<string, number>();
+export const DENIED_EVERY_MS = 60_000;
+export function deniedThrottled(who: number | null | undefined, target: string | undefined, now = Date.now()): boolean {
+  const key = `${who ?? 0}|${(target ?? '').split('?')[0]}`;
+  const last = deniedSeen.get(key);
+  if (last != null && now - last < DENIED_EVERY_MS) return true;
+  if (deniedSeen.size > 5000) for (const [k, t] of deniedSeen) if (now - t >= DENIED_EVERY_MS) deniedSeen.delete(k);
+  deniedSeen.set(key, now);
+  return false;
+}
+
 export async function audit(req: FastifyRequest | null, action: string, target?: string, meta?: unknown, userId?: number) {
+  if (action === 'access_denied' && deniedThrottled(userId ?? req?.user?.id, target)) return;
   await q('INSERT INTO audit_log(user_id,action,target,meta,ip) VALUES($1,$2,$3,$4,$5)', [
     userId ?? req?.user?.id ?? null, action, target ?? null, meta ? JSON.stringify(meta) : null, req?.ip ?? null,
   ]);

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { api, ApiError } from '../lib/api';
   import Modal from '../components/Modal.svelte';
   import RefAvatar from './RefAvatar.svelte';
@@ -23,7 +24,7 @@
     e.preventDefault(); busy = true; err = '';
     try { await api.patch(`/api/org/refs/${unit.id}`, f); dlg = null; onchanged(); } catch (x) { fail(x); } finally { busy = false; }
   }
-  async function delUnit() { if (!confirm(ot('confirmDel'))) return; try { await api.del(`/api/org/refs/${unit.id}`); onchanged(true); } catch (x) { fail(x); } }
+  async function delUnit() { if (!await confirmBox(ot('confirmDel'))) return; try { await api.del(`/api/org/refs/${unit.id}`); onchanged(true); } catch (x) { fail(x); } }
   async function saveContact(e: Event) {
     e.preventDefault(); busy = true; err = '';
     try {

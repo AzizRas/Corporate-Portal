@@ -26,6 +26,15 @@ const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) 
 const weekStartOf = (d: string) => addDays(d, -(isoDow(d) - 1));
 /** Стандартный график компании: часы работы и один плавающий выходной в неделю. */
 export const schedulePolicy = () => getSetting<{ start: string; end: string }>('schedule_policy', { start: '09:00', end: '19:00' });
+/** Государственные праздники Узбекистана с фиксированной датой (месяц-день). Переносимые (Рамазан и Курбан хайит) и переносы выходных добавляет HR или админ: «Праздники» в графике. */
+export const FIXED_HOLIDAYS = ['01-01', '03-08', '03-21', '05-09', '09-01', '10-01', '12-08'];
+const isDay = (d: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(d)) && !Number.isNaN(Date.parse(`${d}T00:00:00Z`));
+/** Все праздничные даты в промежутке [from, to] (даты вида YYYY-MM-DD). */
+export async function holidaySet(from: string, to: string): Promise<Set<string>> {
+  const out = new Set((await getSetting<string[]>('schedule_holidays', [])).filter(isDay));
+  for (let y = Number(from.slice(0, 4)); y <= Number(to.slice(0, 4)); y++) for (const md of FIXED_HOLIDAYS) out.add(`${y}-${md}`);
+  return out;
+}
 const validMonth = (s: unknown) => (/^\d{4}-(0[1-9]|1[0-2])$/.test(String(s)) ? String(s) : tzDate().slice(0, 7));
 
 /** Кого пользователь видит в графике (команда) и кого может подтверждать. Старший оператор — операторов своего отдела. */
@@ -213,6 +222,7 @@ export async function scheduleRoutes(app: FastifyInstance) {
   });
 
   // отметить выбранные ячейки (сотрудник × день): выходной, рабочий день или вернуть по графику
+  type Prev = { kind: string; status: string; shift_start: string | null; shift_end: string | null; note: string; requested_by: number | null } | null;
   app.post('/api/schedule/bulk', auth, async (req, reply) => {
     const u = req.user!, b = (req.body ?? {}) as { items?: { user_id?: number; days?: string[] }[]; action?: string };
     const action = ['off', 'work', 'clear'].includes(String(b.action)) ? String(b.action) : null;
@@ -221,32 +231,75 @@ export async function scheduleRoutes(app: FastifyInstance) {
     if (items.reduce((n, i) => n + i.days.length, 0) > 3000) return reply.code(400).send({ error: 'too_many' });
     const { ok } = await editable(u, items.map((i) => i.id));
     const okIds = new Set(ok.map((t) => t.id));
+    const today = tzDate(), isAdmin = u.roles.includes('admin');
     // Заявки сотрудников массовое действие не трогает:
     //  · «ждёт решения» (pending) не перезаписывается и не «одобряется молча» — такие заявки решают через «Одобрить / Отклонить»;
     //  · «очистить» не удаляет ни ждущие заявки, ни выходные, которые сотрудник попросил сам и ему одобрили.
-    // Такие ячейки возвращаются в `kept`, интерфейс показывает их руководителю.
-    let changed = 0, skipped = 0, kept = 0;
-    const touched: number[] = [];
+    // Прошедшие дни меняет только админ. Всё, что изменилось, возвращается в `undo`: интерфейс предлагает «Отменить».
+    let changed = 0, skipped = 0, kept = 0, past = 0;
+    const touched: number[] = [], undo: { user_id: number; day: string; prev: Prev }[] = [];
     for (const it of items) {
       if (!okIds.has(it.id)) { skipped += it.days.length; continue; }
-      let n: number;
+      const days = isAdmin ? it.days : it.days.filter((d) => d >= today);
+      past += it.days.length - days.length;
+      if (!days.length) continue;
+      const before = new Map<string, Prev>((await q(
+        `SELECT to_char(day,'YYYY-MM-DD') AS day,kind,status,to_char(shift_start,'HH24:MI') AS shift_start,to_char(shift_end,'HH24:MI') AS shift_end,note,requested_by FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[])`, [it.id, days])).rows.map((x) => [x.day, { kind: x.kind, status: x.status, shift_start: x.shift_start, shift_end: x.shift_end, note: x.note, requested_by: x.requested_by }]));
+      let done: string[];
       if (action === 'clear') {
-        n = (await q(
-          `DELETE FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[]) AND status<>'pending' AND NOT (status='approved' AND requested_by=user_id)`, [it.id, it.days])).rowCount ?? 0;
-        kept += (await q(`SELECT count(*)::int AS n FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[]) AND (status='pending' OR (status='approved' AND requested_by=user_id))`, [it.id, it.days])).rows[0].n;
+        done = (await q(
+          `DELETE FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[]) AND status<>'pending' AND NOT (status='approved' AND requested_by=user_id) RETURNING to_char(day,'YYYY-MM-DD') AS day`, [it.id, days])).rows.map((x) => x.day);
+        kept += [...before.values()].filter((x) => x && (x.status === 'pending' || (x.status === 'approved' && x.requested_by === it.id))).length;
       } else {
-        n = (await q(
+        done = (await q(
           `INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) SELECT $1,d,$3,'approved',$4,$4,now() FROM unnest($2::date[]) d
            ON CONFLICT (user_id,day) DO UPDATE SET kind=$3,status='approved',decided_by=$4,decided_at=now(),shift_start=NULL,shift_end=NULL
-           WHERE schedule_days.status<>'pending'`, [it.id, it.days, action, u.id])).rowCount ?? 0;
-        kept += it.days.length - n;
+           WHERE schedule_days.status<>'pending' RETURNING to_char(day,'YYYY-MM-DD') AS day`, [it.id, days, action, u.id])).rows.map((x) => x.day);
+        kept += days.length - done.length;
       }
-      changed += n;
-      if (n) touched.push(it.id);
+      changed += done.length;
+      for (const d of done) undo.push({ user_id: it.id, day: d, prev: before.get(d) ?? null });
+      if (done.length) touched.push(it.id);
     }
     await notify(touched, 'dayoff', '📅', '#schedule', '#/schedule');
-    await audit(req, 'schedule_bulk', null as any, { action, cells: changed, people: okIds.size, kept });
-    return { changed, skipped, kept };
+    await audit(req, 'schedule_bulk', null as any, { action, cells: changed, people: okIds.size, kept, past });
+    return { changed, skipped, kept, past, undo };
+  });
+
+  // отменить массовое действие: вернуть ячейки, как они были. Меняем только то, что поставил сам руководитель недавно (чужие и более поздние правки не трогаем)
+  app.post('/api/schedule/bulk-restore', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { items?: { user_id?: number; day?: string; prev?: Prev }[] };
+    if (!Array.isArray(b.items) || !b.items.length || b.items.length > 3000) return reply.code(400).send({ error: 'invalid' });
+    const ids = [...new Set(b.items.map((i) => Number(i.user_id)).filter(Boolean))];
+    const { ok } = await editable(u, ids);
+    const okIds = new Set(ok.map((t) => t.id));
+    let restored = 0, skipped = 0;
+    for (const it of b.items) {
+      const id = Number(it.user_id);
+      if (!okIds.has(id) || !dayOk(it.day)) { skipped++; continue; }
+      const cur = (await q(`SELECT decided_by FROM schedule_days WHERE user_id=$1 AND day=$2 AND decided_at > now() - interval '30 minutes'`, [id, it.day])).rows[0];
+      if (!cur || cur.decided_by !== u.id) { skipped++; continue; }
+      const p = it.prev;
+      if (!p) await q('DELETE FROM schedule_days WHERE user_id=$1 AND day=$2', [id, it.day]);
+      else await q(
+        `UPDATE schedule_days SET kind=$3,status=$4,shift_start=$5,shift_end=$6,note=$7,requested_by=$8,decided_by=NULL,decided_at=NULL WHERE user_id=$1 AND day=$2`,
+        [id, it.day, p.kind === 'work' ? 'work' : 'off', ['pending', 'approved', 'rejected'].includes(p.status) ? p.status : 'approved', p.shift_start, p.shift_end, String(p.note ?? '').slice(0, 200), p.requested_by]);
+      restored++;
+    }
+    await audit(req, 'schedule_bulk_undo', null as any, { restored, skipped });
+    return { restored, skipped };
+  });
+
+  // праздники: фиксированные + добавленные HR/админом (Рамазан и Курбан хайит, переносы выходных)
+  app.get('/api/schedule/holidays', auth, async () => ({ fixed: FIXED_HOLIDAYS, custom: (await getSetting<string[]>('schedule_holidays', [])).filter(isDay).sort() }));
+  app.put('/api/schedule/holidays', auth, async (req, reply) => {
+    if (!hasRole(req.user!, 'admin', 'hr')) return reply.code(403).send({ error: 'forbidden' });
+    const list = ((req.body ?? {}) as { custom?: unknown[] }).custom;
+    if (!Array.isArray(list) || list.length > 100 || list.some((d) => !isDay(d))) return reply.code(400).send({ error: 'invalid' });
+    const custom = [...new Set(list.map(String))].sort();
+    await setSetting('schedule_holidays', custom);
+    await audit(req, 'schedule_holidays', null as any, { custom });
+    return { ok: true, custom };
   });
 
   // постоянный график сразу нескольким: «стандартный» = часы из политики и один плавающий выходной в неделю (фиксированных нет)
@@ -262,10 +315,33 @@ export async function scheduleRoutes(app: FastifyInstance) {
       dow = [...new Set((b.days_off ?? []).map(Number).filter((x) => x >= 1 && x <= 7))].sort();
     }
     const { ok } = await editable(u, ids);
+    // предпросмотр: у кого сбросятся закреплённые выходные и у кого поменяются часы; ничего не пишем
+    const resets = ok.filter((t) => t.days_off.length > 0 && t.days_off.join() !== dow.join());
+    const hours = ok.filter((t) => t.shift_start !== ss || t.shift_end !== se);
+    if ((b as any).dry_run) return { dry_run: true, people: ok.length, skipped: ids.length - ok.length, shift_start: ss, shift_end: se, would_reset: resets.length, would_reset_people: resets.slice(0, 50).map((t) => ({ id: t.id, name: t.name, days_off: t.days_off })), hours_change: hours.length };
+    // прежние значения возвращаем в ответе (кнопка «Отменить») и пишем в журнал
+    const prev = ok.map((t) => ({ user_id: t.id, days_off: t.days_off, shift_start: t.shift_start, shift_end: t.shift_end }));
     if (ok.length) await q('UPDATE users SET days_off=$2,shift_start=$3,shift_end=$4 WHERE id = ANY($1::int[])', [ok.map((t) => t.id), dow, ss, se]);
     await notify(ok.map((t) => t.id), 'dayoff', '📅', '#schedule', '#/schedule');
-    await audit(req, 'schedule_bulk_pattern', null as any, { people: ok.length, preset: b.preset ?? 'custom', shift: `${ss}-${se}`, days_off: dow });
-    return { changed: ok.length, skipped: ids.length - ok.length, shift_start: ss, shift_end: se };
+    await audit(req, 'schedule_bulk_pattern', null as any, { people: ok.length, preset: b.preset ?? 'custom', shift: `${ss}-${se}`, days_off: dow, before: prev });
+    return { changed: ok.length, skipped: ids.length - ok.length, shift_start: ss, shift_end: se, reset: resets.length, undo: prev };
+  });
+
+  // отменить смену постоянного графика: вернуть прежние выходные и часы
+  app.post('/api/schedule/pattern-restore', auth, async (req, reply) => {
+    const u = req.user!, b = (req.body ?? {}) as { items?: { user_id?: number; days_off?: number[]; shift_start?: string; shift_end?: string }[] };
+    if (!Array.isArray(b.items) || !b.items.length || b.items.length > 500) return reply.code(400).send({ error: 'invalid' });
+    const { ok } = await editable(u, b.items.map((i) => Number(i.user_id)).filter(Boolean));
+    const okIds = new Set(ok.map((t) => t.id)), hm = /^([01]\d|2[0-3]):[0-5]\d$/;
+    let restored = 0;
+    for (const it of b.items) {
+      if (!okIds.has(Number(it.user_id)) || !hm.test(String(it.shift_start)) || !hm.test(String(it.shift_end))) continue;
+      const dow = [...new Set((it.days_off ?? []).map(Number).filter((x) => x >= 1 && x <= 7))].sort();
+      await q('UPDATE users SET days_off=$2,shift_start=$3,shift_end=$4 WHERE id=$1', [Number(it.user_id), dow, it.shift_start, it.shift_end]);
+      restored++;
+    }
+    await audit(req, 'schedule_pattern_undo', null as any, { restored });
+    return { restored };
   });
 
   // автоматически расставить плавающие выходные по неделям: по одному на человека, равномерно по дням недели
@@ -278,6 +354,7 @@ export async function scheduleRoutes(app: FastifyInstance) {
     if (addDays(last, 7) > addDays(first, 7 * 14)) return reply.code(400).send({ error: 'too_long' });
     const { ok } = await editable(u, ids);
     const floating = ok.filter((t) => t.days_off.length === 0).sort((a, c) => a.name.localeCompare(c.name, 'ru'));
+    const hol = await holidaySet(first, addDays(last, 6));      // в праздничные дни плавающий выходной не ставим
     const plan: { user_id: number; day: string }[] = [];
     const perDay: Record<string, number> = {};
     for (let w = first, wi = 0; w <= last; w = addDays(w, 7), wi++) {
@@ -285,12 +362,13 @@ export async function scheduleRoutes(app: FastifyInstance) {
       if (wEnd < today) continue;
       // текущую неделю трогаем, только если в ней осталось хотя бы 4 дня (иначе выходные скучились бы на последних днях)
       if (w < today && Math.round((Date.parse(`${wEnd}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5) + 1 < 4) continue;
-      const ex = (await q(`SELECT user_id,to_char(day,'YYYY-MM-DD') AS day FROM schedule_days WHERE kind='off' AND status<>'rejected' AND day BETWEEN $1 AND $2`, [w, wEnd])).rows as { user_id: number; day: string }[];
+      // нагрузка по дням считается по выбранной команде, а не по всей компании: чужие выходные раскладку не искажают
+      const ex = (await q(`SELECT user_id,to_char(day,'YYYY-MM-DD') AS day FROM schedule_days WHERE kind='off' AND status<>'rejected' AND day BETWEEN $1 AND $2 AND user_id = ANY($3::int[])`, [w, wEnd, ids])).rows as { user_id: number; day: string }[];
       const lv = await q(`SELECT DISTINCT user_id FROM user_leaves WHERE from_date <= $2::date AND to_date >= $1::date`, [w, wEnd]);
       const skip = new Set<number>([...ex.filter((e) => ids.includes(e.user_id)).map((e) => e.user_id), ...lv.rows.map((r) => r.user_id)]);
       const load = Array.from({ length: 7 }, (_, i) => ex.filter((e) => e.day === addDays(w, i)).length + plan.filter((p) => p.day === addDays(w, i)).length);
       floating.filter((t) => !skip.has(t.id)).forEach((t, k) => {
-        const cand = Array.from({ length: 7 }, (_, i) => i).filter((i) => addDays(w, i) >= today);
+        const cand = Array.from({ length: 7 }, (_, i) => i).filter((i) => addDays(w, i) >= today && !hol.has(addDays(w, i)));
         if (!cand.length) return;
         const rot = (wi * 3 + k) % 7;
         cand.sort((a, c) => load[a] - load[c] || ((a - rot + 7) % 7) - ((c - rot + 7) % 7));
@@ -299,14 +377,15 @@ export async function scheduleRoutes(app: FastifyInstance) {
       });
     }
     for (const p of plan) perDay[p.day] = (perDay[p.day] ?? 0) + 1;
+    const undo: { user_id: number; day: string; prev: null }[] = [];
     if (!b.dry_run && plan.length) {
-      for (const p of plan) await q(
+      for (const p of plan) if ((await q(
         `INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) VALUES($1,$2,'off','approved',$3,$3,now())
-         ON CONFLICT (user_id,day) DO NOTHING`, [p.user_id, p.day, u.id]);
+         ON CONFLICT (user_id,day) DO NOTHING RETURNING 1`, [p.user_id, p.day, u.id])).rowCount) undo.push({ user_id: p.user_id, day: p.day, prev: null });
       await notify([...new Set(plan.map((p) => p.user_id))], 'dayoff', '📅', '#schedule', '#/schedule');
       await audit(req, 'schedule_auto_off', null as any, { people: floating.length, assigned: plan.length, from: first, to: last });
     }
-    return { planned: plan.length, people: floating.length, skipped_fixed: ok.length - floating.length, skipped_forbidden: ids.length - ok.length, per_day: perDay, dry_run: !!b.dry_run };
+    return { planned: plan.length, people: floating.length, skipped_fixed: ok.length - floating.length, skipped_forbidden: ids.length - ok.length, per_day: perDay, dry_run: !!b.dry_run, ...(b.dry_run ? {} : { undo }) };
   });
 
   // повторить выходные одной недели на другой неделе
@@ -321,11 +400,11 @@ export async function scheduleRoutes(app: FastifyInstance) {
     for (const t of ok) {
       const offs = (await q(`SELECT to_char(day,'YYYY-MM-DD') AS day FROM schedule_days WHERE user_id=$1 AND kind='off' AND status='approved' AND day BETWEEN $2 AND $3`, [t.id, src, addDays(src, 6)])).rows;
       if (!offs.length) continue;
-      await q(`DELETE FROM schedule_days WHERE user_id=$1 AND kind='off' AND day BETWEEN $2 AND $3 AND day >= $4`, [t.id, dst, addDays(dst, 6), today]);
+      await q(`DELETE FROM schedule_days WHERE user_id=$1 AND kind='off' AND day BETWEEN $2 AND $3 AND day >= $4 AND status<>'pending' AND NOT (status='approved' AND requested_by=user_id)`, [t.id, dst, addDays(dst, 6), today]);       // заявки сотрудников не стираем
       for (const o of offs) {
         const day = addDays(dst, Math.round((Date.parse(`${o.day}T00:00:00Z`) - Date.parse(`${src}T00:00:00Z`)) / 864e5));
         if (day < today) continue;
-        await q(`INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) VALUES($1,$2,'off','approved',$3,$3,now()) ON CONFLICT (user_id,day) DO UPDATE SET kind='off',status='approved',decided_by=$3,decided_at=now()`, [t.id, day, u.id]);
+        await q(`INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) VALUES($1,$2,'off','approved',$3,$3,now()) ON CONFLICT (user_id,day) DO UPDATE SET kind='off',status='approved',decided_by=$3,decided_at=now() WHERE schedule_days.status<>'pending' AND NOT (schedule_days.status='approved' AND schedule_days.requested_by=schedule_days.user_id)`, [t.id, day, u.id]);
         changed++;
       }
     }

@@ -3,6 +3,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
+import { createDb } from './helpers.js';
 
 const base = process.env.TEST_DATABASE_URL || 'postgres://portal:portal@localhost:5432';
 process.env.DATABASE_URL = `${base}/portal_test_ai`;
@@ -28,7 +29,7 @@ before(async () => {
   const admin = new pg.Client({ connectionString: `${base}/postgres` });
   await admin.connect();
   await admin.query('DROP DATABASE IF EXISTS portal_test_ai WITH (FORCE)');
-  await admin.query('CREATE DATABASE portal_test_ai');
+  await createDb(admin, 'portal_test_ai');
   await admin.end();
   const { migrate } = await import('../src/migrate.js');
   seed = await import('../src/seed.js');

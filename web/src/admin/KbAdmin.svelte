@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { promptBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { has } from '../lib/state.svelte';
   import { md } from '../lib/md';
@@ -27,7 +28,7 @@
   const toggleDept = (id: number) => (edit.dept_ids = edit.dept_ids.includes(id) ? edit.dept_ids.filter((x: number) => x !== id) : [...edit.dept_ids, id]);
   async function resolve(u: any) { await api.post('/api/kb/unanswered/resolve', { ids: u.ids }); await load(); }
   async function newFrom(u: any) { await open(null); edit.title_ru = u.query; await resolve(u); }
-  async function addSection() { const t = prompt('Название раздела'); if (t) { await api.post('/api/kb/sections', { title_ru: t, title_uz: t }); sections = (await api.get('/api/kb/sections')).sections; } }
+  async function addSection() { const t = await promptBox('Название раздела'); if (t) { await api.post('/api/kb/sections', { title_ru: t, title_uz: t }); sections = (await api.get('/api/kb/sections')).sections; } }
 </script>
 
 <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr)">
