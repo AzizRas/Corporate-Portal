@@ -9,6 +9,10 @@ import { applyDueTransfers, syncAllManagers } from './org-core.js';
 import { hireDigest } from './modules/hire.js';
 import { probationReminders } from './modules/hire-onboard.js';
 import { recordUsageSnapshot, refreshWeeklyAi } from './modules/usage.js';
+import { every, startWorker, stopJobs } from './jobs.js';
+import { registerJobHandlers } from './job-handlers.js';
+import { lintKb, reindexStale } from './kb-rag.js';
+import { getSetting } from './settings.js';
 
 async function main() {
   if (config.isProd && !(process.env.DATABASE_URL || process.env.POSTGRES_URL)) {
@@ -22,28 +26,25 @@ async function main() {
   await app.listen({ port: config.port, host: '0.0.0.0' });
   console.log(`[portal] http://localhost:${config.port}`);
 
-  // ежедневная очистка просроченных селфи (при старте и раз в час проверяем)
-  const clean = () => cleanupPhotos().then((n) => n && console.log(`[portal] удалено фото: ${n}`)).catch((e) => console.error('[cleanup]', e));
-  setTimeout(clean, 10_000);
-  // переводы с датой вступают в силу в свой день
-  const transfers = () => applyDueTransfers().then((n) => n && console.log(`[portal] применено переводов: ${n}`))
-    .then(() => syncAllManagers()).then((n) => n && console.log(`[portal] руководитель пересчитан по структуре: ${n}`)).catch((e) => console.error('[transfers]', e));
-  setTimeout(transfers, 15_000);
-  setInterval(transfers, 3600_000).unref();
-  setInterval(clean, 3600_000).unref();
+  // фоновые задачи (ТЗ №3, I3): периодические — под advisory-lock (при нескольких экземплярах работает один), очередь jobs — FOR UPDATE SKIP LOCKED
+  registerJobHandlers();
+  startWorker();
+  const log = (what: string) => (n: unknown) => { if (n) console.log(`[portal] ${what}: ${n}`); };
+  every('cleanup', 3600_000, () => cleanupPhotos().then(log('удалено фото')), 10_000);
+  // переводы с датой вступают в силу в свой день; руководитель пересчитывается по структуре
+  every('transfers', 3600_000, () => applyDueTransfers().then(log('применено переводов')).then(() => syncAllManagers()).then(log('руководитель пересчитан по структуре')), 15_000);
+  // просроченные этапы найма (раз в сутки — повтор ничего не делает) и напоминания об испытательном сроке
+  every('hire', 3600_000, () => hireDigest().then(log('найм: просрочено карточек')).then(() => probationReminders()).then(log('напоминаний об испытательном сроке')), 20_000);
+  // использование разделов: раз в неделю снимок и короткий вывод ИИ
+  every('usage', 3600_000, () => recordUsageSnapshot().then(() => refreshWeeklyAi()), 30_000);
+  // база знаний: переиндексация изменённых статей и еженедельная проверка вики
+  every('kb_reindex', 120_000, () => reindexStale().then(log('переиндексировано статей')), 25_000);
+  every('kb_lint', 3600_000, async () => {
+    const last = (await getSetting<any>('kb_lint', null))?.at;
+    if (!last || Date.now() - Date.parse(last) > 7 * 86_400_000) await lintKb();
+  }, 60_000);
 
-  // сводка по просроченным этапам найма: раз в сутки (повторный запуск в тот же день ничего не делает)
-  const digest = () => hireDigest().then((n) => n && console.log(`[portal] найм: просрочено карточек ${n}`))
-    .then(() => probationReminders()).then((n) => n && console.log(`[portal] напоминаний об испытательном сроке: ${n}`)).catch((e) => console.error('[hire]', e));
-  setTimeout(digest, 20_000);
-  setInterval(digest, 3600_000).unref();
-
-  // использование разделов: раз в неделю снимок для тренда и короткий вывод ИИ для админа (проверяем раз в час, повторы ничего не делают)
-  const usage = () => recordUsageSnapshot().then(() => refreshWeeklyAi()).catch((e) => console.error('[usage]', e));
-  setTimeout(usage, 30_000);
-  setInterval(usage, 3600_000).unref();
-
-  const stop = async () => { await app.close(); await pool.end(); process.exit(0); };
+  const stop = async () => { stopJobs(); await app.close(); await pool.end(); process.exit(0); };
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
 }

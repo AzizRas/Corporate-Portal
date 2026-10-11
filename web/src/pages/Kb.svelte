@@ -6,6 +6,7 @@
   import { t } from '../lib/i18n';
   import { md } from '../lib/md';
   import { pick, fmtDate } from '../lib/format';
+  import KbAsk from '../components/KbAsk.svelte';
 
   let { id }: { id: number | null } = $props();
   let sections: any[] = $state([]), items: any[] = $state([]), q = $state(new URLSearchParams(location.hash.split('?')[1] ?? '').get('q') ?? '');
@@ -46,6 +47,7 @@
   {:else}<span class="spin"></span>{/if}
 {:else}
   <header class="page-head"><div><h1>{t('kb_title')}</h1><p class="sub">{t('kb_sub')}</p></div></header>
+  <KbAsk />
   <div class="stack u-1d34c09">
     <input class="u-8706d56" type="search" placeholder={t('kb_ph')} bind:value={q} />
     <div class="tabs u-1169661">

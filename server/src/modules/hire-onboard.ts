@@ -15,6 +15,7 @@ import { POSITIONS } from '../model.js';
 import { loginFrom, positionInfo, simplePassword } from './users.js';
 import { schedulePolicy } from './schedule.js';
 import { dropPanelCache } from '../panel-cache.js';
+import { decide, decideAvailable } from '../ai-decide.js';
 
 const require = createRequire(import.meta.url);
 const fontDir = () => require.resolve('dejavu-fonts-ttf/package.json').replace(/package\.json$/, 'ttf/');
@@ -149,6 +150,27 @@ export async function hireOnboardRoutes(app: FastifyInstance) {
       qr: await QRCode.toDataURL(url, { margin: 1, width: 200 }),
       quota_reached: vac ? vac.hired >= vac.quota : false,
     };
+  });
+
+  /* ---------------- G: первичная оценка соответствия вакансии (Jev) ---------------- */
+  // Только подсказка рекрутеру: решение принимает человек. Пол, возраст, дата рождения, фото и контакты в модель не уходят.
+  app.post('/api/hire/pipeline/:id/screen', { preHandler: requireRole('hr', 'recruiter') }, async (req, reply) => {
+    const pid = Number((req.params as any).id);
+    const p = (await q(`SELECT p.id, p.applicant_id, v.title, v.description, pr.data, pr.raw_text FROM hire_pipeline p JOIN hire_vacancies v ON v.id=p.vacancy_id
+                         LEFT JOIN hire_applicant_profile pr ON pr.applicant_id=p.applicant_id WHERE p.id=$1`, [pid])).rows[0];
+    if (!p) return err(reply, 404, 'not_found');
+    if (!(await decideAvailable('screen'))) return err(reply, 409, 'not_configured');
+    const prof = p.data ? { ...p.data, personal: undefined, photo: undefined } : null;
+    const resume = prof ? JSON.stringify(prof) : String(p.raw_text ?? '');
+    if (!resume.trim()) return err(reply, 409, 'no_resume');
+    const clean = resume.replace(/(пол|возраст|дата рождения|родил[ась]*|gender|age|birth)[^\n,;]*/gi, '');
+    const d = await decide('screen', `Вакансия: ${p.title}\nТребования: ${String(p.description ?? '').slice(0, 3000)}\n\nРезюме:\n${clean.slice(0, 6000)}`, {
+      fit: { type: 'score', instructions: 'Насколько опыт и навыки кандидата соответствуют требованиям вакансии? Не учитывай пол, возраст, национальность и внешность.', levels: ['не подходит', 'слабо', 'частично', 'хорошо', 'отлично'] },
+    });
+    if (!d?.fit) return err(reply, 502, 'decide_failed');
+    await q(`INSERT INTO hire_ai_reviews(applicant_id,pipeline_id,result,model,created_by) VALUES($1,$2,$3,$4,$5)`, [p.applicant_id, pid, JSON.stringify({ kind: 'screen', fit: d.fit.score, confidence: d.fit.confidence }), 'decide', req.user!.id]).catch(() => {});
+    await audit(req, 'hire_screen', String(pid));
+    return { fit: d.fit.score, confidence: d.fit.confidence, levels: ['не подходит', 'слабо', 'частично', 'хорошо', 'отлично'] };
   });
 
   /* ---------------- E4: оффер в PDF и по ссылке ---------------- */

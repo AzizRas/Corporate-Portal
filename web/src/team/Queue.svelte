@@ -3,6 +3,7 @@
   import { api, ApiError } from '../lib/api';
   import { pt } from './p18n';
   import { fmtDate } from '../lib/format';
+  import { app } from '../lib/state.svelte';
 
   const TABS = ['new', 'in_progress', 'answered', 'closed'] as const;
   let tab = $state<(typeof TABS)[number]>('new');
@@ -66,6 +67,7 @@
           <span class="tag">{it.kind === 'suggestion' ? pt('q_suggestion') : pt('q_question')}</span>
           <span class="chip sm2">{it.source === 'search' ? pt('q_search') : pt('q_manual')}</span>
           {#if it.dup_count > 1}<span class="chip sm2 dup">×{it.dup_count}</span>{/if}
+          {#if it.urgent}<span class="chip sm2 dup">{app.lang === 'uz' ? 'shoshilinch' : 'срочно'}</span>{/if}{#if it.section}<span class="chip sm2">{it.section}</span>{/if}
         </div>
         <p class="body">{it.body}</p>
         <p class="muted xs meta">
