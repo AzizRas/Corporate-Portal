@@ -29,6 +29,10 @@
   let pending: { file: File; url: string | null } | null = $state(null), dragging = $state(false);
   let typingNames: string[] = $state([]), peer: { online: boolean; seen_at: number | null } | null = $state(null);
   let live = $state(false);
+  // стикерпаки, импортированные из Telegram: вкладка 0 — встроенные
+  let packs: any[] = $state([]), packTab = $state(0);
+  api.get('/api/stickers/packs').then((r) => (packs = r.packs)).catch(() => {});
+  const packFormat = (code: string) => { const id = Number(code.slice(2)); for (const p of packs) { const s = p.stickers.find((x: any) => x.id === id); if (s) return s.format; } return 'webp'; };
   let last = 0, since = 0, typedAt = 0, noteT: ReturnType<typeof setTimeout> | undefined;
 
   const ru = { edit: 'Редактировать', copy: 'Копировать', fwd: 'Переслать', reply: 'Ответить', pin: 'Закрепить', unpin: 'Открепить', del: 'Удалить', edited: 'изм.', fwdFrom: 'Переслано от', typing: 'печатает…', typingMany: 'печатают…', online: 'в сети', seen: 'был(а) в', offline: 'не в сети', editing: 'Редактирование сообщения', stickers: 'Стикеры', emoji: 'Эмодзи', you: 'Вы', yesterday: 'Вчера', fwdTo: 'Переслать в…', fwdDone: 'Переслано', fwdNo: 'Файлы не пересылаются', copied: 'Скопировано', tooOld: 'Править можно в течение суток', sticker: 'Стикер', photo: 'Фото', drop: 'Перетащите файл сюда', cancel: 'Отмена', save: 'Сохранить' };
@@ -365,7 +369,8 @@
               {#if m.reply_to && m.reply_author}
                 <button class="ch-quote u-09bc681" onclick={() => jump(m.reply_to)}><b>{m.reply_author}</b><span>{m.reply_body}</span></button>
               {/if}
-              {#if m.sticker}<div class="ch-stk">{@html stickerSvg(m.sticker)}</div>{/if}
+              {#if m.sticker?.startsWith('p:')}<div class="ch-stk">{#if packFormat(m.sticker) === 'webm'}<video src="/api/stickers/{m.sticker.slice(2)}/file" autoplay loop muted playsinline></video>{:else}<img src="/api/stickers/{m.sticker.slice(2)}/file" alt="" loading="lazy" />{/if}</div>
+              {:else if m.sticker}<div class="ch-stk">{@html stickerSvg(m.sticker)}</div>{/if}
               {#if m.file}
                 {#if /^image\//.test(m.file.mime)}<a href="/api/chat/file/{m.file.id}" target="_blank" rel="noopener"><img class="ch-img" src="/api/chat/file/{m.file.id}" alt={m.file.name} loading="lazy" /></a>
                 {:else}<a class="ch-file" href="/api/chat/file/{m.file.id}" download={m.file.name}>📎 <span><b>{m.file.name}</b><small>{sizeL(m.file.size)}</small></span></a>{/if}
@@ -430,7 +435,9 @@
               <div class="ch-egroups">{#each EMOJI_GROUPS as g, gi}<button class:on={emojiTab === gi} onclick={() => (emojiTab = gi)}>{g.icon}</button>{/each}</div>
               <div class="ch-egrid">{#each EMOJI_GROUPS[emojiTab].list as em}<button onclick={() => insertEmoji(em)}>{em}</button>{/each}</div>
             {:else}
-              <div class="ch-sgrid">{#each STICKERS as s}<button onclick={() => sendSticker(s)} aria-label={s}>{@html stickerSvg(s)}</button>{/each}</div>
+              {#if packs.length}<div class="ch-egroups"><button class:on={packTab === 0} onclick={() => (packTab = 0)}>Qadam</button>{#each packs as p, i}<button class:on={packTab === i + 1} onclick={() => (packTab = i + 1)} title={p.author_note}>{p.title}</button>{/each}</div>{/if}
+              {#if packTab === 0}<div class="ch-sgrid">{#each STICKERS as s}<button onclick={() => sendSticker(s)} aria-label={s}>{@html stickerSvg(s)}</button>{/each}</div>
+              {:else}<div class="ch-sgrid">{#each packs[packTab - 1].stickers as s}<button onclick={() => sendSticker(`p:${s.id}`)} aria-label={s.emoji}>{#if s.format === 'webm'}<video src="/api/stickers/{s.id}/file" muted loop autoplay playsinline></video>{:else}<img src="/api/stickers/{s.id}/file" alt={s.emoji} loading="lazy" />{/if}</button>{/each}</div>{/if}
             {/if}
           </div>
         {/if}

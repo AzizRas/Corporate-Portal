@@ -18,6 +18,7 @@
   import TestsAdmin from './TestsAdmin.svelte';
   import KbWiki from './KbWiki.svelte';
   import DecideAdmin from './DecideAdmin.svelte';
+  import PlatformAdmin from './PlatformAdmin.svelte';
 
   let { parts }: { parts: string[] } = $props();
   const tabs = $derived([
@@ -36,6 +37,7 @@
     has('admin') && { id: 'usage', l: 'Использование разделов' },
     has('admin') && { id: 'ai', l: 'ИИ' },
     has('admin') && { id: 'decide', l: 'Решения (Jev)' },
+    has('admin', 'hr') && { id: 'platform', l: 'Стикеры и безопасность' },
     has('admin') && { id: 'tour', l: 'Обучение порталу' },
     has('admin') && { id: 'audit', l: 'Журнал' },
   ].filter(Boolean) as { id: string; l: string }[]);
@@ -51,6 +53,7 @@
 {:else if cur === 'kb'}<KbAdmin />
 {:else if cur === 'wiki'}<KbWiki />
 {:else if cur === 'decide'}<DecideAdmin />
+{:else if cur === 'platform'}<PlatformAdmin />
 {:else if cur === 'growth'}<GrowthAdmin />
 {:else if cur === 'training'}<TrainingAdmin />
 {:else if cur === 'tests'}<TestsAdmin />

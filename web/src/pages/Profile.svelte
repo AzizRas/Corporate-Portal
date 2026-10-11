@@ -12,6 +12,7 @@
   import NotifyPrefs from '../components/NotifyPrefs.svelte';
   import HrRequests from './HrRequests.svelte';
   import TwoFactor from '../components/TwoFactor.svelte';
+  import TelegramLink from '../components/TelegramLink.svelte';
   import { restartTour } from '../lib/tour.svelte';
 
   let { tab = 'me' }: { tab?: string } = $props();
@@ -77,6 +78,7 @@
   <section class="card stack"><h3 class="card-title">{wt('tr_restart')}</h3><p class="muted small">{wt('tr_restart_hint')}</p><button class="btn grad u-c9adc42" onclick={restartTour}>{wt('tr_restart')}</button></section>
   <NotifyPrefs />
   <TwoFactor />
+  <TelegramLink />
   <section class="card stack"><h3 class="card-title">{st('pf_wellness')}</h3><WellnessSettings /></section>
   <form class="card stack" onsubmit={change}>
     <h3 class="card-title">{t('profile_pw')}</h3>

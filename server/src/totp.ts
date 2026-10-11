@@ -83,4 +83,13 @@ export function useRecovery(hashed: string[], code: string): string[] | null {
 export const TOTP_REQUIRED_ROLES = ['admin', 'accountant'] as const;
 export const totpRequired = (roles: string[]) => TOTP_REQUIRED_ROLES.some((r) => roles.includes(r));
 /** Жёсткое требование на сервере: включается только переменной TOTP_ENFORCE=1. По умолчанию выключено: 2FA можно включить сотруднику в профиле добровольно. */
-export const totpEnforced = () => process.env.TOTP_ENFORCE === '1';
+let enforceSetting = false, enforceAt = 0;
+/** Настройка из админки; вызывается из хука авторизации, обновляется не чаще раза в 30 с. */
+export async function refreshTotpSetting(force = false) {
+  if (!force && Date.now() - enforceAt < 30_000) return;
+  enforceAt = Date.now();
+  const { getSetting } = await import('./settings.js');
+  enforceSetting = !!(await getSetting<boolean>('totp_enforce', false));
+}
+export const setTotpEnforceCache = (v: boolean) => { enforceSetting = v; enforceAt = Date.now(); };
+export const totpEnforced = () => (process.env.TOTP_ENFORCE === '0' ? false : process.env.TOTP_ENFORCE === '1' || enforceSetting);

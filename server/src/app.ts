@@ -1,3 +1,5 @@
+import { telegramRoutes } from './modules/telegram.js';
+import { installRateLimit, securityRoutes } from './rate-limit.js';
 import { decideRoutes } from './ai-decide.js';
 import { kbWikiRoutes } from './modules/kb-wiki.js';
 import { reviewRoutes } from './modules/reviews.js';
@@ -74,6 +76,7 @@ export async function buildApp() {
   });
 
   registerAuth(app);
+  installRateLimit(app);
 
   app.get('/healthz', async (_req, reply) => {
     // ok оставлен для прежних проверок, остальное — для мониторинга (Railway, UptimeRobot)
@@ -87,6 +90,8 @@ export async function buildApp() {
   await app.register(reviewRoutes);
   await app.register(kbWikiRoutes);
   await app.register(decideRoutes);
+  await app.register(telegramRoutes);
+  await app.register(securityRoutes);
   await app.register(hrRequestRoutes);
   await app.register(authRoutes);
   await app.register(usersRoutes);

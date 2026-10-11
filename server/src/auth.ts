@@ -1,4 +1,4 @@
-import { totpEnforced, totpRequired } from './totp.js';
+import { refreshTotpSetting, totpEnforced, totpRequired } from './totp.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { q } from './db.js';
 import { config } from './config.js';
@@ -142,8 +142,9 @@ export function registerAuth(app: FastifyInstance) {
     else if (req.user) dropUserCache(req.user.id);
   });
   app.addHook('preHandler', async (req, reply) => {
+    await refreshTotpSetting();
     // второй фактор обязателен для админа и бухгалтерии: пока не настроен, доступны только вход, выход и сама настройка (/api/me/2fa/*)
-    if (req.user && totpEnforced() && !req.user.totp_enabled && totpRequired(req.user.roles) && !externalAllowed(req.url, [])) return reply.code(403).send({ error: '2fa_required' });
+    if (req.user && totpEnforced() && !req.user.totp_enabled && totpRequired(req.user.roles) && !externalAllowed(req.url, []) && !req.url.startsWith('/api/admin/security')) return reply.code(403).send({ error: '2fa_required' });
     if (req.user?.external && !externalAllowed(req.url, req.user.external)) return reply.code(403).send({ error: 'external_forbidden' });
     // разделы, закрытые для подразделения: данные закрыты на сервере, а не только убраны из меню (см. GATES в access.ts)
     if (req.user && !urlAllowed(req.url, req.user.sections, req.user.roles)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'section_forbidden' }); }

@@ -103,3 +103,6 @@
   .ch-menu { min-width: 170px; }
   .ch-tray { left: 8px; }
 }
+
+.ch-stk img, .ch-stk video, .ch-sgrid img, .ch-sgrid video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ch-egroups { overflow-x: auto; }
