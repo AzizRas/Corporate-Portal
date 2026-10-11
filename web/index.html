@@ -10,14 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <title>Qadam</title>
-  <script>
-    // тема до первой отрисовки, чтобы не мигало
-    try {
-      var t = localStorage.getItem('theme') || 'system';
-      var d = t === 'dark' || (t === 'system' && !matchMedia('(prefers-color-scheme: light)').matches);
-      document.documentElement.dataset.theme = d ? 'dark' : 'light';
-    } catch (e) {}
-  </script>
+  <script src="/theme.js"></script>
 </head>
 <body>
   <div id="app"></div>

@@ -355,7 +355,8 @@ test('Развитие: сильные стороны и зоны роста —
   assert.deepEqual(forOp.growth, [], 'коллега зоны роста не видит: их видят сотрудник, супервайзер, руководитель отдела и админ');
   assert.ok((await get(sv, `/api/growth/traits/${me}`)).json().growth.length >= 1, 'супервайзер видит зоны роста');
   assert.deepEqual((await get(await login('hr'), `/api/growth/traits/${me}`)).json().growth, [], 'HR зоны роста не видит');
-  assert.deepEqual((await get(buh, `/api/growth/traits/${me}`)).json().growth, [], 'из другого отдела зоны роста не видны');
+  const other = await get(buh, `/api/growth/traits/${me}`);   // у бухгалтерии раздела «Развитие» нет: с S5 сервер закрывает его целиком, а не отдаёт пустой список
+  assert.equal(other.statusCode, 403); assert.equal(other.json().growth, undefined, 'из другого отдела зоны роста не видны');
   const own = (await get(dil, `/api/growth/traits/${me}`)).json();
   assert.ok(own.growth.every((g: any) => typeof g.votes === 'number'));
   const mineId = forOp.strengths.find((x: any) => x.mine).id;
@@ -680,7 +681,7 @@ test('ИИ по базе знаний: ответ только со ссылка
   let mode: 'ok' | 'none' | 'fail' = 'ok';
   const art = (await pool.query(`SELECT id FROM kb_articles WHERE title_ru ILIKE '%зарплат%' LIMIT 1`)).rows[0].id;
   globalThis.fetch = (async (_u: any, init: any) => {
-    const body = JSON.parse(init.body); prompts.push(body.system);
+    const body = JSON.parse(init.body); prompts.push(Array.isArray(body.system) ? body.system.map((b: any) => b.text).join('\n\n') : body.system);
     if (mode === 'fail') return { ok: false, json: async () => ({ error: { message: 'Insufficient credits' } }) } as any;
     const json = mode === 'ok' ? { found: true, answer: 'Аванс до 25 числа.', sources: [art, 999999] } : { found: false };
     return { ok: true, json: async () => ({ content: [{ type: 'text', text: JSON.stringify(json) }] }) } as any;

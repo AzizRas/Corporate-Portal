@@ -125,7 +125,7 @@ export async function workStats(ids: number[]): Promise<Map<number, WorkStats>> 
 }
 
 /** Мягкие признаки: по ним руководитель видит «стоит поговорить». Это не диагноз и не оценка человека. */
-export type SignalReason = 'activity_drop' | 'late' | 'quality_drop' | 'tasks_overdue' | 'mood_low';
+export type SignalReason = 'activity_drop' | 'late' | 'quality_drop' | 'tasks_overdue' | 'mood_low' | 'load_high' | 'engagement_falling';
 export function signalOf(s: WorkStats): { level: 'none' | 'talk'; reasons: SignalReason[]; skipped?: 'leave' | 'new' } {
   // отпуск и больничный сигнала не дают; новичкам с малой историей оценивать нечего
   if (s.leave.now || s.leave.days28 >= 10) return { level: 'none', reasons: [], skipped: 'leave' };

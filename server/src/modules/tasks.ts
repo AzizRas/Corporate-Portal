@@ -4,6 +4,7 @@ import { q } from '../db.js';
 import { audit, hasRole, requireAuth, teamIds } from '../auth.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
+import { dropPanelCache } from '../panel-cache.js';
 
 const isoDate = (s: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(s ?? '')) ? String(s) : null);
 
@@ -13,6 +14,7 @@ export async function createTasks(by: number, userIds: number[], t: { title: str
     const r = await q(`INSERT INTO tasks(user_id,title,note,due,created_by,draft_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, [uid, t.title.slice(0, 200), (t.note ?? '').slice(0, 1000), t.due ?? null, by, draftId]);
     ids.push(r.rows[0].id);
   }
+  dropPanelCache();
   await notify(userIds, 'task', `✅ ${t.title.slice(0, 80)}`, t.due ? `до ${t.due}` : '', '#/tasks');
   return ids;
 }
@@ -31,6 +33,7 @@ export async function taskRoutes(app: FastifyInstance) {
   app.post('/api/tasks/:id/done', auth, async (req, reply) => {
     const done = (req.body as any)?.done !== false;
     const r = await q(`UPDATE tasks SET done_at=${done ? 'now()' : 'NULL'} WHERE id=$1 AND user_id=$2 RETURNING id`, [Number((req.params as any).id), req.user!.id]);
+    dropPanelCache();
     return r.rows.length ? { ok: true } : reply.code(404).send({ error: 'not_found' });
   });
 
@@ -53,6 +56,7 @@ export async function taskRoutes(app: FastifyInstance) {
     if (!t) return reply.code(404).send({ error: 'not_found' });
     if (t.created_by !== req.user!.id && !hasRole(req.user, 'admin')) return reply.code(403).send({ error: 'forbidden' });
     await q('DELETE FROM tasks WHERE id=$1', [t.id]);
+    dropPanelCache();
     return { ok: true };
   });
 }

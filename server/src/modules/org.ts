@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import ExcelJS from 'exceljs';
 import { q } from '../db.js';
 import { ALL_ROLES, audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser } from '../auth.js';
-import { hashPassword } from '../security.js';
+import { hashPasswordAsync } from '../security.js';
 import { notify } from '../notify.js';
 import { tzDate } from '../settings.js';
 import {
@@ -394,7 +394,7 @@ export async function orgRoutes(app: FastifyInstance) {
     const intern = (await q(`SELECT 1 FROM user_roles WHERE user_id=$1 AND role='newbie'`, [id])).rows.length > 0;
     const password = tempPassword();
     await q(`UPDATE users SET active=true, employment=$2, dismissed_at=NULL, dismiss_reason=NULL, pass_hash=$3, must_change_password=true, failed_attempts=0, locked_until=NULL WHERE id=$1`,
-      [id, intern ? 'intern' : 'staff', hashPassword(password)]);
+      [id, intern ? 'intern' : 'staff', await hashPasswordAsync(password)]);
     const node = (await orgNodes()).find((n) => n.id === u.node_id && !n.archived);
     if (!node) await q('UPDATE users SET node_id=NULL WHERE id=$1', [id]);
     await placeUser(id); await syncManager(id); await membershipChanged(id);
@@ -538,7 +538,7 @@ export async function orgRoutes(app: FastifyInstance) {
       if (intern && !roles.includes('newbie')) roles.push('newbie');
       const id = (await q(
         `INSERT INTO users(tab_number,login,pass_hash,name,position,position_code,node_id,lang,phone,must_change_password,employment) VALUES($1,$2,$3,$4,$5,'op',$6,$7,$8,true,$9) RETURNING id`,
-        [u.tab || null, u.login, hashPassword(password), u.name.slice(0, 120), u.position, nodeId, u.lang, u.phone || null, intern ? 'intern' : 'staff'])).rows[0].id as number;
+        [u.tab || null, u.login, await hashPasswordAsync(password), u.name.slice(0, 120), u.position, nodeId, u.lang, u.phone || null, intern ? 'intern' : 'staff'])).rows[0].id as number;
       for (const r of roles) await q('INSERT INTO user_roles VALUES($1,$2) ON CONFLICT DO NOTHING', [id, r]);
       await placeUser(id); await syncManager(id); await logEmployment(id, intern ? 'hire_intern' : 'hire', { via: 'import' }, req.user!.id);
       created.push({ login: u.login, name: u.name, password });

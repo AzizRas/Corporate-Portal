@@ -96,7 +96,9 @@ test('новичок автоматически записывается на к
   await get(op1, '/api/training/me');
   assert.equal((await pool.query(`SELECT count(*)::int n FROM enrollments WHERE user_id=$1`, [await uid('op1')])).rows[0].n, 1, 'повторный заход не дублирует запись');
   const buh = await login('buh');
-  const b = (await get(buh, '/api/training/me')).json();
+  const bAcc = await get(buh, '/api/training/me');          // у бухгалтерии раздела «План обучения» нет (S5): сервер закрывает его целиком
+  assert.equal(bAcc.statusCode, 403); assert.equal(bAcc.json().error, 'section_forbidden');
+  const b = (await get(await login('editor'), '/api/training/me')).json();       // не-новичок с открытым разделом: на курс не записывается
   assert.equal(b.enrolled, false);
   assert.ok(b.default_course);
   assert.equal(await get({}, '/api/training/me').then((x) => x.statusCode), 401);

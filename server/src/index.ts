@@ -7,6 +7,7 @@ import { seedHireTemplates } from './hire-templates.js';
 import { cleanupPhotos } from './modules/attendance.js';
 import { applyDueTransfers } from './org-core.js';
 import { hireDigest } from './modules/hire.js';
+import { recordUsageSnapshot, refreshWeeklyAi } from './modules/usage.js';
 
 async function main() {
   if (config.isProd && !(process.env.DATABASE_URL || process.env.POSTGRES_URL)) {
@@ -33,6 +34,11 @@ async function main() {
   const digest = () => hireDigest().then((n) => n && console.log(`[portal] найм: просрочено карточек ${n}`)).catch((e) => console.error('[hire]', e));
   setTimeout(digest, 20_000);
   setInterval(digest, 3600_000).unref();
+
+  // использование разделов: раз в неделю снимок для тренда и короткий вывод ИИ для админа (проверяем раз в час, повторы ничего не делают)
+  const usage = () => recordUsageSnapshot().then(() => refreshWeeklyAi()).catch((e) => console.error('[usage]', e));
+  setTimeout(usage, 30_000);
+  setInterval(usage, 3600_000).unref();
 
   const stop = async () => { await app.close(); await pool.end(); process.exit(0); };
   process.on('SIGTERM', stop);

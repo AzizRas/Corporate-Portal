@@ -14,27 +14,41 @@
   let dismissed: Record<number, boolean> = $state({});
   let toast = $state('');
 
-  const items = $derived<Item[]>(data?.items ?? []);
+  const items = $derived<Item[]>(shown);
   const sum = $derived(data?.summary);
   const aiOn = $derived(data?.ai?.available === true);
   const isAdminNote = $derived(!!data?.ai && data.ai.available === false && !!data.ai.reason);
   const today = new Date().toISOString().slice(0, 10);
   const flash = (m: string) => { toast = m; setTimeout(() => (toast = ''), 3500); };
 
-  async function load() {
+  // Зона может быть в сотни людей: сервер отдаёт страницами по PAGE человек (сначала те, у кого сигнал или признаки), есть поиск по имени.
+  const PAGE = 40;
+  let shown: Item[] = $state([]), total = $state(0), needle = $state(''), more = $state(false);
+  let tm: ReturnType<typeof setTimeout>;
+  async function load(append = false) {
     try {
-      data = await api.get('/api/panel');
-      if (data.ai?.available) loadHints();
-    } catch { failed = true; } finally { loading = false; }
+      const offset = append ? shown.length : 0;
+      const r = await api.get(`/api/panel?limit=${PAGE}&offset=${offset}${needle.trim() ? `&q=${encodeURIComponent(needle.trim())}` : ''}`);
+      data = r; total = r.total; shown = append ? [...shown, ...r.items] : r.items;
+      if (r.ai?.available) loadHints(r.items);
+    } catch { failed = true; } finally { loading = false; more = false; }
   }
-  async function loadHints() {
+  const onSearch = () => { clearTimeout(tm); tm = setTimeout(() => load(), 300); };
+  const loadMore = () => { more = true; load(true); };
+  // подсказки ИИ — по запросу и только тем, кому они нужны (есть признаки или сигнал), не больше 12 за раз
+  async function loadHints(list: Item[]) {
+    const ids = list.filter((p) => p.flags.length || p.signal).slice(0, 12).map((p) => p.id);
+    if (!ids.length) return;
     try {
-      const r = await api.post('/api/panel/hints', {});
-      hints = r.hints ?? {};
+      const r = await api.post('/api/panel/hints', { ids });
+      hints = { ...hints, ...(r.hints ?? {}) };
       if (r.ai?.error) { aiErr = true; aiDetail = r.ai.detail ?? ''; }
     } catch { /* подсказок просто нет */ }
   }
   load();
+  // сводка по подразделениям: только HR и администратор
+  let units: any[] = $state([]);
+  if (app.user?.roles.some((r) => r === 'hr' || r === 'admin')) api.get('/api/panel/units').then((r) => (units = r.units ?? [])).catch(() => {});
 
   async function dismiss(p: Item) {
     try { await api.post(`/api/panel/signal/${p.id}/dismiss`, { days: 14 }); dismissed[p.id] = true; }
@@ -64,6 +78,7 @@
     try { const d = await api.get(`/api/panel/person/${p.id}`); if (det && det.p.id === p.id) det.d = d; }
     catch (e) { if (det) det.err = e instanceof ApiError && (e.status === 403 || e.status === 404) ? pt('p_forbidden') : pt('p_load_err'); }
   }
+  const lvCls = (l: string | null, inv = false) => (l == null ? '' : (inv ? { low: 'bad', mid: 'mid', high: 'ok' } : { low: 'ok', mid: 'mid', high: 'bad' })[l as 'low']);
   const FLAGS = ['inactive', 'overdue', 'test_waiting', 'late', 'quality_drop', 'activity_drop'];
 </script>
 
@@ -78,6 +93,7 @@
       <div class="card tile" class:warn={sum.inactive > 0}><b>{sum.inactive}</b><span>{pt('p_inactive')}</span></div>
       <div class="card tile" class:warn={sum.overdue > 0}><b>{sum.overdue}</b><span>{pt('p_overdue')}</span></div>
       <div class="card tile"><b>{sum.on_leave}</b><span>{pt('p_leave')}</span></div>
+      {#if sum.high_load > 0}<div class="card tile warn"><b>{sum.high_load}</b><span>{pt('p_high_load')}</span></div>{/if}
       {#if sum.open_questions != null}
         <a class="card tile link" href="#/queue"><b>{sum.open_questions}</b><span>{pt('p_questions')} →</span></a>
       {/if}
@@ -85,7 +101,15 @@
     {#if isAdminNote}<p class="muted xs" style="margin:-6px 0 14px">{pt('p_ai_off')}: {data.ai.reason}</p>{/if}
     {#if aiErr && aiDetail}<p class="muted xs" style="margin:-6px 0 14px">{pt('p_ai_err')}. {pt('p_ai_detail')}: {aiDetail}</p>{/if}
 
-    {#if !items.length}<p class="muted">{pt('p_empty')}</p>{/if}
+    {#if units.length}
+      <section class="card units">
+        <h3 class="card-title">{pt('u_title')}</h3><p class="muted xs">{pt('u_sub')}</p>
+        <table><thead><tr><th>{pt('u_unit')}</th><th>{pt('u_people')}</th><th>{pt('u_high')}</th><th>{pt('u_loweng')}</th></tr></thead>
+          <tbody>{#each units as r}<tr><td>{r.unit}</td><td>{r.people}</td><td><b class={r.high_load_pct >= 25 ? 'pill-warn' : ''}>{r.high_load_pct}%</b> <span class="muted xs">({pt('u_prev')}: {r.prev_pct}%)</span></td><td>{r.low_engagement_pct}%</td></tr>{/each}</tbody></table>
+      </section>
+    {/if}
+    {#if sum.people > PAGE || needle}<input type="search" class="psearch" placeholder={pt('p_search')} aria-label={pt('p_search')} bind:value={needle} oninput={onSearch} />{/if}
+    {#if !items.length}<p class="muted">{needle ? pt('p_nomatch') : pt('p_empty')}</p>{/if}
     <div class="cards">
       {#each items as p (p.id)}
         {@const s = p.stats}
@@ -119,6 +143,16 @@
             <div class="flags">{#each FLAGS.filter((f) => p.flags.includes(f)) as f}<span class="flag">{pt(`f_${f}`)}</span>{/each}</div>
           {/if}
 
+          {#if p.indices && !p.indices.skipped}
+            {@const ix = p.indices}
+            <div class="idx">
+              <div class="ix"><span class="xs muted">{pt('i_load')}</span><div class="bar"><i class={lvCls(ix.load.level)} style:width={`${ix.load.score}%`}></i></div><b class={lvCls(ix.load.level)}>{ix.load.score}</b></div>
+              <div class="ix"><span class="xs muted">{pt('i_eng')}</span><div class="bar"><i class={lvCls(ix.engagement.level, true)} style:width={`${ix.engagement.score ?? 0}%`}></i></div><b class={lvCls(ix.engagement.level, true)}>{ix.engagement.score ?? '—'}</b></div>
+              {#if ix.engagement.falling}<p class="xs pill-warn">↘ {pt('i_eng')}: {pt('i_falling')}</p>{/if}
+              {#if ix.load.reasons.length}<ul class="xs muted rs">{#each ix.load.reasons as r}<li>{pt(`lr_${r.code}`, { n: r.n, m: r.extra ?? 0 })}</li>{/each}</ul>{/if}
+            </div>
+          {/if}
+
           {#if p.signal && !dismissed[p.id]}
             <div class="talk">
               <b>💬 {pt('p_talk')}</b>
@@ -142,6 +176,7 @@
         </article>
       {/each}
     </div>
+    {#if items.length < total}<div class="row" style="justify-content:center;margin-top:18px;gap:12px"><button class="btn" disabled={more} onclick={loadMore}>{pt('p_more', { n: total - items.length })}</button><span class="muted xs">{pt('p_shown', { a: items.length, b: total })}</span></div>{/if}
   {/if}
   {#if toast}<div class="alert ok toast-p">{toast}</div>{/if}
 </section>
@@ -164,7 +199,16 @@
     {#if det.err}<p class="alert">{det.err}</p>
     {:else if !det.d}<p class="muted"><span class="spin"></span></p>
     {:else}
-      <h3 class="card-title" style="margin-bottom:6px">{pt('p_recent_tests')}</h3>
+      {#if det.d.indices?.weeks}
+        <h3 class="card-title" style="margin-bottom:6px">{pt('i_trend')}</h3>
+        <div class="trend" role="img" aria-label={pt('i_trend')}>
+          {#each det.d.indices.weeks as w, i}
+            <div class="wk"><div class="cols"><i class="cl {lvCls(w.load >= 50 ? 'high' : w.load >= 25 ? 'mid' : 'low')}" style:height={`${Math.max(4, w.load)}%`} title={`${pt('i_load')} ${w.load}`}></i><i class="ce {w.engagement == null ? 'na' : lvCls(w.engagement < 40 ? 'low' : w.engagement < 65 ? 'mid' : 'high', true)}" style:height={`${Math.max(4, w.engagement ?? 0)}%`} title={`${pt('i_eng')} ${w.engagement ?? '—'}`}></i></div><span class="xs muted">{i === det.d.indices.weeks.length - 1 ? pt('i_week_now') : `−${det.d.indices.weeks.length - 1 - i}`}</span></div>
+          {/each}
+        </div>
+        <p class="xs muted"><span class="dot l"></span>{pt('i_load')} · <span class="dot e"></span>{pt('i_eng')}. {pt('i_note')}</p>
+      {/if}
+      <h3 class="card-title" style="margin:16px 0 6px">{pt('p_recent_tests')}</h3>
       <div class="list">
         {#each det.d.tests as t}<div><span>{t.title}<br /><span class="muted xs">{fmtDate(t.created_at)}</span></span><b>{t.pct != null ? Math.round(t.pct) + '%' : '—'}</b></div>
         {:else}<p class="muted small">{pt('p_no_tests')}</p>{/each}
@@ -183,6 +227,17 @@
 
 <style>
   .panel { margin-bottom: 36px; }
+  .psearch { max-width: 360px; margin-bottom: 14px; }
+  .units { padding: 18px 20px; margin-bottom: 18px; overflow-x: auto; } .units table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; } .units th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 4px 10px 6px 0; } .units td { padding: 7px 10px 7px 0; border-top: 1px solid var(--border); }
+  .idx { display: flex; flex-direction: column; gap: 6px; }
+  .ix { display: grid; grid-template-columns: 96px 1fr 28px; gap: 8px; align-items: center; } .ix b { text-align: right; font-size: 13px; }
+  .bar { height: 6px; border-radius: 99px; background: var(--track); overflow: hidden; } .bar i { display: block; height: 100%; border-radius: 99px; background: var(--muted); }
+  .bar i.ok, .cl.ok, .ce.ok { background: var(--good); } .bar i.mid, .cl.mid, .ce.mid { background: var(--warn); } .bar i.bad, .cl.bad, .ce.bad { background: var(--bad); }
+  b.ok { color: var(--good); } b.mid { color: var(--warn); } b.bad { color: var(--bad); }
+  .rs { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+  .trend { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; align-items: end; margin: 6px 0; } .wk { display: flex; flex-direction: column; align-items: center; gap: 4px; } .cols { height: 80px; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 3px; }
+  .cols i { width: 38%; border-radius: 3px 3px 0 0; background: var(--muted); } .cols i.na { opacity: .25; } .cl { background: var(--warn); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; } .dot.l { background: var(--warn); } .dot.e { background: var(--accent); }
   .ph { margin-bottom: 16px; } .ph h2 { font-size: 24px; letter-spacing: -.01em; }
   .sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
   .tile { padding: 16px 18px; border-radius: 22px; display: flex; flex-direction: column; gap: 2px; }

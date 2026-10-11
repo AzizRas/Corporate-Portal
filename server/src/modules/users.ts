@@ -4,7 +4,7 @@ import { ALL_ROLES, audit, requireRole } from '../auth.js';
 import { dismissCleanup, membershipChanged, placeUser, syncManager, syncUserDept } from '../org-core.js';
 import crypto from 'node:crypto';
 import ExcelJS from 'exceljs';
-import { hashPassword } from '../security.js';
+import { hashPasswordAsync } from '../security.js';
 import { schedulePolicy } from './schedule.js';
 import { NAME_HEADERS, cellVal, findCol, findHeader, norm, normName } from './payroll.js';
 
@@ -72,7 +72,7 @@ export async function usersRoutes(app: FastifyInstance) {
         const r = await c.query(
           `INSERT INTO users(tab_number,login,pass_hash,name,position,position_code,dept_id,manager_id,node_id,employment,lang,phone,hired_at,shift_start,shift_end,days_off)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,COALESCE($14::time,$16::time),COALESCE($15::time,$17::time),'{}') RETURNING id`,
-          [b.tab_number || null, login, hashPassword(password), String(b.name).slice(0, 120), b.position || '',
+          [b.tab_number || null, login, await hashPasswordAsync(password), String(b.name).slice(0, 120), b.position || '',
            b.position_code || 'op', b.dept_id || null, b.manager_id || null, b.node_id || null,
            rolesOf(b).includes('newbie') || b.employment === 'intern' ? 'intern' : 'staff', b.lang === 'uz' ? 'uz' : 'ru',
            b.phone || null, b.hired_at || null, b.shift_start || null, b.shift_end || null, pol.start, pol.end],
@@ -146,12 +146,15 @@ export async function usersRoutes(app: FastifyInstance) {
       return { ...p, status: 'new' as const, login, code: info.code, roles: info.roles, password: commit ? simplePassword() : undefined };
     });
     if (commit) {
+      // хэши считаем заранее и асинхронно: пачка из сотен человек не должна останавливать сервер
+      const hashes = new Map<string, string>();
+      for (const r of rows) if (r.status === 'new') hashes.set(r.login, await hashPasswordAsync(r.password!));
       await tx(async (c) => {
         for (const r of rows) {
           if (r.status !== 'new') continue;
           const id = (await c.query(
             `INSERT INTO users(login,pass_hash,name,position,position_code,dept_id,hired_at,must_change_password) VALUES($1,$2,$3,$4,$5,$6,$7,true) RETURNING id`,
-            [r.login, hashPassword(r.password!), r.name, r.position, r.code, deptId, r.hired])).rows[0].id;
+            [r.login, hashes.get(r.login), r.name, r.position, r.code, deptId, r.hired])).rows[0].id;
           for (const role of r.roles!) await c.query('INSERT INTO user_roles VALUES($1,$2)', [id, role]);
         }
       });
@@ -163,7 +166,8 @@ export async function usersRoutes(app: FastifyInstance) {
   app.post('/api/admin/users/:id/reset-password', pre, async (req) => {
     const id = Number((req.params as any).id);
     const password = simplePassword();
-    await q('UPDATE users SET pass_hash=$2, must_change_password=true, failed_attempts=0, locked_until=NULL WHERE id=$1', [id, hashPassword(password)]);
+    await q('UPDATE users SET pass_hash=$2, must_change_password=true, failed_attempts=0, locked_until=NULL WHERE id=$1', [id, await hashPasswordAsync(password)]);
+    await q('DELETE FROM sessions WHERE user_id=$1', [id]);       // S4: сброс пароля администратором выкидывает человека со всех устройств
     await q('DELETE FROM sessions WHERE user_id=$1', [id]);
     await audit(req, 'password_reset', String(id));
     return { password };
