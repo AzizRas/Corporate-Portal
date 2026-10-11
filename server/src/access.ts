@@ -7,15 +7,17 @@ export type Section = (typeof SECTIONS)[number];
 export const PROFILES = ['call', 'service', 'warehouse', 'hr', 'recruiter', 'accounting'] as const;
 export type Profile = (typeof PROFILES)[number];
 
+/** Библиотека и тесты открыты всем: через них сотрудники учатся и периодически сдают тесты. Админ их закрыть не может. */
+export const ALWAYS: Section[] = ['library', 'tests'];
 const without = (...x: Section[]) => SECTIONS.filter((s) => !x.includes(s));
 export const DEFAULT_MATRIX: Record<Profile, Section[]> = {
   call: [...SECTIONS],
   service: without('trainer', 'ready'),
   warehouse: without('trainer', 'ready'),
   // HR: заявки, подбор и адаптация (сами по себе роль-зависимые), чат с новичками; без помощника оператора и тренажёра
-  hr: ['home', 'news', 'plan', 'growth', 'chat', 'team', 'structure', 'schedule', 'tasks', 'help', 'pay'],
-  recruiter: ['home', 'news', 'chat', 'tasks', 'schedule', 'help', 'pay'],
-  accounting: ['home', 'news', 'chat', 'schedule', 'tasks', 'help', 'pay'],
+  hr: ['home', 'news', 'plan', 'growth', 'chat', 'team', 'structure', 'schedule', 'tasks', 'help', 'pay', ...ALWAYS],
+  recruiter: ['home', 'news', 'chat', 'tasks', 'schedule', 'help', 'pay', ...ALWAYS],
+  accounting: ['home', 'news', 'chat', 'schedule', 'tasks', 'help', 'pay', ...ALWAYS],
 };
 
 /** API, которые закрываются на сервере вместе с разделом (остальные разделы скрываются в меню, их права проверяются по ролям). */
@@ -38,7 +40,7 @@ async function overrides() {
 }
 export async function currentMatrix(): Promise<Record<Profile, Section[]>> {
   const o = await overrides();
-  return Object.fromEntries(PROFILES.map((p) => [p, (o[p] ?? DEFAULT_MATRIX[p]).filter((s) => (SECTIONS as readonly string[]).includes(s))])) as Record<Profile, Section[]>;
+  return Object.fromEntries(PROFILES.map((p) => [p, [...new Set([...(o[p] ?? DEFAULT_MATRIX[p]).filter((s) => (SECTIONS as readonly string[]).includes(s)), ...ALWAYS])]])) as Record<Profile, Section[]>;
 }
 
 /** Профили пользователя: по ролям (бухгалтерия, HR, рекрутер), иначе по подразделению. Нет профиля — доступны все разделы. */

@@ -50,7 +50,8 @@ test('Профили: у каждого подразделения свой на
   for (const s of ['assist', 'trainer', 'ready', 'tests', 'kb', 'plan']) assert.ok(call.includes(s), `колл-центр видит ${s}`);
   assert.ok(svc.includes('assist') && !svc.includes('trainer') && !svc.includes('ready'), 'сервис-центр: помощник есть, тренажёра нет');
   assert.ok(wh.includes('kb') && wh.includes('plan') && wh.includes('assist') && !wh.includes('trainer') && !wh.includes('ready'), 'склад: без тренажёра и готовности к линии');
-  for (const s of ['assist', 'trainer', 'ready', 'kb', 'tests', 'library', 'path']) assert.ok(!hr.includes(s), `HR не видит ${s}`);
+  for (const s of ['assist', 'trainer', 'ready', 'kb', 'path']) assert.ok(!hr.includes(s), `HR не видит ${s}`);
+  for (const l of [call, svc, wh, hr, rec, buh]) assert.ok(l.includes('library') && l.includes('tests'), 'библиотека и тесты открыты всем');
   for (const s of ['plan', 'chat', 'team']) assert.ok(hr.includes(s), `HR видит ${s} (адаптация, чат, команда)`);
   assert.ok(!rec.includes('plan') && !rec.includes('assist') && rec.includes('chat'), 'рекрутер: чат есть, адаптации и помощника нет');
   assert.deepEqual(buh.filter((s) => ['assist', 'trainer', 'plan', 'kb'].includes(s)), [], 'бухгалтерия без рабочих инструментов оператора');
@@ -107,6 +108,8 @@ test('Админ меняет набор разделов; сброс возвр
   assert.ok(cur.matrix.call.includes('assist') && cur.profiles.includes('accounting'));
   assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { call: ['nope'] } })).statusCode, 400, 'неизвестный раздел');
   assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { warehouse: ['home', 'chat'] } })).statusCode, 200);
+  const whs = await sections('wh1');
+  assert.ok(whs.includes('library') && whs.includes('tests'), 'админ не может закрыть библиотеку и тесты');
   assert.equal((await get(await login('wh1'), '/api/assist/data')).statusCode, 403, 'админ закрыл складу помощник');
   assert.ok(!(await sections('wh1')).includes('kb'), 'остальное у склада закрыто');
   assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { call: ['home', 'chat'] } })).statusCode, 200);

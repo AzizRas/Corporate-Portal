@@ -2,6 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import pg from 'pg';
 
 const base = process.env.TEST_DATABASE_URL || 'postgres://portal:portal@localhost:5432';
@@ -201,7 +202,9 @@ test('Закрытие вакансии и отчёты: воронка, сро�
   const cl = await send(hr, 'POST', `/api/hire/vacancies/${v1.id}/state`, { action: 'close', reason: 'filled' });
   assert.equal(cl.statusCode, 200); assert.ok(cl.json().vacancy.closed_at);
   assert.equal((await send(hr, 'POST', `/api/hire/pipeline/${p1.id}/move`, { from_status_id: ST.hired.id, to_status_id: ST.work.id })).json().error, 'closed');
-  const fun = (await get(hr, '/api/hire/reports/funnel')).json().stages;
+  const fr = (await get(hr, '/api/hire/reports/funnel')).json(), fun = fr.stages;
+  assert.ok(fr.total >= 2 && fr.sources.length >= 1, 'воронка: итог и разбивка по источникам');
+  assert.equal(Object.values(fun.find((s: any) => s.type === 'new').by_source).reduce((a: any, b: any) => a + b, 0), fun.find((s: any) => s.type === 'new').count, 'по источникам сходится с числом на этапе');
   assert.equal(fun.find((s: any) => s.type === 'hired').count, 1);
   assert.ok(fun.find((s: any) => s.type === 'new').count >= 2);
   const ttf = (await get(hr, '/api/hire/reports/ttf')).json();
@@ -282,6 +285,75 @@ test('Сводка просрочек: один раз в сутки, уведо
   assert.equal(await hire.hireDigest(), 0, 'второй запуск в тот же день ничего не шлёт');
   assert.equal((await pool.query(`SELECT count(*)::int n FROM notifications WHERE user_id=$1 AND title LIKE '%Просрочен этап%'`, [hrId])).rows[0].n, 1);
 });
+
+// минимальный zip (docx) и pdf без внешних библиотек
+const zipOf = (name: string, content: string) => {
+  const data = Buffer.from(content, 'utf8'), comp = zlib.deflateRawSync(data), nm = Buffer.from(name);
+  const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(8, 8); lh.writeUInt32LE(comp.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(nm.length, 26);
+  const cd = Buffer.alloc(46); cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6); cd.writeUInt16LE(8, 10); cd.writeUInt32LE(comp.length, 20); cd.writeUInt32LE(data.length, 24); cd.writeUInt16LE(nm.length, 28); cd.writeUInt32LE(0, 42);
+  const cdOff = lh.length + nm.length + comp.length;
+  const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10); end.writeUInt32LE(cd.length + nm.length, 12); end.writeUInt32LE(cdOff, 16);
+  return Buffer.concat([lh, nm, comp, cd, nm, end]);
+};
+const docxOf = (lines: string[]) => zipOf('word/document.xml', `<w:document><w:body>${lines.map((l) => `<w:p><w:r><w:t>${l}</w:t></w:r></w:p>`).join('')}</w:body></w:document>`);
+const pdfOf = (lines: string[]) => {
+  const stream = `BT /F1 12 Tf 50 750 Td 16 TL ${lines.map((l) => `(${l}) '`).join(' ')} ET`;
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  let out = '%PDF-1.4\n'; const off: number[] = [];
+  objs.forEach((o, i) => { off.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const x = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${off.map((o) => String(o).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${x}\n%%EOF`;
+  return Buffer.from(out, 'latin1');
+};
+
+test('Импорт резюме: Word, PDF, текст, RTF → поля кандидата; плохой файл отклоняется; создание по полям', async () => {
+  const hr = await login('hr'), hm = await login('rustam');
+  const lines = ['Резюме', 'Рахимов Тимур Алишерович', 'Оператор колл-центра', 'Телефон: +998 71 200 33 44', 'E-mail: timur.rakhimov@example.com', 'Город: Самарканд', 'Дата рождения: 14.03.1995', 'Желаемая зарплата: 6 000 000 сум', 'Навыки: русский, узбекский, CRM'];
+  const docx = await upload(hr, '/api/hire/import', docxOf(lines), 'cv.docx');
+  assert.equal(docx.statusCode, 200);
+  const f = docx.json().fields;
+  assert.equal(docx.json().kind, 'docx');
+  assert.equal(f.last_name, 'Рахимов'); assert.equal(f.first_name, 'Тимур'); assert.equal(f.middle_name, 'Алишерович');
+  assert.equal(f.phone, '+998712003344'); assert.equal(f.email, 'timur.rakhimov@example.com'); assert.equal(f.city, 'Самарканд');
+  assert.equal(f.position, 'Оператор колл-центра'); assert.equal(f.birthday, '1995-03-14'); assert.equal(f.salary_expect, 6000000);
+  const txt = await upload(hr, '/api/hire/import', Buffer.from(lines.join('\n'), 'utf8'), 'cv.txt');
+  assert.equal(txt.json().kind, 'txt'); assert.equal(txt.json().fields.email, 'timur.rakhimov@example.com');
+  assert.equal((await upload(hr, '/api/hire/import', Buffer.from('Иван Иванов'), 'a.txt')).statusCode, 200, 'короткий текст не падает');
+  const pdf = await upload(hr, '/api/hire/import', pdfOf(['Ivanov Sergey Petrovich', 'Sales manager', 'Phone: +998 91 555 44 33', 'Email: sergey@example.com']), 'cv.pdf');
+  assert.equal(pdf.statusCode, 200); assert.equal(pdf.json().kind, 'pdf');
+  assert.equal(pdf.json().fields.email, 'sergey@example.com'); assert.equal(pdf.json().fields.phone, '+998915554433');
+  const rtf = await upload(hr, '/api/hire/import', Buffer.from('{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 Petrov Ivan\\par Tel: +998 93 111 22 33\\par ivan@example.com\\par}', 'latin1'), 'cv.rtf');
+  assert.equal(rtf.json().kind, 'rtf'); assert.equal(rtf.json().fields.email, 'ivan@example.com');
+  assert.equal((await upload(hr, '/api/hire/import', Buffer.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0]), 'x.bin')).statusCode, 415, 'бинарный файл не принимается');
+  assert.equal((await upload(hm, '/api/hire/import', docxOf(lines), 'cv.docx')).statusCode, 403, 'заказчик не импортирует');
+  const a = await send(hr, 'POST', '/api/hire/applicants', { ...f, source_id: null });
+  assert.equal(a.statusCode, 200, a.body);
+  assert.equal((await upload(hr, `/api/hire/applicants/${a.json().applicant.id}/resume`, docxOf(lines), 'cv.docx')).statusCode, 200, 'docx прикладывается как резюме');
+  assert.equal((await upload(hr, `/api/hire/applicants/${a.json().applicant.id}/resume`, Buffer.from('просто текст резюме'), 'cv.txt')).statusCode, 200, 'txt прикладывается как резюме');
+  const again = await upload(hr, '/api/hire/import', docxOf(lines), 'cv.docx');
+  assert.ok(again.json().duplicates.length >= 1, 'дубль найден по телефону и имени');
+});
+
+test('Календарь встреч: диапазон дат, статусы, роль участников (HR, рекрутер, руководитель)', async () => {
+  const hr = await login('hr'), hm = await login('rustam'), hmId = await uid('rustam'), hrId = await uid('hr');
+  const v = (await send(hr, 'POST', '/api/hire/vacancies', { title: 'Календарь' })).json().vacancy;
+  await send(hr, 'PUT', `/api/hire/vacancies/${v.id}/members/${hmId}`, { role: 'hm' });
+  const a = (await send(hr, 'POST', '/api/hire/applicants', { first_name: 'Календарь', last_name: 'Кандидатов' })).json().applicant;
+  const p = (await send(hr, 'POST', `/api/hire/vacancies/${v.id}/applicants`, { applicant_id: a.id })).json().pipeline;
+  const i1 = (await send(hr, 'POST', `/api/hire/pipeline/${p.id}/interviews`, { starts_local: '2031-05-12T10:00', duration_min: 45, people: [hmId], place: 'Офис' })).json().interview;
+  await send(hr, 'POST', `/api/hire/pipeline/${p.id}/interviews`, { starts_local: '2031-06-20T15:30', people: [] });
+  const may = (await get(hr, '/api/hire/interviews?from=2031-05-01&to=2031-05-31')).json().interviews;
+  assert.equal(may.length, 1, 'только встречи мая');
+  assert.equal(may[0].last_name, 'Кандидатов');
+  assert.ok(may[0].people.some((x: any) => x.user_id === hrId && x.kind === 'hr') && may[0].people.some((x: any) => x.user_id === hmId && x.kind === 'manager'), 'в составе HR и руководитель');
+  await send(hr, 'PATCH', `/api/hire/interviews/${i1.id}`, { status: 'cancelled' });
+  assert.equal((await get(hr, '/api/hire/interviews?from=2031-05-01&to=2031-05-31')).json().interviews[0].status, 'cancelled', 'в календаре видны и отменённые');
+  assert.equal((await get(hr, '/api/hire/interviews')).json().interviews.some((x: any) => x.id === i1.id), false, 'в списке ближайших отменённых нет');
+  const hmCal = (await get(hm, '/api/hire/interviews?from=2031-05-01&to=2031-06-30')).json().interviews;
+  assert.equal(hmCal.length, 1, 'руководитель видит только встречи, где он участник');
+});
+
 
 test('Миграция найма ничего не меняет в существующих таблицах', async () => {
   const cols = (await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='users'`)).rows.map((r) => r.column_name);

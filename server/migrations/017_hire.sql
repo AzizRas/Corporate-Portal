@@ -234,9 +234,9 @@ CREATE TABLE hire_offers (
 
 -- начальные данные: этапы, причины отказа, источники, поля форм (только в пустые таблицы этого модуля)
 INSERT INTO hire_statuses(name,name_uz,type,ord,color) VALUES
-  ('Новый','Yangi','new',1,'#6d8bff'), ('Скрининг','Skrining','work',2,'#2dd4bf'), ('Интервью','Suhbat','interview',3,'#a78bfa'),
-  ('Интервью с заказчиком','Buyurtmachi bilan suhbat','interview',4,'#c084fc'), ('Оффер','Taklif','offer',5,'#fbbf24'),
-  ('Принят','Qabul qilindi','hired',6,'#34d399'), ('Отказ','Rad etildi','rejected',7,'#fb7185');
+  ('Новый','Yangi','new',1,'#25CFE8'), ('Скрининг','Skrining','work',2,'#6865D4'), ('Интервью','Suhbat','interview',3,'#FFD95C'),
+  ('Интервью с заказчиком','Buyurtmachi bilan suhbat','interview',4,'#FF8E7D'), ('Оффер','Taklif','offer',5,'#B8A8FF'),
+  ('Принят','Qabul qilindi','hired',6,'#3CF686'), ('Отказ','Rad etildi','rejected',7,'#A3A3AD');
 INSERT INTO hire_reject_reasons(name,name_uz) VALUES
   ('Не подходит по опыту','Tajriba mos kelmaydi'), ('Не устроили условия','Shartlar to‘g‘ri kelmadi'), ('Кандидат отказался','Nomzod rad etdi'),
   ('Не вышел на связь','Aloqaga chiqmadi'), ('Выбран другой кандидат','Boshqa nomzod tanlandi');

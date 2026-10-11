@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { api, ApiError } from '../lib/api';
+  import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
+import AddCandidate from './AddCandidate.svelte';
   import { hs, isRec, toast, errText, ht, hg, fullName } from './store.svelte';
 
   let q = $state(''), source = $state(''), tag = $state(''), page = $state(1);
   let items: any[] = $state([]), total = $state(0), loading = $state(true), failed = $state(false);
   let creating = $state(false), picking = $state(false), people: any[] = $state([]);
-  let f = $state({ first_name: '', last_name: '', phone: '', email: '', position: '', source_id: '' });
-  let dupes: any[] = $state([]), force = $state(false), err = $state(''), busy = $state(false);
   let tm: ReturnType<typeof setTimeout>;
   const pages = $derived(Math.max(1, Math.ceil(total / 30)));
 
@@ -22,12 +21,6 @@
   const reset = () => { page = 1; load(); };
   const onq = () => { clearTimeout(tm); tm = setTimeout(reset, 250); };
 
-  async function create(e: Event) {
-    e.preventDefault(); busy = true; err = '';
-    try { const r = await api.post('/api/hire/applicants', { ...f, source_id: f.source_id || null, force }); location.hash = `#/hire/a/${r.applicant.id}`; }
-    catch (x) { if (x instanceof ApiError && x.code === 'duplicates') { dupes = x.body.duplicates; force = true; } else err = errText(x); }
-    finally { busy = false; }
-  }
   async function pickEmployees() {
     picking = true;
     try { people = (await api.get('/api/people')).people ?? []; } catch { people = []; }
@@ -41,7 +34,7 @@
   <label class="f" style="flex:1;min-width:220px">{ht('hSearchPh')}<input type="search" bind:value={q} oninput={onq} /></label>
   <label class="f">{ht('hSource')}<select bind:value={source} onchange={reset}><option value="">{ht('hAll')}</option>{#each hs.meta!.sources as s}<option value={s.id}>{s.name}</option>{/each}</select></label>
   <label class="f">{ht('hTags')}<select bind:value={tag} onchange={reset}><option value="">{ht('hAll')}</option>{#each hs.meta!.tags as t}<option value={t.id}>{t.name}</option>{/each}</select></label>
-  {#if isRec()}<button class="btn grad" onclick={() => { creating = true; dupes = []; force = false; }}>{ht('hNew')}</button><button class="btn" onclick={pickEmployees}>{ht('hFromEmp')}</button>{/if}
+  {#if isRec()}<button class="btn grad" onclick={() => (creating = true)}>+ {ht('hAddCand')}</button><button class="btn" onclick={pickEmployees}>{ht('hFromEmp')}</button>{/if}
 </div>
 
 {#if loading}<p class="muted"><span class="spin"></span></p>
@@ -66,22 +59,7 @@
   {/if}
 {/if}
 
-{#if creating}
-  <Modal onclose={() => (creating = false)}>
-    <form class="stack" onsubmit={create}>
-      <h2>{ht('hNew')}</h2>
-      <label class="f">{ht('hFirst')} *<input bind:value={f.first_name} required maxlength="80" /></label>
-      <label class="f">{ht('hLast')}<input bind:value={f.last_name} maxlength="80" /></label>
-      <label class="f">{ht('hPhone')}<input type="tel" bind:value={f.phone} /></label>
-      <label class="f">{ht('hEmail')}<input type="email" bind:value={f.email} /></label>
-      <label class="f">{ht('hPosition')}<input bind:value={f.position} /></label>
-      <label class="f">{ht('hSource')}<select bind:value={f.source_id}><option value="">{ht('hNone')}</option>{#each hs.meta!.sources.filter((s) => s.active) as s}<option value={s.id}>{s.name}</option>{/each}</select></label>
-      {#if dupes.length}<div class="alert info"><b>{ht('hDupes')}</b>{#each dupes as d}<div><a href={`#/hire/a/${d.id}`}>{fullName(d)}</a></div>{/each}</div>{/if}
-      {#if err}<p class="alert">{err}</p>{/if}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={() => (creating = false)}>{ht('hCancel')}</button><button class="btn grad" disabled={busy}>{force ? ht('hCreateAnyway') : ht('hCreate')}</button></div>
-    </form>
-  </Modal>
-{/if}
+{#if creating}<AddCandidate onclose={() => (creating = false)} ondone={(aid) => { creating = false; if (aid) location.hash = `#/hire/a/${aid}`; }} />{/if}
 
 {#if picking}
   <Modal onclose={() => (picking = false)}>

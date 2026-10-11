@@ -25,7 +25,7 @@ const mq = matchMedia('(prefers-color-scheme: light)');
 export function applyTheme() {
   const dark = app.theme === 'dark' || (app.theme === 'system' && !mq.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#0b0b0f' : '#f5f3fb');
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#121214' : '#f5f5f6');
 }
 mq.addEventListener('change', applyTheme);
 

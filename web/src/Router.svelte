@@ -58,7 +58,7 @@
     {:then m}
       <m.default />
     {/await}
-  {:else if head === 'hire' && has('hr', 'manager', 'head')}
+  {:else if head === 'hire' && has('hr', 'recruiter', 'manager', 'head')}
     {#await hireLoader()}
       <span class="spin"></span>
     {:then m}

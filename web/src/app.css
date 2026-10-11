@@ -1,61 +1,67 @@
-/* ============ Токены: тёмная (по макету) и светлая темы ============ */
+/* ============ Токены: фирменная палитра Hunter Black / Flow Blue / Electric Violet, тёмная и светлая темы ============ */
 :root, :root[data-theme='dark'] {
-  --bg: #0b0b0f;
-  --bg-glow: radial-gradient(900px 520px at 85% -8%, rgba(139, 92, 246, .38), transparent 70%),
-             radial-gradient(700px 420px at 100% 30%, rgba(255, 95, 200, .10), transparent 70%);
-  --card: #141417;
-  --card-2: #1b1b20;
-  --card-hl: linear-gradient(180deg, rgba(109, 70, 220, .35), rgba(20, 20, 23, 0) 55%), #141417;
-  --border: #26262c;
-  --text: #f6f5fa;
-  --muted: #8d8c99;
-  --accent: #a78bfa;
-  --accent-ink: #c4b5fd;
-  --grad: linear-gradient(90deg, #8b5cf6, #ff5fc8);
-  --grad-soft: linear-gradient(90deg, #6d4fe0, #a78bfa);
-  --track: #26262c;
-  --good: #34d399;
-  --warn: #fbbf24;
-  --bad: #fb7185;
-  --chip: #1f1f25;
-  --chip-on-bg: #ffffff;
-  --chip-on-ink: #111;
-  --pink-tag-bg: rgba(255, 95, 200, .16);
-  --pink-tag: #ff7ad1;
-  --shadow: 0 1px 0 rgba(255,255,255,.03) inset;
-  --nav-on: #25233a;
+  --bg: #121214;
+  --bg-glow: none;
+  --card: #1b1b1e;
+  --card-2: #232327;
+  --card-hl: #1b1b1e;
+  --border: #2a2a2f;
+  --text: #f4f4f5;
+  --muted: #9a9aa3;
+  --accent: #25cfe8;
+  --accent-ink: #5ae0f2;
+  --grad: #25cfe8;
+  --grad-ink: #0e0e10;
+  --grad-soft: #25cfe8;
+  --track: #2a2a2f;
+  --good: #3cf686;
+  --warn: #ffd95c;
+  --bad: #ff8e7d;
+  --chip: #26262a;
+  --chip-on-bg: #f4f4f5;
+  --chip-on-ink: #1d1d1f;
+  --pink-tag-bg: rgba(104, 101, 212, .22);
+  --pink-tag: #a9a7f5;
+  --shadow: none;
+  --nav-on: #2c2c31;
+  --stage-bg: rgba(255, 217, 92, .08);
+  --ink: #1d1d1f;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
-  --bg: #f5f3fb;
-  --bg-glow: radial-gradient(900px 520px at 85% -8%, rgba(139, 92, 246, .20), transparent 70%),
-             radial-gradient(700px 420px at 100% 30%, rgba(255, 95, 200, .10), transparent 70%);
+  --bg: #f5f5f6;
+  --bg-glow: none;
   --card: #ffffff;
-  --card-2: #f3f1fa;
-  --card-hl: linear-gradient(180deg, rgba(139, 92, 246, .16), rgba(255, 255, 255, 0) 55%), #ffffff;
-  --border: #e6e2f1;
-  --text: #17141f;
-  --muted: #6f6b80;
-  --accent: #7c4dff;
-  --accent-ink: #6d3df0;
-  --track: #e8e4f4;
-  --good: #0f9f6e;
-  --warn: #b7791f;
-  --bad: #d6336c;
-  --chip: #eeeaf8;
-  --chip-on-bg: #17141f;
-  --chip-on-ink: #fff;
-  --pink-tag-bg: rgba(214, 51, 160, .10);
-  --pink-tag: #c026a0;
-  --shadow: 0 1px 2px rgba(40, 20, 90, .06), 0 8px 24px rgba(40, 20, 90, .05);
-  --nav-on: #ebe6fb;
+  --card-2: #f3f3f5;
+  --card-hl: #ffffff;
+  --border: #e8e8eb;
+  --text: #1d1d1f;
+  --muted: #6f6f78;
+  --accent: #25cfe8;
+  --accent-ink: #08798c;
+  --grad: #1d1d1f;
+  --grad-ink: #ffffff;
+  --grad-soft: #25cfe8;
+  --track: #ececef;
+  --good: #0d8a43;
+  --warn: #9a6a00;
+  --bad: #d23b3b;
+  --chip: #efeff1;
+  --chip-on-bg: #1d1d1f;
+  --chip-on-ink: #ffffff;
+  --pink-tag-bg: rgba(104, 101, 212, .12);
+  --pink-tag: #5754c4;
+  --shadow: none;
+  --nav-on: #ececef;
+  --stage-bg: #fffbe9;
+  --ink: #1d1d1f;
   color-scheme: light;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body {
-  font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.45;
   -webkit-font-smoothing: antialiased; transition: background .2s, color .2s;
 }
@@ -76,7 +82,7 @@ a:hover { text-decoration: underline; }
 .shell { display: flex; min-height: 100vh; }
 .side { width: 272px; flex: none; position: sticky; top: 0; height: 100vh; padding: 28px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(14px); overflow-y: auto; }
 .logo { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; padding: 0 12px 24px; }
-.logo i { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #8b5cf6, #ff5fc8); display: block; }
+.logo i { width: 40px; height: 40px; border-radius: 12px; background: #25cfe8; display: block; }
 .logo.sm { font-size: 22px; padding: 0; }
 .logo.sm i { width: 32px; height: 32px; border-radius: 10px; }
 .nav { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; color: var(--muted); font-weight: 500; cursor: pointer; border: 0; background: none; text-align: left; width: 100%; text-decoration: none; }
@@ -277,3 +283,54 @@ label.chk input { width: 18px; height: 18px; accent-color: var(--accent); }
 }
 
 .tr-wrap { display: inline-flex; }
+
+/* ============ Минимализм: плоские поверхности, малые радиусы, тёмная боковая панель ============ */
+body::before { display: none; }
+h1, h2, h3 { letter-spacing: -.015em; }
+.page-head { margin-bottom: 22px; }
+.page-head h1 { font-size: clamp(26px, 3vw, 38px); font-weight: 700; letter-spacing: -.02em; }
+.page-head .sub { font-size: 15px; margin-top: 6px; }
+.main { padding: 32px 36px 56px; }
+
+/* боковая панель всегда тёмная (Hunter Black) в обеих темах */
+.side { --text: #f4f4f5; --muted: #9a9aa3; --card: #26262a; --card-2: #2a2a2f; --border: #2e2e33; --nav-on: #2c2c31; --chip: #2a2a2f; --accent: #25cfe8; --grad: #25cfe8; --grad-ink: #0e0e10;
+  background: #1d1d1f; backdrop-filter: none; border-right: 0; color: var(--text); }
+.logo { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.logo i { width: 32px; height: 32px; border-radius: 50%; }
+.nav, .nv { border-radius: 10px; }
+.nv.on { background: var(--nav-on); color: var(--text); }
+.nv.on svg { stroke: #25cfe8; }
+.nv em, .tabbar em, .ng-head em, .btn.grad, .btn.primary, .chip.grad { background: var(--grad); color: var(--grad-ink); border-color: transparent; }
+:root[data-theme='light'] .btn.primary { background: var(--grad); color: var(--grad-ink); }
+.side .nv em, .side .ng-head em { background: #25cfe8; color: #0e0e10; }
+.tabbar a.on i { background: #25cfe8; }
+.tabbar a.on svg { stroke: #0e0e10; }
+
+.card { border-radius: 16px; padding: 24px; box-shadow: none; }
+.card h3, .card-title { font-size: 14px; font-weight: 600; }
+.modal { border-radius: 16px; }
+.btn { border-radius: 10px; padding: 10px 18px; font-weight: 600; }
+.btn:hover { filter: none; border-color: var(--muted); }
+.btn.grad:hover, .btn.primary:hover { filter: brightness(1.15); border-color: transparent; }
+.btn.sm { padding: 6px 12px; }
+input[type='text'], input[type='password'], input[type='number'], input[type='search'], input[type='date'], input[type='month'], input[type='time'], input[type='tel'], input[type='email'], input[type='datetime-local'], input:not([type]), select, textarea { border-radius: 10px; background: var(--card); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.alert { border-radius: 10px; }
+.tag { border-radius: 6px; }
+.chip { padding: 6px 12px; font-size: 13px; }
+.chip.on { background: var(--chip-on-bg); color: var(--chip-on-ink); }
+.bar > i { background: var(--accent); }
+.avatar { background: #25cfe8; color: #0e0e10; }
+:root[data-theme='dark'] .avatar { background: #25cfe8; }
+
+/* вкладки: подчёркнутый текст, как в верхней панели этапов */
+.tabs { gap: 22px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tabs a, .tabs button { padding: 10px 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); margin-bottom: -1px; }
+.tabs a:hover, .tabs button:hover { color: var(--text); }
+.tabs .on { background: none; color: var(--text); border-bottom-color: #25cfe8; }
+.table th { text-transform: none; }
+.table tr:hover td { background: color-mix(in srgb, var(--card-2) 50%, transparent); }
+a { color: var(--accent-ink); }
+@media (max-width: 880px) { .main { padding: 14px 16px calc(96px + env(safe-area-inset-bottom)); } .card { padding: 18px; } }
+input[type='tel'], input[type='email'], input[type='url'], input[type='datetime-local'] { width: 100%; border: 1px solid var(--border); padding: 12px 14px; outline: none; color: var(--text); }
+@media (max-width: 880px) { .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 18px; } .tabs a, .tabs button { white-space: nowrap; } }

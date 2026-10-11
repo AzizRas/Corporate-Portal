@@ -9,6 +9,7 @@ import { notify } from '../notify.js';
 import { getSetting, setSetting } from '../settings.js';
 import { POSITIONS } from '../model.js';
 import { pathFor } from './path.js';
+import { extractText, parseResume, resumeKind } from './hire-parse.js';
 
 const TR: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o', қ: 'q', ғ: 'g', ҳ: 'h' };
 const translit = (s: string) => String(s || '').toLowerCase().replace(/[а-яёўқғҳ]/g, (c) => TR[c] ?? c);
@@ -135,12 +136,14 @@ const findDupes = async (a: any, excludeId = 0) => {
   });
 };
 
+const MIME: Record<string, string> = {
+  pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', odt: 'application/vnd.oasis.opendocument.text',
+  doc: 'application/msword', rtf: 'application/rtf', txt: 'text/plain; charset=utf-8', image: '',
+};
 const sniff = (b: Buffer): string | null => {
-  if (b.length > 4 && b.subarray(0, 4).toString('latin1') === '%PDF') return 'application/pdf';
-  if (b.length > 4 && b[0] === 0x50 && b[1] === 0x4b) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (b.length > 8 && b[0] === 0x89 && b.subarray(1, 4).toString('latin1') === 'PNG') return 'image/png';
-  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8) return 'image/jpeg';
-  return null;
+  const k = resumeKind(b);
+  if (k === 'image') return b[0] === 0xff ? 'image/jpeg' : 'image/png';
+  return k === 'unknown' ? null : MIME[k];
 };
 
 /** Кандидаты, у которых этап висит дольше лимита (для сводки). */
@@ -551,6 +554,20 @@ export async function hireRoutes(app: FastifyInstance) {
     const r = await q('INSERT INTO hire_resumes(applicant_id,filename,mime,size,data,created_by) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,filename,mime,size,created_at', [id, name, mime, buf.length, buf, req.user!.id]);
     return { resume: r.rows[0] };
   });
+  // импорт резюме: файл → текст → поля формы (ничего не сохраняется, рекрутер проверяет и создаёт кандидата сам)
+  app.post('/api/hire/import', R_ONLY, async (req, reply) => {
+    const file = await (req as any).file().catch(() => undefined);
+    if (!file) return err(reply, 400, 'empty');
+    const buf: Buffer = await file.toBuffer();
+    if (!buf.length) return err(reply, 400, 'empty');
+    if (file.file?.truncated || buf.length > 5 * 1024 * 1024) return err(reply, 413, 'too_big');
+    if (!sniff(buf)) return err(reply, 415, 'bad_type');
+    const { kind, text } = await extractText(buf);
+    const fields = parseResume(text);
+    const a = appFields(fields as any);
+    const dupes = fields.first_name || fields.phone || fields.email ? await findDupes(a) : [];
+    return { kind, chars: text.length, fields, duplicates: dupes, text: text.slice(0, 4000) };
+  });
   app.get('/api/hire/resumes/:rid/file', R_OR_H, async (req, reply) => {
     const f = (await q('SELECT * FROM hire_resumes WHERE id=$1', [Number((req.params as any).rid)])).rows[0];
     if (!f || !(await appVisible(req.user!, f.applicant_id))) return err(reply, 404, 'not_found');
@@ -662,12 +679,20 @@ export async function hireRoutes(app: FastifyInstance) {
     return { interview: r.rows[0] };
   });
   app.get('/api/hire/interviews', R_OR_H, async (req) => {
-    const u = req.user!, mine = String((req.query as any).mine) === '1' || !isRec(u);
+    const u = req.user!, qs = req.query as any, mine = String(qs.mine) === '1' || !isRec(u);
+    // календарь: ?from=YYYY-MM-DD&to=YYYY-MM-DD (по часам компании), любые статусы; без дат — ближайшие запланированные
+    const from = dateOnly(qs.from), to = dateOnly(qs.to);
+    const range = from && to ? [wallToUtc(`${from}T00:00`), wallToUtc(`${to}T23:59`)] : null;
     const rows = (await q(
-      `SELECT i.*,a.first_name,a.last_name,a.user_id AS cand_user,v.title AS vacancy_title,p.vacancy_id FROM hire_interviews i JOIN hire_pipeline p ON p.id=i.pipeline_id
-         JOIN hire_applicants a ON a.id=p.applicant_id JOIN hire_vacancies v ON v.id=p.vacancy_id WHERE i.status='planned' AND i.starts_at > now() - interval '1 day' ORDER BY i.starts_at LIMIT 200`)).rows;
-    const ppl = rows.length ? (await q(`SELECT ip.interview_id,ip.user_id,u.name FROM hire_interview_people ip JOIN users u ON u.id=ip.user_id WHERE ip.interview_id IN (${inList(rows.map((r) => r.id))})`)).rows : [];
-    let out: any[] = rows.map((r) => ({ ...r, people: ppl.filter((x) => x.interview_id === r.id) }));
+      `SELECT i.*,a.first_name,a.last_name,a.position,a.user_id AS cand_user,v.title AS vacancy_title,p.vacancy_id FROM hire_interviews i JOIN hire_pipeline p ON p.id=i.pipeline_id
+         JOIN hire_applicants a ON a.id=p.applicant_id JOIN hire_vacancies v ON v.id=p.vacancy_id
+        WHERE ${range ? 'i.starts_at BETWEEN $1 AND $2' : `i.status='planned' AND i.starts_at > now() - interval '1 day'`} ORDER BY i.starts_at LIMIT 500`, range ? range : [])).rows;
+    const ppl = rows.length ? (await q(
+      `SELECT ip.interview_id,ip.user_id,u.name,COALESCE((SELECT array_agg(role) FROM user_roles r WHERE r.user_id=u.id),'{}') AS roles
+         FROM hire_interview_people ip JOIN users u ON u.id=ip.user_id WHERE ip.interview_id IN (${inList(rows.map((r) => r.id))})`)).rows : [];
+    // кто на встрече: HR, рекрутер или руководитель (заказчик)
+    const kindOf = (roles: string[]) => (roles.includes('recruiter') ? 'recruiter' : roles.includes('hr') ? 'hr' : roles.includes('manager') || roles.includes('head') ? 'manager' : 'other');
+    let out: any[] = rows.map((r) => ({ ...r, people: ppl.filter((x) => x.interview_id === r.id).map((x) => ({ interview_id: x.interview_id, user_id: x.user_id, name: x.name, kind: kindOf(x.roles) })) }));
     if (mine) out = out.filter((r) => r.created_by === u.id || r.people.some((x: any) => x.user_id === u.id));
     if (!isRec(u)) { const ids = await hmVacIds(u); out = out.filter((r) => ids.includes(r.vacancy_id)); }
     const vis = [];
@@ -708,8 +733,32 @@ export async function hireRoutes(app: FastifyInstance) {
     const inRange = (d: unknown) => new Date(d as any) >= from && new Date(d as any) <= to;
     switch ((req.params as any).name) {
       case 'funnel': {
-        const rows = (await q('SELECT h.pipeline_id,h.status_id,h.entered_at,p.vacancy_id FROM hire_stage_history h JOIN hire_pipeline p ON p.id=h.pipeline_id')).rows.filter((r) => vset.has(r.vacancy_id) && inRange(r.entered_at));
-        return { stages: statuses.map((s) => ({ id: s.id, name: s.name, name_uz: s.name_uz, type: s.type, color: s.color, count: new Set(rows.filter((r) => r.status_id === s.id).map((r) => r.pipeline_id)).size })) };
+        const rows = (await q(`SELECT h.pipeline_id,h.status_id,h.entered_at,p.vacancy_id,p.reason_id,COALESCE(sr.name,'—') AS source,COALESCE(rr.name,'—') AS reason
+            FROM hire_stage_history h JOIN hire_pipeline p ON p.id=h.pipeline_id JOIN hire_applicants a ON a.id=p.applicant_id
+            LEFT JOIN hire_sources sr ON sr.id=a.source_id LEFT JOIN hire_reject_reasons rr ON rr.id=p.reason_id ORDER BY h.pipeline_id,h.entered_at,h.id`)).rows.filter((r) => vset.has(r.vacancy_id) && inRange(r.entered_at));
+        const rejId = new Set(statuses.filter((s) => s.type === 'rejected').map((s) => s.id));
+        const stages = statuses.map((s) => {
+          const mine = rows.filter((r) => r.status_id === s.id), seen = new Map<number, string>();
+          for (const r of mine) if (!seen.has(r.pipeline_id)) seen.set(r.pipeline_id, r.source);
+          const by_source: Record<string, number> = {};
+          for (const src of seen.values()) by_source[src] = (by_source[src] ?? 0) + 1;
+          return { id: s.id, name: s.name, name_uz: s.name_uz, type: s.type, color: s.color, count: seen.size, by_source };
+        });
+        // отказы: после какого этапа и по какой причине
+        const byPipe = new Map<number, any[]>();
+        for (const r of rows) byPipe.set(r.pipeline_id, [...(byPipe.get(r.pipeline_id) ?? []), r]);
+        const rejects: Record<number, Record<string, number>> = {}, reasons: Record<string, number> = {};
+        for (const list of byPipe.values()) list.forEach((r, i) => {
+          if (!rejId.has(r.status_id) || i === 0) return;
+          const prev = list[i - 1].status_id;
+          rejects[prev] ??= {}; rejects[prev][r.reason] = (rejects[prev][r.reason] ?? 0) + 1; reasons[r.reason] = (reasons[r.reason] ?? 0) + 1;
+        });
+        const sources: Record<string, number> = {};
+        const first = new Map<number, string>();
+        for (const r of rows) if (!first.has(r.pipeline_id)) first.set(r.pipeline_id, r.source);
+        for (const src of first.values()) sources[src] = (sources[src] ?? 0) + 1;
+        const list = (o: Record<string, number>) => Object.entries(o).map(([name, count]) => ({ name, count })).sort((x, y) => y.count - x.count);
+        return { stages, sources: list(sources), reasons: list(reasons), rejects: Object.fromEntries(Object.entries(rejects).map(([k, v]) => [k, list(v)])), total: first.size };
       }
       case 'ttf': {
         const sts = (await q('SELECT * FROM hire_vacancy_states ORDER BY at,id')).rows;

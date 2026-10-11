@@ -18,7 +18,7 @@
 
   const sync = () => { for (const d of DEFS) rows[d.key] = JSON.parse(JSON.stringify((hs.meta as any)[d.metaKey])); };
   sync();
-  for (const d of DEFS) fresh[d.key] = Object.fromEntries(d.cols.map(([k, , t]) => [k, t === 'check' ? true : t === 'color' ? '#8b5cf6' : t === 'number' ? null : '']));
+  for (const d of DEFS) fresh[d.key] = Object.fromEntries(d.cols.map(([k, , t]) => [k, t === 'check' ? true : t === 'color' ? '#6865D4' : t === 'number' ? null : '']));
   const idOf = (d: Def, r: any) => (d.pk ? String(r[d.pk]).slice(0, 10) : r.id);
   const body = (r: Record<string, any>) => r;
   async function after(ok: boolean, e?: unknown) { if (ok) { await loadMeta(); sync(); err = ''; } else err = errText(e); }

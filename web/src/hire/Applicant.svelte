@@ -123,7 +123,7 @@
         <h3 class="card-title">{ht('hResumes')}</h3>
         {#each d.resumes as r}<a href={`/api/hire/resumes/${r.id}/file`} download style="overflow-wrap:anywhere">{r.filename} <span class="muted xs">{Math.round(r.size / 1024)} KB</span></a>
         {:else}<p class="muted small">{ht('hNoResumes')}</p>{/each}
-        {#if rec}<label class="btn sm" style="cursor:pointer">{ht('hUpload')}<input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg" hidden onchange={upload} /></label>{/if}
+        {#if rec}<label class="btn sm" style="cursor:pointer">{ht('hUpload')}<input type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.png,.jpg,.jpeg" hidden onchange={upload} /></label>{/if}
       </section>
 
       {#if rec && a.email}
