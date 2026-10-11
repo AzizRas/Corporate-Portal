@@ -1,5 +1,5 @@
 // Найм: вакансии, воронка по этапам, кандидаты, заявки руководителей, встречи, офферы, отчёты.
-// Права строятся на существующих ролях портала: рекрутер = hr (и admin), заказчик = manager или head.
+// Права: рекрутер = роль recruiter или hr (и admin), заказчик = manager или head.
 // Заказчик видит только свои вакансии (где он участник или автор заявки) и кандидатов на них.
 import type { FastifyInstance } from 'fastify';
 import { q, tx } from '../db.js';
@@ -73,11 +73,11 @@ const calendar = async (): Promise<Cal & { hmContacts: boolean }> => {
 };
 
 // ---------- права ----------
-const isRec = (u: AuthUser) => hasRole(u, 'hr');
+const isRec = (u: AuthUser) => hasRole(u, 'hr', 'recruiter');
 const isHm = (u: AuthUser) => hasRole(u, 'manager', 'head');
 const role = (u: AuthUser) => (hasRole(u, 'admin') ? 'admin' : isRec(u) ? 'recruiter' : isHm(u) ? 'hm' : 'none');
-const R_OR_H = { preHandler: requireRole('hr', 'manager', 'head') };
-const R_ONLY = { preHandler: requireRole('hr') };
+const R_OR_H = { preHandler: requireRole('hr', 'recruiter', 'manager', 'head') };
+const R_ONLY = { preHandler: requireRole('hr', 'recruiter') };
 const ADMIN = { preHandler: requireRole('admin') };
 
 const hmVacIds = async (u: AuthUser): Promise<number[]> => {
@@ -181,7 +181,7 @@ export async function hireRoutes(app: FastifyInstance) {
       fields: await all('hire_form_fields', 'form,ord,id'),
       templates: isRec(u) ? await all('hire_templates') : [],
       holidays: (await q(`SELECT to_char(day,'YYYY-MM-DD') AS day,name FROM hire_holidays ORDER BY day`)).rows,
-      team: (await q(`SELECT DISTINCT u.id,u.name,u.position_code FROM users u JOIN user_roles r ON r.user_id=u.id AND r.role IN ('hr','manager','head','admin') WHERE u.active ORDER BY u.name`)).rows,
+      team: (await q(`SELECT DISTINCT u.id,u.name,u.position_code FROM users u JOIN user_roles r ON r.user_id=u.id AND r.role IN ('hr','recruiter','manager','head','admin') WHERE u.active ORDER BY u.name`)).rows,
       positions: Object.entries(POSITIONS).map(([code, p]) => ({ code, ru: p.ru, uz: p.uz })),
       departments: (await q('SELECT id,name_ru,name_uz FROM departments ORDER BY id')).rows,
       settings: { tz: cal.tz, workdays: [...cal.days], hm_contacts: cal.hmContacts },
@@ -383,7 +383,7 @@ export async function hireRoutes(app: FastifyInstance) {
       if (v !== undefined) clean[f.key] = f.type === 'number' ? Number(v) : S(v, 2000);
     }
     const r = await q('INSERT INTO hire_requests(requester_id,data) VALUES($1,$2) RETURNING *', [req.user!.id, JSON.stringify(clean)]);
-    const recs = (await q(`SELECT DISTINCT user_id FROM user_roles WHERE role IN ('hr','admin')`)).rows.map((x) => x.user_id as number);
+    const recs = (await q(`SELECT DISTINCT user_id FROM user_roles WHERE role IN ('hr','recruiter','admin')`)).rows.map((x) => x.user_id as number);
     await notify(recs, 'hire', `📋 Заявка на подбор: ${S(clean.title, 80)}`, `От: ${req.user!.name}`, '#/hire/req');
     return { request: r.rows[0] };
   });

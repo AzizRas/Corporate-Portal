@@ -1,10 +1,21 @@
 // Меню портала: 6 групп, видимость по ролям. Один источник для боковой колонки, нижней панели телефона, поиска и «Ещё».
-import { app, has } from './state.svelte';
+import { app, has, can } from './state.svelte';
 import { st } from './s18n';
 import { wt } from './w18n';
 
 export interface NavItem { id: string; label: string; href: string; icon: string; badge?: number; section?: string }
 export interface NavGroup { id: string; label: string; icon: string; items: NavItem[] }
+
+/** Пункт меню → раздел из набора подразделения (см. server/src/access.ts). Пунктов вне набора это не касается. */
+const ITEM_SECTION: Record<string, string> = { home: 'home', news: 'news', path: 'path', tasks: 'tasks', growth: 'growth', plan: 'plan', trainer: 'trainer', ready: 'ready', tests: 'tests', library: 'library', kb: 'kb', assist: 'assist', help: 'help', chat: 'chat', team: 'team', structure: 'structure', schedule: 'schedule', pay: 'pay' };
+/** Первый сегмент маршрута → раздел (для закрытия страницы, если открыли по ссылке). */
+export function routeSection(parts: string[]): string | null {
+  const h = parts[0] ?? '';
+  if (h === 'training') return parts[1] === 'trainer' ? 'trainer' : parts[1] === 'ready' ? 'ready' : 'plan';
+  if (h === 'profile' && parts[1] === 'pay') return 'pay';
+  if (h === 'pay') return 'pay';
+  return ['home', 'news', 'path', 'tasks', 'growth', 'tests', 'library', 'kb', 'assist', 'help', 'chat', 'team', 'structure', 'schedule'].includes(h) ? h : null;
+}
 
 export function navGroups(chatBadge = 0): NavGroup[] {
   const it = (id: string, label: string, href: string, icon: string, badge?: number, section?: string): NavItem => ({ id, label, href, icon, badge, section });
@@ -43,6 +54,7 @@ export function navGroups(chatBadge = 0): NavGroup[] {
   return groups.map((g) => ({
     ...g,
     items: g.items.filter((i) => {
+      if (ITEM_SECTION[i.id] && !can(ITEM_SECTION[i.id])) return false;
       if (i.section === 'staff') return !ext && !intern;
       if (!ext) return true;
       if (g.id === 'manage') return false;

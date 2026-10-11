@@ -39,7 +39,7 @@
     } catch { perr = st('pf_photo_err'); } finally { busy = false; (e.currentTarget as HTMLInputElement).value = ''; }
   }
   async function dropPhoto() { await api.del('/api/me/avatar'); await loadMe(); }
-  const roleName: Record<string, string> = { employee: 'Оператор', newbie: 'Новичок', senior: 'Старший оператор', mentor: 'Наставник', manager: 'Супервайзер', head: 'Руководитель отдела', hr: 'HR', accountant: 'Бухгалтерия', editor: 'Редактор базы', admin: 'Администратор' };
+  const roleName: Record<string, string> = { employee: 'Оператор', newbie: 'Новичок', senior: 'Старший оператор', mentor: 'Наставник', manager: 'Супервайзер', head: 'Руководитель отдела', hr: 'HR', recruiter: 'Рекрутер', accountant: 'Бухгалтерия', editor: 'Редактор базы', admin: 'Администратор' };
 </script>
 
 <header class="page-head"><div><h1>{t('profile_title')}<PageHelp topic="profile_photo" /></h1><p class="sub">{app.user?.name} · {app.user?.position}</p></div></header>

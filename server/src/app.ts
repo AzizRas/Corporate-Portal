@@ -35,6 +35,7 @@ import { testsRoutes } from './modules/tests.js';
 import { libraryRoutes } from './modules/library.js';
 import { wellnessRoutes } from './modules/wellness.js';
 import { hireRoutes } from './modules/hire.js';
+import { accessAdminRoutes } from './modules/access-admin.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: true, genReqId: () => Math.random().toString(36).slice(2, 10) });
@@ -83,6 +84,7 @@ export async function buildApp() {
   await app.register(libraryRoutes);
   await app.register(wellnessRoutes);
   await app.register(hireRoutes);
+  await app.register(accessAdminRoutes);
 
   app.setErrorHandler((err: any, req, reply) => {
     req.log.error(err);

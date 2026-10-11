@@ -3,10 +3,11 @@ import { q } from './db.js';
 import { config } from './config.js';
 import { randomToken, sha256 } from './security.js';
 import { orgContext } from './org-core.js';
+import { sectionsFor, sectionOfUrl } from './access.js';
 
 // Иерархия операторов: employee (оператор) → senior (старший оператор) → manager (супервайзер) → head (руководитель отдела)
-export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'accountant' | 'editor' | 'admin';
-export const ALL_ROLES: Role[] = ['employee', 'newbie', 'senior', 'mentor', 'manager', 'head', 'hr', 'accountant', 'editor', 'admin'];
+export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'recruiter' | 'accountant' | 'editor' | 'admin';
+export const ALL_ROLES: Role[] = ['employee', 'newbie', 'senior', 'mentor', 'manager', 'head', 'hr', 'recruiter', 'accountant', 'editor', 'admin'];
 
 export interface AuthUser {
   id: number;
@@ -36,6 +37,8 @@ export interface AuthUser {
   branch_nodes: number[];            // узлы, которыми руководит (и вложенные), с учётом делегирования
   acting_for: number[];              // кого замещает по делегированию
   external: string[] | null;         // для внешнего подразделения — разрешённые разделы
+  dept_code: string | null;          // код подразделения: call | service | warehouse | hr
+  sections: string[];                // разделы, доступные по роли и подразделению (см. access.ts)
 }
 
 declare module 'fastify' {
@@ -61,7 +64,8 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
     `SELECT u.id,u.name,u.login,u.tab_number,u.position,u.position_code,u.target_position_code,u.dept_id,
             u.manager_id,u.node_id,u.employment,u.lang,u.theme,u.must_change_password,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
             to_char(u.shift_start,'HH24:MI') AS shift_start,to_char(u.shift_end,'HH24:MI') AS shift_end,u.wellness,u.wellness_min,
-            COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
+            COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles,
+            (SELECT code FROM departments d WHERE d.id=u.dept_id) AS dept_code
        FROM sessions s JOIN users u ON u.id=s.user_id
       WHERE s.token_hash=$1 AND s.expires_at>now() AND u.active`,
     [sha256(token)],
@@ -71,6 +75,7 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
   const ctx = await orgContext(u);
   u.branch_nodes = ctx.branch_nodes; u.acting_for = ctx.acting_for; u.external = ctx.external;
   for (const role of ctx.extra_roles) if (!u.roles.includes(role)) u.roles.push(role);   // замещающий получает права руководителя на срок
+  u.sections = await sectionsFor(u.roles, u.dept_code);
   return u;
 }
 
@@ -98,6 +103,9 @@ export function registerAuth(app: FastifyInstance) {
   });
   app.addHook('preHandler', async (req, reply) => {
     if (req.user?.external && !externalAllowed(req.url, req.user.external)) return reply.code(403).send({ error: 'external_forbidden' });
+    // разделы, закрытые для подразделения (помощник оператора, тренажёр, готовность к линии)
+    const sec = req.user ? sectionOfUrl(req.url) : null;
+    if (req.user && sec && !req.user.sections.includes(sec)) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'section_forbidden' }); }
   });
 }
 
