@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app, has, go, can } from './lib/state.svelte';
-  import { routeSection } from './lib/nav';
+  import { routeSection, landing } from './lib/nav';
   import { t } from './lib/i18n';
   import Home from './pages/Home.svelte';
   import Path from './pages/Path.svelte';
@@ -24,7 +24,8 @@
   import Reports from './pages/Reports.svelte';
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
-  const head = $derived(parts[0] ?? '');
+  // адрес «/» открывает главную (а если её закрыли для подразделения — первый доступный раздел)
+  const head = $derived(parts[0] || landing());
   const closed = $derived((() => { const s = routeSection(parts); return !!s && !can(s); })());
   const adminLoader = () => import('./admin/Admin.svelte');
   const assistLoader = () => import('./assist/Assist.svelte');
@@ -34,7 +35,7 @@
 
 {#key head}
   {#if closed}<div class="card"><p class="muted">{app.lang === 'uz' ? 'Bu bo‘lim sizga ochiq emas' : 'Раздел недоступен для вашего подразделения'}</p><a href="#/">{t('nav_home')}</a></div>
-  {:else if head === '' || head === 'chat'}<Chat channel={head === 'chat' ? decodeURIComponent(parts[1] ?? 'general') : 'general'} />
+  {:else if head === 'chat'}<Chat channel={parts[0] === 'chat' ? decodeURIComponent(parts[1] ?? 'general') : 'general'} />
   {:else if head === 'home'}<Home />
   {:else if head === 'news'}<News />
   {:else if head === 'schedule'}<Schedule />

@@ -66,11 +66,11 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     const stats = await workStats(scope);
     const people = (await q(`SELECT id,name,position,avatar_v,employment,node_id,manager_id,status FROM users WHERE id = ANY($1::int[]) ORDER BY name`, [scope])).rows;
     const dismissed = new Set<number>((await q(`SELECT user_id FROM signal_dismissals WHERE by_user=$1 AND until >= $2::date`, [u.id, tzDate()])).rows.map((r) => r.user_id));
-    const canSignal = st.available;      // сигнал — функция ИИ: без ИИ карточка показывает обычную статистику
     const items = people.map((p) => {
       const s = stats.get(p.id)!;
       const sig = signalOf(s);
-      const show = canSignal && mayHearSignal(u, p) && sig.level === 'talk' && !dismissed.has(p.id);
+      // сигнал считается правилами и от ИИ не зависит; ИИ нужен только для текста совета
+      const show = mayHearSignal(u, p) && sig.level === 'talk' && !dismissed.has(p.id);
       return {
         id: p.id, name: p.name, position: p.position, avatar_v: p.avatar_v, employment: p.employment, status: p.status, node_path: pathName(all, p.node_id),
         stats: { training: s.training, tests: s.tests, trainer: s.trainer, activity: s.activity, late14: s.late14, tasks: s.tasks, leave: s.leave, mood_trend: s.mood.n >= 2 ? trend(s.mood.now, s.mood.prev) : null },

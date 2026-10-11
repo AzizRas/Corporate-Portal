@@ -125,7 +125,7 @@
     busy = true;
     try {
       const r = await api.post('/api/schedule/bulk', { action, items: items() });
-      flash(sc('done', { n: r.changed }) + (r.skipped ? ` · ${sc('skippedN', { n: r.skipped })}` : ''));
+      flash(sc('done', { n: r.changed }) + (r.skipped ? ` · ${sc('skippedN', { n: r.skipped })}` : '') + (r.kept ? ` · ${sc('keptN', { n: r.kept })}` : ''));
       sel.clear(); await loadTeam();
     } catch { flash(sc('errGeneric')); } finally { busy = false; }
   }

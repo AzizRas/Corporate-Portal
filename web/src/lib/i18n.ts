@@ -9,7 +9,7 @@ const ru = {
   nav_admin: 'Админка', nav_profile: 'Профиль', nav_tools: 'Инструменты', nav_logout: 'Выйти', tab_path: 'Путь', tab_pay: 'ЗП', tab_att: 'Пришёл', tab_kb: 'ЧАВО',
   // вход
   login_title: 'Вход в Qadam', login_sub: 'Платформа роста сотрудников', login_id: 'Логин или табельный номер', login_pw: 'Пароль', login_btn: 'Войти',
-  login_bad: 'Неверный логин или пароль', login_locked: 'Слишком много попыток. Подождите 15 минут.',
+  login_bad: 'Неверный логин или пароль', login_locked: 'Слишком много попыток. Подождите немного и повторите.',
   pw_title: 'Новый пароль', pw_sub: 'Это первый вход — задайте свой пароль (не короче 8 знаков).', pw_new: 'Новый пароль', pw_old: 'Текущий пароль', pw_weak: 'Пароль слишком короткий', pw_ok: 'Пароль изменён',
   consent_title: 'Согласие на обработку данных', consent_text: 'Портал хранит ваши данные: зарплату и KPI (видите только вы и бухгалтерия), отметки прихода и, если включено, геолокацию и фото. Фото удаляются автоматически через заданный срок.', consent_btn: 'Согласен',
   // главная
@@ -41,7 +41,7 @@ const uz: Partial<Record<Key, string>> = {
   nav_home: 'Bosh sahifa', nav_path: 'Mening yo‘lim', nav_pay: 'Maosh va KPI', nav_att: 'Keldim', nav_kb: 'Savol-javob', nav_assist: 'Operator yordamchisi', nav_team: 'Jamoa',
   nav_admin: 'Boshqaruv', nav_profile: 'Profil', nav_tools: 'Vositalar', nav_logout: 'Chiqish', tab_path: 'Yo‘l', tab_pay: 'Maosh', tab_att: 'Keldim', tab_kb: 'Savol',
   login_title: 'Qadam’ga kirish', login_sub: 'Xodimlar o‘sishi platformasi', login_id: 'Login yoki tabel raqami', login_pw: 'Parol', login_btn: 'Kirish',
-  login_bad: 'Login yoki parol noto‘g‘ri', login_locked: 'Urinishlar ko‘p. 15 daqiqa kuting.',
+  login_bad: 'Login yoki parol noto‘g‘ri', login_locked: 'Urinishlar ko‘p. Biroz kutib, qayta urinib ko‘ring.',
   pw_title: 'Yangi parol', pw_sub: 'Bu birinchi kirish — o‘z parolingizni kiriting (kamida 8 belgi).', pw_new: 'Yangi parol', pw_old: 'Joriy parol', pw_weak: 'Parol juda qisqa', pw_ok: 'Parol o‘zgartirildi',
   consent_title: 'Ma’lumotlarni qayta ishlashga rozilik', consent_text: 'Portal ma’lumotlaringizni saqlaydi: maosh va KPI (faqat siz va buxgalteriya ko‘radi), kelish belgilari va yoqilgan bo‘lsa geolokatsiya va foto. Fotolar belgilangan muddatdan so‘ng avtomatik o‘chiriladi.', consent_btn: 'Roziman',
   hello: 'Assalomu alaykum', home_sub: 'Bugungi muhim narsalar', home_pay: 'Mening maoshim', home_kb: 'Javob topish', home_kb_ph: 'Masalan: avans qachon', home_assist: 'Operator yordamchisi', home_assist_sub: 'Skriptlar, xato kodlari, amoCRM kartalari', home_path: 'Lavozimga tayyorlik', no_data: 'Hozircha ma’lumot yo‘q',

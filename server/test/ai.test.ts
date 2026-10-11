@@ -279,7 +279,7 @@ test('Панель супервайзера: только своя ветка; �
   const names = p.items.map((i: any) => i.name);
   assert.ok(names.includes('Азиз Р.') && names.includes('Дилноза К.'));
   assert.ok(!names.includes('Складской Один'), 'чужая ветка в панель не попадает');
-  assert.ok(p.items.every((i: any) => i.signal === null), 'сигналов без ИИ нет');
+  assert.ok(p.items.every((i: any) => i.signal === null), 'данных для сигнала ещё нет — сигналов нет (сам сигнал от ИИ не зависит, см. тест A6)');
   assert.ok(p.items[0].stats.training && 'activity' in p.items[0].stats && 'late14' in p.items[0].stats);
   assert.ok((await get(boss, '/api/panel')).json().items.map((i: any) => i.name).includes('Складской Один'));
   assert.ok((await get(head, '/api/panel')).json().items.length >= p.items.length, 'руководитель отдела видит ветку целиком');
@@ -340,6 +340,31 @@ test('Мягкий сигнал: прямому руководителю и HR; 
   assert.match((await send(adm, 'POST', '/api/panel/hints', {})).json().ai.detail ?? 'Rate limit', /Rate limit/);
   assert.equal((await get(sv1, '/api/panel')).statusCode, 200);
   failWith = null;
+});
+
+test('A6: сигнал «стоит поговорить» считается правилами и виден без ИИ (ИИ нужен только для текста совета)', async () => {
+  const o2 = await uid('op2');
+  const sv = await login('rustam'), hr = await login('hr'), head = await login('head'), adm = await login('admin', 'admin-test-1');
+  const find = (r: any) => r.json().items.find((i: any) => i.id === o2);
+  await pool.query('DELETE FROM signal_dismissals'); await pool.query('DELETE FROM user_leaves');
+  const on = (aiOn(), find(await get(sv, '/api/panel')));
+  assert.equal(on.signal?.level, 'talk', 'с ИИ сигнал есть (данные из предыдущего теста)');
+  aiOff();
+  const p = (await get(sv, '/api/panel')).json();
+  assert.equal(p.ai.available, false);
+  const off = p.items.find((i: any) => i.id === o2);
+  assert.equal(off.signal?.level, 'talk', 'без ИИ сигнал по-прежнему показывается');
+  assert.deepEqual(off.signal.reasons, on.signal.reasons, 'причины те же, что и с ИИ');
+  assert.ok(find(await get(hr, '/api/panel')).signal, 'HR видит сигнал без ИИ');
+  assert.equal(find(await get(head, '/api/panel')).signal, null, 'вышестоящему (не прямому) руководителю — по-прежнему нет');
+  assert.equal(find(await get(adm, '/api/panel')).signal, null, 'админу — по-прежнему нет');
+  // текст совета от ИИ без ключа не приходит, но карточка не ломается
+  const hints = await send(sv, 'POST', '/api/panel/hints', {});
+  assert.equal(hints.statusCode, 200); assert.deepEqual(hints.json().hints, {});
+  // «не актуально» работает и без ИИ
+  assert.equal((await send(sv, 'POST', `/api/panel/signal/${o2}/dismiss`, { days: 14 })).statusCode, 200);
+  assert.equal(find(await get(sv, '/api/panel')).signal, null);
+  await pool.query('DELETE FROM signal_dismissals');
 });
 
 test('Помощник супервайзера: сценарии, встроенная и ИИ-проверка, план, вопросы; оператору закрыт', async () => {
@@ -430,11 +455,13 @@ test('Несколько моделей: если первая не отвеча
   process.env.OPENROUTER_API_KEY = 'or-key'; process.env.OPENROUTER_MODEL = 'bad/model, good/model , third/model';
   try {
     const op = await login('op1'), adm = await login('admin', 'admin-test-1');
-    orCalls.length = 0; orFail.clear(); orFail.add('bad/model');
+    // сначала идёт модель самой функции (наставник: claude-sonnet-5-5), запасные из списка — только при сбое
+    const own = 'anthropic/claude-sonnet-5.5';
+    orCalls.length = 0; orFail.clear(); orFail.add(own); orFail.add('bad/model');
     const r = await send(op, 'POST', '/api/growth/mentor', { message: 'Как развиваться дальше?' });
     assert.equal(r.statusCode, 200);
     assert.equal(r.json().reply, 'Ответ запасной модели');
-    assert.deepEqual(orCalls, ['bad/model', 'good/model'], 'после сбоя первой взялась вторая, третья не понадобилась');
+    assert.deepEqual(orCalls, [own, 'bad/model', 'good/model'], 'после сбоя первых двух взялась следующая, третья не понадобилась');
     const log = (await get(adm, '/api/admin/ai/log')).json().items;
     assert.ok(log.some((l: any) => l.model === 'bad/model' && !l.ok && /следующую модель/.test(l.error)), 'неудача первой модели видна в журнале');
     assert.ok(log.some((l: any) => l.model === 'good/model' && l.ok), 'успех записан на ту модель, что ответила');
@@ -442,8 +469,8 @@ test('Несколько моделей: если первая не отвеча
     orCalls.length = 0; orFail.add('good/model'); orFail.add('third/model');
     const bad = await send(adm, 'POST', '/api/growth/mentor', { message: 'Ещё вопрос про рост и развитие?' });
     assert.equal(bad.statusCode, 502);
-    assert.match(bad.json().detail, /Не ответила ни одна модель из списка \(bad\/model, good\/model, third\/model\)/);
-    assert.equal(orCalls.length, 3);
+    assert.match(bad.json().detail, /Не ответила ни одна модель из списка \(anthropic\/claude-sonnet-5\.5, bad\/model, good\/model, third\/model\)/);
+    assert.equal(orCalls.length, 4);
     assert.equal((await get(adm, '/api/panel')).statusCode, 200, 'портал продолжает работать');
   } finally { delete process.env.OPENROUTER_API_KEY; delete process.env.OPENROUTER_MODEL; orFail.clear(); }
 });

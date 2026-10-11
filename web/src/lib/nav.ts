@@ -2,15 +2,18 @@
 import { app, has, can } from './state.svelte';
 import { st } from './s18n';
 import { wt } from './w18n';
+import { pickLanding, normPath } from './nav-core';
 
 export interface NavItem { id: string; label: string; href: string; icon: string; badge?: number; section?: string }
 export interface NavGroup { id: string; label: string; icon: string; items: NavItem[] }
 
 /** Пункт меню → раздел из набора подразделения (см. server/src/access.ts). Пунктов вне набора это не касается. */
 const ITEM_SECTION: Record<string, string> = { home: 'home', news: 'news', path: 'path', tasks: 'tasks', growth: 'growth', plan: 'plan', trainer: 'trainer', ready: 'ready', tests: 'tests', library: 'library', kb: 'kb', assist: 'assist', help: 'help', chat: 'chat', team: 'team', structure: 'structure', schedule: 'schedule', pay: 'pay' };
+/** Что открывает адрес «/»: главная; если её закрыли для подразделения — первый доступный из списка. */
+export const landing = (): string => pickLanding(can);
 /** Первый сегмент маршрута → раздел (для закрытия страницы, если открыли по ссылке). */
 export function routeSection(parts: string[]): string | null {
-  const h = parts[0] ?? '';
+  const h = parts[0] || landing();
   if (h === 'training') return parts[1] === 'trainer' ? 'trainer' : parts[1] === 'ready' ? 'ready' : 'plan';
   if (h === 'profile' && parts[1] === 'pay') return 'pay';
   if (h === 'pay') return 'pay';
@@ -26,10 +29,11 @@ export function navGroups(chatBadge = 0): NavGroup[] {
     { id: 'learn', label: wt('g_learn'), icon: 'training', items: [
       it('plan', wt('i_plan'), '/training', 'training', undefined, 'training'), it('trainer', wt('i_trainer'), '/training/trainer', 'chat', undefined, 'training'), it('tests', st('n_tests'), '/tests', 'tests', undefined, 'tests'),
       it('library', st('n_library'), '/library', 'library', undefined, 'library'), it('ready', wt('i_ready'), '/training/ready', 'att', undefined, 'training'), it('growth', wt('i_growth'), '/growth', 'growth', undefined, 'internal'),
-      ...(has('manager', 'head', 'hr') ? [it('assistant', wt('i_assistant'), '/assistant', 'assist', undefined, 'internal')] : []),
     ] },
     { id: 'know', label: wt('g_know'), icon: 'kb', items: [
       it('kb', st('n_kb'), '/kb', 'kb', undefined, 'kb'), it('assist', st('n_assist'), '/assist', 'assist', undefined, 'internal'), it('help', wt('i_help'), '/help', 'more'),
+      // руководителям: помощник и очередь вопросов — рядом с базой знаний, а не в «Управлении»
+      ...(has('manager', 'head', 'hr') ? [it('assistant', wt('i_assistant'), '/assistant', 'assist', undefined, 'internal'), it('queue', wt('i_queue'), '/queue', 'kb', undefined, 'internal')] : []),
     ] },
     { id: 'people', label: wt('g_people'), icon: 'team', items: [
       it('chat', st('n_chat'), '/chat', 'chat', chatBadge, 'chat'),
@@ -45,7 +49,6 @@ export function navGroups(chatBadge = 0): NavGroup[] {
   const manage: NavItem[] = [
     ...(has('admin', 'hr', 'accountant', 'editor', 'head') ? [it('admin', st('n_admin'), '/admin', 'admin')] : []),
     ...(has('manager', 'head', 'hr') ? [it('reports', wt('i_reports'), '/reports', 'path')] : []),
-    ...(has('manager', 'head', 'hr') ? [it('queue', wt('i_queue'), '/queue', 'kb')] : []),
     ...(has('manager', 'head', 'hr', 'editor') ? [it('editor', wt('i_editor'), '/editor', 'news')] : []),
   ];
   if (manage.length) groups.push({ id: 'manage', label: wt('g_manage'), icon: 'admin', items: manage });
@@ -63,11 +66,8 @@ export function navGroups(chatBadge = 0): NavGroup[] {
   })).filter((g) => g.items.length);
 }
 
-/** Текущий маршрут → путь для сравнения (пустой маршрут — это чат). */
-export const normRoute = (route: string) => {
-  const p = '/' + route.split('?')[0].split('/').filter(Boolean).join('/');
-  return p === '/' ? '/chat' : p;
-};
+/** Текущий маршрут → путь для сравнения (пустой маршрут — это главная). */
+export const normRoute = (route: string) => normPath(route, landing());
 /** Активный пункт — с самым длинным совпавшим префиксом пути. */
 export function activeItem(groups: NavGroup[], route: string): { group: string; item: string } | null {
   const r = normRoute(route);

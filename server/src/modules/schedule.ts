@@ -221,18 +221,32 @@ export async function scheduleRoutes(app: FastifyInstance) {
     if (items.reduce((n, i) => n + i.days.length, 0) > 3000) return reply.code(400).send({ error: 'too_many' });
     const { ok } = await editable(u, items.map((i) => i.id));
     const okIds = new Set(ok.map((t) => t.id));
-    let changed = 0, skipped = 0;
+    // Заявки сотрудников массовое действие не трогает:
+    //  · «ждёт решения» (pending) не перезаписывается и не «одобряется молча» — такие заявки решают через «Одобрить / Отклонить»;
+    //  · «очистить» не удаляет ни ждущие заявки, ни выходные, которые сотрудник попросил сам и ему одобрили.
+    // Такие ячейки возвращаются в `kept`, интерфейс показывает их руководителю.
+    let changed = 0, skipped = 0, kept = 0;
+    const touched: number[] = [];
     for (const it of items) {
       if (!okIds.has(it.id)) { skipped += it.days.length; continue; }
-      if (action === 'clear') await q('DELETE FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[])', [it.id, it.days]);
-      else await q(
-        `INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) SELECT $1,d,$3,'approved',$4,$4,now() FROM unnest($2::date[]) d
-         ON CONFLICT (user_id,day) DO UPDATE SET kind=$3,status='approved',decided_by=$4,decided_at=now(),shift_start=NULL,shift_end=NULL`, [it.id, it.days, action, u.id]);
-      changed += it.days.length;
+      let n: number;
+      if (action === 'clear') {
+        n = (await q(
+          `DELETE FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[]) AND status<>'pending' AND NOT (status='approved' AND requested_by=user_id)`, [it.id, it.days])).rowCount ?? 0;
+        kept += (await q(`SELECT count(*)::int AS n FROM schedule_days WHERE user_id=$1 AND day = ANY($2::date[]) AND (status='pending' OR (status='approved' AND requested_by=user_id))`, [it.id, it.days])).rows[0].n;
+      } else {
+        n = (await q(
+          `INSERT INTO schedule_days(user_id,day,kind,status,requested_by,decided_by,decided_at) SELECT $1,d,$3,'approved',$4,$4,now() FROM unnest($2::date[]) d
+           ON CONFLICT (user_id,day) DO UPDATE SET kind=$3,status='approved',decided_by=$4,decided_at=now(),shift_start=NULL,shift_end=NULL
+           WHERE schedule_days.status<>'pending'`, [it.id, it.days, action, u.id])).rowCount ?? 0;
+        kept += it.days.length - n;
+      }
+      changed += n;
+      if (n) touched.push(it.id);
     }
-    await notify(items.filter((i) => okIds.has(i.id)).map((i) => i.id), 'dayoff', '📅', '#schedule', '#/schedule');
-    await audit(req, 'schedule_bulk', null as any, { action, cells: changed, people: okIds.size });
-    return { changed, skipped };
+    await notify(touched, 'dayoff', '📅', '#schedule', '#/schedule');
+    await audit(req, 'schedule_bulk', null as any, { action, cells: changed, people: okIds.size, kept });
+    return { changed, skipped, kept };
   });
 
   // постоянный график сразу нескольким: «стандартный» = часы из политики и один плавающий выходной в неделю (фиксированных нет)
