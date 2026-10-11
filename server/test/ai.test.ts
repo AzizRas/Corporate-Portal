@@ -9,6 +9,7 @@ process.env.DATABASE_URL = `${base}/portal_test_ai`;
 process.env.ADMIN_PASSWORD = 'admin-test-1';
 process.env.UPLOAD_DIR = '/tmp/portal-test-uploads-ai';
 delete process.env.ANTHROPIC_API_KEY; delete process.env.OPENROUTER_API_KEY;
+process.env.PANEL_CACHE_MS = '0';      // эти тесты меняют данные между запросами к панели: кэш (10 мин) им мешает
 
 let app: Awaited<ReturnType<typeof import('../src/app.js').buildApp>>;
 let pool: pg.Pool;
@@ -18,6 +19,8 @@ const realFetch = globalThis.fetch;
 const calls: { system: string; user: string }[] = [];
 let respond: (system: string, user: string) => string = () => '{}';
 let failWith: string | null = null;
+/** system у запроса к Anthropic теперь список блоков (для кэша подсказок): тесты читают его как текст */
+const sysText = (s: any) => (Array.isArray(s) ? s.map((b: any) => b.text).join('\n\n') : s);
 const orCalls: string[] = [];
 const orFail = new Set<string>();
 
@@ -52,9 +55,9 @@ before(async () => {
     if (!String(url).includes('anthropic.com')) return realFetch(url, init);
     const body = JSON.parse(init.body);
     const user = body.messages.map((m: any) => m.content).join('\n');
-    calls.push({ system: body.system, user });
+    calls.push({ system: sysText(body.system), user });
     if (failWith) return { ok: false, json: async () => ({ error: { message: failWith } }) } as any;
-    return { ok: true, json: async () => ({ content: [{ type: 'text', text: respond(body.system, user) }], usage: { input_tokens: 100, output_tokens: 50 } }) } as any;
+    return { ok: true, json: async () => ({ content: [{ type: 'text', text: respond(sysText(body.system), user) }], usage: { input_tokens: 100, output_tokens: 50 } }) } as any;
   }) as any;
 });
 after(async () => { globalThis.fetch = realFetch; delete process.env.ANTHROPIC_API_KEY; await app.close(); await pool.end(); });

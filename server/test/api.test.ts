@@ -681,7 +681,7 @@ test('ИИ по базе знаний: ответ только со ссылка
   let mode: 'ok' | 'none' | 'fail' = 'ok';
   const art = (await pool.query(`SELECT id FROM kb_articles WHERE title_ru ILIKE '%зарплат%' LIMIT 1`)).rows[0].id;
   globalThis.fetch = (async (_u: any, init: any) => {
-    const body = JSON.parse(init.body); prompts.push(body.system);
+    const body = JSON.parse(init.body); prompts.push(Array.isArray(body.system) ? body.system.map((b: any) => b.text).join('\n\n') : body.system);
     if (mode === 'fail') return { ok: false, json: async () => ({ error: { message: 'Insufficient credits' } }) } as any;
     const json = mode === 'ok' ? { found: true, answer: 'Аванс до 25 числа.', sources: [art, 999999] } : { found: false };
     return { ok: true, json: async () => ({ content: [{ type: 'text', text: JSON.stringify(json) }] }) } as any;

@@ -108,7 +108,7 @@ export async function aiReviewCandidate(o: {
     o.lang === 'uz' ? 'Пиши все текстовые поля ответа на узбекском языке (латиницей).' : 'Пиши все текстовые поля ответа на русском языке.',
   ].join('\n\n');
   const used: { model?: string } = {};      // в журнал оценки пишем ту модель, что реально ответила, а не ту, что просили
-  const out = await aiCall({ role: 'recruiter', user: o.user, model: MODEL(), system: REVIEW_SYSTEM, messages: [{ role: 'user', content: msg }], maxTokens: 1800, ref: `hire_review:${o.pipelineId}`, used });
+  const out = await aiCall({ role: 'recruiter', user: o.user, model: MODEL(), system: REVIEW_SYSTEM, messages: [{ role: 'user', content: msg }], maxTokens: 1800, ref: `hire_review:${o.pipelineId}`, used, think: true });
   const review = sanitizeReview(parseJson(out), o.others.map((v) => v.id));
   return review ? { review, model: used.model || MODEL() } : null;
 }

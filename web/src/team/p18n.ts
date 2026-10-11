@@ -5,7 +5,7 @@ const ru: Record<string, string> = {
   // панель
   p_title: 'Панель супервайзера', p_sub: 'Обычная рабочая статистика по вашей команде',
   p_people: 'Людей', p_inactive: 'Без активности', p_overdue: 'Просрочено задач', p_leave: 'В отпуске', p_questions: 'Открытых вопросов',
-  p_empty: 'В вашей зоне пока нет сотрудников.', p_load_err: 'Не удалось загрузить панель. Попробуйте позже.', p_loading: 'Загрузка…',
+  p_empty: 'В вашей зоне пока нет сотрудников.', p_search: 'Найти сотрудника', p_nomatch: 'Никого не нашли', p_more: 'Показать ещё ({n})', p_shown: 'Показано {a} из {b}', p_load_err: 'Не удалось загрузить панель. Попробуйте позже.', p_loading: 'Загрузка…',
   p_intern: 'Стажёр', p_staff: 'В штате', p_on_leave: 'в отпуске / на больничном',
   p_learning: 'Обучение', p_lessons: 'уроков {a} из {b}', p_no_course: 'не назначено',
   p_tests: 'Тесты', p_tests_n: 'пройдено {n}', p_last: 'последний {n}%', p_none: '—',
@@ -37,7 +37,7 @@ const ru: Record<string, string> = {
 const uz: Record<string, string> = {
   p_title: 'Supervayzer paneli', p_sub: 'Jamoangiz bo‘yicha oddiy ish statistikasi',
   p_people: 'Odamlar', p_inactive: 'Faolliksiz', p_overdue: 'Muddati o‘tgan vazifalar', p_leave: 'Ta’tilda', p_questions: 'Ochiq savollar',
-  p_empty: 'Sizning hududingizda hozircha xodimlar yo‘q.', p_load_err: 'Panelni yuklab bo‘lmadi. Keyinroq urinib ko‘ring.', p_loading: 'Yuklanmoqda…',
+  p_empty: 'Sizning hududingizda hozircha xodimlar yo‘q.', p_search: 'Xodimni qidirish', p_nomatch: 'Hech kim topilmadi', p_more: 'Yana ko‘rsatish ({n})', p_shown: '{b} tadan {a} tasi ko‘rsatildi', p_load_err: 'Panelni yuklab bo‘lmadi. Keyinroq urinib ko‘ring.', p_loading: 'Yuklanmoqda…',
   p_intern: 'Stajyor', p_staff: 'Shtatda', p_on_leave: 'ta’tilda / kasallik varaqasida',
   p_learning: 'O‘qitish', p_lessons: '{b} tadan {a} dars', p_no_course: 'tayinlanmagan',
   p_tests: 'Testlar', p_tests_n: 'topshirilgan: {n}', p_last: 'oxirgisi {n}%', p_none: '—',

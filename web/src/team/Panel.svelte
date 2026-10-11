@@ -14,23 +14,34 @@
   let dismissed: Record<number, boolean> = $state({});
   let toast = $state('');
 
-  const items = $derived<Item[]>(data?.items ?? []);
+  const items = $derived<Item[]>(shown);
   const sum = $derived(data?.summary);
   const aiOn = $derived(data?.ai?.available === true);
   const isAdminNote = $derived(!!data?.ai && data.ai.available === false && !!data.ai.reason);
   const today = new Date().toISOString().slice(0, 10);
   const flash = (m: string) => { toast = m; setTimeout(() => (toast = ''), 3500); };
 
-  async function load() {
+  // Зона может быть в сотни людей: сервер отдаёт страницами по PAGE человек (сначала те, у кого сигнал или признаки), есть поиск по имени.
+  const PAGE = 40;
+  let shown: Item[] = $state([]), total = $state(0), needle = $state(''), more = $state(false);
+  let tm: ReturnType<typeof setTimeout>;
+  async function load(append = false) {
     try {
-      data = await api.get('/api/panel');
-      if (data.ai?.available) loadHints();
-    } catch { failed = true; } finally { loading = false; }
+      const offset = append ? shown.length : 0;
+      const r = await api.get(`/api/panel?limit=${PAGE}&offset=${offset}${needle.trim() ? `&q=${encodeURIComponent(needle.trim())}` : ''}`);
+      data = r; total = r.total; shown = append ? [...shown, ...r.items] : r.items;
+      if (r.ai?.available) loadHints(r.items);
+    } catch { failed = true; } finally { loading = false; more = false; }
   }
-  async function loadHints() {
+  const onSearch = () => { clearTimeout(tm); tm = setTimeout(() => load(), 300); };
+  const loadMore = () => { more = true; load(true); };
+  // подсказки ИИ — по запросу и только тем, кому они нужны (есть признаки или сигнал), не больше 12 за раз
+  async function loadHints(list: Item[]) {
+    const ids = list.filter((p) => p.flags.length || p.signal).slice(0, 12).map((p) => p.id);
+    if (!ids.length) return;
     try {
-      const r = await api.post('/api/panel/hints', {});
-      hints = r.hints ?? {};
+      const r = await api.post('/api/panel/hints', { ids });
+      hints = { ...hints, ...(r.hints ?? {}) };
       if (r.ai?.error) { aiErr = true; aiDetail = r.ai.detail ?? ''; }
     } catch { /* подсказок просто нет */ }
   }
@@ -85,7 +96,8 @@
     {#if isAdminNote}<p class="muted xs" style="margin:-6px 0 14px">{pt('p_ai_off')}: {data.ai.reason}</p>{/if}
     {#if aiErr && aiDetail}<p class="muted xs" style="margin:-6px 0 14px">{pt('p_ai_err')}. {pt('p_ai_detail')}: {aiDetail}</p>{/if}
 
-    {#if !items.length}<p class="muted">{pt('p_empty')}</p>{/if}
+    {#if sum.people > PAGE || needle}<input type="search" class="psearch" placeholder={pt('p_search')} aria-label={pt('p_search')} bind:value={needle} oninput={onSearch} />{/if}
+    {#if !items.length}<p class="muted">{needle ? pt('p_nomatch') : pt('p_empty')}</p>{/if}
     <div class="cards">
       {#each items as p (p.id)}
         {@const s = p.stats}
@@ -142,6 +154,7 @@
         </article>
       {/each}
     </div>
+    {#if items.length < total}<div class="row" style="justify-content:center;margin-top:18px;gap:12px"><button class="btn" disabled={more} onclick={loadMore}>{pt('p_more', { n: total - items.length })}</button><span class="muted xs">{pt('p_shown', { a: items.length, b: total })}</span></div>{/if}
   {/if}
   {#if toast}<div class="alert ok toast-p">{toast}</div>{/if}
 </section>
@@ -183,6 +196,7 @@
 
 <style>
   .panel { margin-bottom: 36px; }
+  .psearch { max-width: 360px; margin-bottom: 14px; }
   .ph { margin-bottom: 16px; } .ph h2 { font-size: 24px; letter-spacing: -.01em; }
   .sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
   .tile { padding: 16px 18px; border-radius: 22px; display: flex; flex-direction: column; gap: 2px; }

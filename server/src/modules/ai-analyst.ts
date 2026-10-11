@@ -9,12 +9,13 @@ import { signalOf, workStats, type SignalReason, type WorkStats } from '../ai-co
 import { orgNodes, pathName } from '../org-core.js';
 import { tzDate } from '../settings.js';
 import { queueScopeSql } from './questions.js';
+import { dropPanelCache, panelCacheGet, panelCacheSet, type PanelCache } from '../panel-cache.js';
 
 const REASON_RU: Record<SignalReason, string> = { activity_drop: 'активность в портале заметно упала', late: 'частые опоздания', quality_drop: 'результаты в обучении снизились', tasks_overdue: 'просрочены задачи', mood_low: 'настроение ниже обычного' };
 
 /** Кого видит панель: админ и HR — всех, супервайзер и руководитель отдела — свою ветку, старший оператор — свою группу. */
 export async function panelScope(u: AuthUser): Promise<number[] | null> {
-  if (hasRole(u, 'admin') || u.roles.includes('hr')) return (await q('SELECT id FROM users WHERE active AND id<>$1 ORDER BY name LIMIT 300', [u.id])).rows.map((r) => r.id);
+  if (hasRole(u, 'admin') || u.roles.includes('hr')) return (await q('SELECT id FROM users WHERE active AND id<>$1 ORDER BY name LIMIT 5000', [u.id])).rows.map((r) => r.id);   // раньше было 300 по алфавиту: остальных HR не видел вовсе; страницы режутся уже в /api/panel
   if (u.roles.includes('manager') || u.roles.includes('head')) return teamIds(u);
   if (u.roles.includes('senior') && u.node_id != null) return (await q('SELECT id FROM users WHERE active AND id<>$1 AND node_id=$2', [u.id, u.node_id])).rows.map((r) => r.id);
   return null;
@@ -41,6 +42,35 @@ export function flagsOf(s: WorkStats): string[] {
 const line = (n: { id: number; name: string; position: string }, s: WorkStats, reasons: SignalReason[]) =>
   `id=${n.id} | ${n.name} | ${n.position} | активность 14д: ${s.activity.now14} (раньше ${s.activity.prev14}) | уроков ${s.training.lessons_done}/${s.training.lessons_total} | тестов ${s.tests.taken}${s.tests.last?.pct != null ? `, последний ${s.tests.last.pct}%` : ''} | тренажёр ${s.trainer.avg_now ?? '—'} (раньше ${s.trainer.avg_prev ?? '—'}) | опозданий за 14д: ${s.late14} | просрочено задач: ${s.tasks.overdue} | ждут тестов: ${s.tests.pending_old}${reasons.length ? ` | признаки: ${reasons.map((r) => REASON_RU[r]).join(', ')}` : ''}`;
 
+async function panelData(u: AuthUser, scope: number[]): Promise<PanelCache> {
+  const hit = panelCacheGet(u.id);
+  if (hit) return hit;
+  const all = await orgNodes();
+  const stats = await workStats(scope);
+  const people = (await q(`SELECT id,name,position,avatar_v,employment,node_id,manager_id,status FROM users WHERE id = ANY($1::int[])`, [scope])).rows;
+  const dismissed = new Set<number>((await q(`SELECT user_id FROM signal_dismissals WHERE by_user=$1 AND until >= $2::date`, [u.id, tzDate()])).rows.map((r) => r.user_id));
+  const items = people.map((p) => {
+    const s = stats.get(p.id)!;
+    const sig = signalOf(s);
+    // сигнал считается правилами и от ИИ не зависит; ИИ нужен только для текста совета
+    const show = mayHearSignal(u, p) && sig.level === 'talk' && !dismissed.has(p.id);
+    return {
+      id: p.id, name: p.name, position: p.position, avatar_v: p.avatar_v, employment: p.employment, status: p.status, node_path: pathName(all, p.node_id),
+      stats: { training: s.training, tests: s.tests, trainer: s.trainer, activity: s.activity, late14: s.late14, tasks: s.tasks, leave: s.leave, mood_trend: s.mood.n >= 2 ? trend(s.mood.now, s.mood.prev) : null },
+      flags: flagsOf(s),
+      signal: show ? { level: 'talk', reasons: sig.reasons } : null,
+    };
+  });
+  // сначала те, у кого сигнал, потом по числу признаков, остальные по алфавиту (раньше брались первые 300 по алфавиту, и важные случаи могли не попасть в список)
+  items.sort((a, b) => (b.signal ? 1 : 0) - (a.signal ? 1 : 0) || b.flags.length - a.flags.length || a.name.localeCompare(b.name));
+  const queue = hasRole(u, 'manager', 'head', 'hr') ? queueScopeSql(u) : null;
+  const open = queue ? (await q(`SELECT count(*)::int n FROM open_questions o WHERE o.status IN ('new','in_progress') AND ${queue.sql}`, queue.params)).rows[0].n : null;
+  const summary = { people: items.length, inactive: items.filter((i) => i.flags.includes('inactive')).length, overdue: items.reduce((n, i) => n + i.stats.tasks.overdue, 0), on_leave: items.filter((i) => i.stats.leave.now).length, with_signal: items.filter((i) => i.signal).length, open_questions: open };
+  const fresh: PanelCache = { at: new Date().toISOString(), ts: Date.now(), items, summary };
+  panelCacheSet(u.id, fresh);
+  return fresh;
+}
+
 export async function aiAnalystRoutes(app: FastifyInstance) {
   const auth = { preHandler: requireAuth };
 
@@ -58,32 +88,20 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
   });
 
   /* ----- панель ----- */
+  // Расчёт по всей зоне дорогой (десятки запросов на сотни людей), поэтому он кэшируется на 10 минут на руководителя; страницы режутся из кэша.
   app.get('/api/panel', auth, async (req, reply) => {
     const u = req.user!, scope = await panelScope(u);
     if (!scope) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
+    const qs = req.query as { offset?: string; limit?: string; q?: string };
+    const limit = Math.min(100, Math.max(1, Number(qs.limit) || 40)), offset = Math.max(0, Number(qs.offset) || 0);
     const st = await aiStatus('analyst');
-    const all = await orgNodes();
-    const stats = await workStats(scope);
-    const people = (await q(`SELECT id,name,position,avatar_v,employment,node_id,manager_id,status FROM users WHERE id = ANY($1::int[]) ORDER BY name`, [scope])).rows;
-    const dismissed = new Set<number>((await q(`SELECT user_id FROM signal_dismissals WHERE by_user=$1 AND until >= $2::date`, [u.id, tzDate()])).rows.map((r) => r.user_id));
-    const items = people.map((p) => {
-      const s = stats.get(p.id)!;
-      const sig = signalOf(s);
-      // сигнал считается правилами и от ИИ не зависит; ИИ нужен только для текста совета
-      const show = mayHearSignal(u, p) && sig.level === 'talk' && !dismissed.has(p.id);
-      return {
-        id: p.id, name: p.name, position: p.position, avatar_v: p.avatar_v, employment: p.employment, status: p.status, node_path: pathName(all, p.node_id),
-        stats: { training: s.training, tests: s.tests, trainer: s.trainer, activity: s.activity, late14: s.late14, tasks: s.tasks, leave: s.leave, mood_trend: s.mood.n >= 2 ? trend(s.mood.now, s.mood.prev) : null },
-        flags: flagsOf(s),
-        signal: show ? { level: 'talk', reasons: sig.reasons } : null,
-      };
-    });
-    const queue = hasRole(u, 'manager', 'head', 'hr') ? queueScopeSql(u) : null;
-    const open = queue ? (await q(`SELECT count(*)::int n FROM open_questions o WHERE o.status IN ('new','in_progress') AND ${queue.sql}`, queue.params)).rows[0].n : null;
+    const c = await panelData(u, scope);
+    const needle = String(qs.q ?? '').trim().toLowerCase();
+    const list = needle ? c.items.filter((i) => `${i.name} ${i.position}`.toLowerCase().includes(needle)) : c.items;
     return {
       ai: { available: st.available, reason: hasRole(u, 'admin') ? st.reason : null },
-      summary: { people: items.length, inactive: items.filter((i) => i.flags.includes('inactive')).length, overdue: items.reduce((n, i) => n + i.stats.tasks.overdue, 0), on_leave: items.filter((i) => i.stats.leave.now).length, open_questions: open },
-      items: items.sort((a, b) => (b.signal ? 1 : 0) - (a.signal ? 1 : 0) || b.flags.length - a.flags.length || a.name.localeCompare(b.name)),
+      summary: c.summary, computed_at: c.at, total: list.length, offset, limit,
+      items: list.slice(offset, offset + limit),
     };
   });
 
@@ -131,6 +149,7 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     if (!t || !mayHearSignal(u, t)) return reply.code(403).send({ error: 'forbidden' });
     const days = Math.min(90, Math.max(1, Number((req.body as any)?.days) || 14));
     await q(`INSERT INTO signal_dismissals(user_id,by_user,until) VALUES($1,$2,$3::date + $4::int) ON CONFLICT (user_id,by_user) DO UPDATE SET until=$3::date + $4::int`, [id, u.id, tzDate(), days]);
+    dropPanelCache(u.id);
     await audit(req, 'signal_dismiss', String(id), { days });
     return { ok: true };
   });

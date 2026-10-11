@@ -43,21 +43,45 @@ export function openrouterChain(model: string): string[] {
   const own = openrouterSlug(model);
   return [...new Set([own.includes(':') ? own : own + suffix, ...env])];
 }
-const TIMEOUT_MS = 45_000;
+/** Системная подсказка из двух частей: общая (стиль, одинаковый для всех запросов) и своя у каждой функции. Общая идёт первой, чтобы кэш подсказок срабатывал. */
+export interface SysParts { shared: string; specific: string }
+export const joinSys = (s: SysParts) => (s.shared ? `${s.shared}\n\n${s.specific}` : s.specific);
 
-async function openrouter(model: string, system: string, messages: Msg[], maxTokens: number): Promise<Reply> {
+/** Лимиты ожидания: на одну модель 20 с (для длинных ответов больше, до 45 с), на всю цепочку 60 с. Раньше было 45 с × число моделей: пользователь ждал минуты. */
+const envMs = (k: string, d: number) => (Number(process.env[k]) > 0 ? Number(process.env[k]) : d);      // AI_CHAIN_DEADLINE_MS и AI_ATTEMPT_MS нужны тестам
+export const chainDeadlineMs = () => envMs('AI_CHAIN_DEADLINE_MS', 60_000);
+export const attemptTimeoutMs = (maxTokens: number) => envMs('AI_ATTEMPT_MS', Math.min(45_000, 20_000 + Math.max(0, maxTokens - 1000) * 10));
+
+/** Рассуждение модели (медленнее и дороже) включаем только там, где оно даёт качество: аналитик руководителя и ИИ-оценка кандидата. */
+export const thinksByDefault = (role: AiRole) => role === 'analyst';
+
+const CACHE = { type: 'ephemeral' } as const;
+/** Тело запроса к OpenRouter. Для моделей Anthropic общая и своя части подсказки помечаются для кэша: повторные запросы берут их по сниженной цене. */
+export function openrouterBody(model: string, sys: SysParts, messages: Msg[], maxTokens: number, think: boolean) {
+  const system = model.startsWith('anthropic/') && sys.shared
+    ? { role: 'system', content: [{ type: 'text', text: sys.shared, cache_control: CACHE }, { type: 'text', text: sys.specific, cache_control: CACHE }] }
+    : { role: 'system', content: joinSys(sys) };
+  return {
+    model,
+    // у reasoning-моделей «размышления» тоже считаются в лимит, поэтому при рассуждении даём запас
+    max_tokens: think ? maxTokens + 2500 : maxTokens,
+    ...(think ? { reasoning: { effort: 'low' } } : {}),
+    usage: { include: true },
+    messages: [system, ...messages],
+  };
+}
+/** Тело запроса к Anthropic напрямую, с теми же пометками кэша. */
+export const anthropicBody = (model: string, sys: SysParts, messages: Msg[], maxTokens: number) => ({
+  model, max_tokens: maxTokens, messages,
+  system: sys.shared ? [{ type: 'text', text: sys.shared, cache_control: CACHE }, { type: 'text', text: sys.specific, cache_control: CACHE }] : sys.specific,
+});
+
+async function openrouter(model: string, sys: SysParts, messages: Msg[], maxTokens: number, think: boolean, timeoutMs: number): Promise<Reply> {
   const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'x-title': 'Qadam Portal' },
-    signal: AbortSignal.timeout(TIMEOUT_MS),       // «не отвечает» — тоже повод перейти к следующей модели
-    body: JSON.stringify({
-      model,
-      // у reasoning-моделей «размышления» тоже считаются в лимит, поэтому даём запас и просим короткое рассуждение
-      max_tokens: maxTokens + 2500,
-      reasoning: { effort: 'low' },
-      usage: { include: true },
-      messages: [{ role: 'system', content: system }, ...messages],
-    }),
+    signal: AbortSignal.timeout(timeoutMs),       // «не отвечает» — тоже повод перейти к следующей модели
+    body: JSON.stringify(openrouterBody(model, sys, messages, maxTokens, think)),
   });
   const j: any = await r.json();
   if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
@@ -67,16 +91,23 @@ async function openrouter(model: string, system: string, messages: Msg[], maxTok
   return { text: out, tokens_in: j.usage?.prompt_tokens ?? 0, tokens_out: j.usage?.completion_tokens ?? 0, cost: typeof j.usage?.cost === 'number' ? j.usage.cost : null, model };
 }
 
+export interface ProviderOpts { think?: boolean; prices?: { in: number; out: number }; onFail?: (model: string, err: string) => Promise<void> }
+
 /** Низкий уровень: один запрос к провайдеру (OpenRouter с запасными моделями или Anthropic). aiCall следит за стоимостью, кэшем и журналом. */
-async function provider(model: string, system: string, messages: Msg[], maxTokens: number, onFail?: (model: string, err: string) => Promise<void>): Promise<Reply> {
+async function provider(model: string, sys: SysParts, messages: Msg[], maxTokens: number, o: ProviderOpts = {}): Promise<Reply> {
+  const think = !!o.think, per = attemptTimeoutMs(maxTokens), total = chainDeadlineMs(), deadline = Date.now() + total, minAttempt = Math.min(2_000, total / 4);
   if (process.env.OPENROUTER_API_KEY) {
     const list = openrouterChain(model);
-    let last = 'ai_error';
+    let last = 'ai_error', tried = 0;
     for (const [i, m] of list.entries()) {
-      try { return await openrouter(m, system, messages, maxTokens); }
+      const left = deadline - Date.now();
+      if (tried > 0 && left < minAttempt) { last = `общий лимит ожидания ${Math.round(total / 1000)} с исчерпан`; break; }
+      tried++;
+      const timeout = Math.max(minAttempt, Math.min(per, left));
+      try { return await openrouter(m, sys, messages, maxTokens, think, timeout); }
       catch (e: any) {
-        last = String(e?.name === 'TimeoutError' ? `таймаут ${TIMEOUT_MS / 1000} с` : e?.message ?? e).slice(0, 300);
-        if (i < list.length - 1) await onFail?.(m, last);       // запишем неудачу и пойдём к запасной модели
+        last = String(e?.name === 'TimeoutError' ? `таймаут ${Math.round(timeout / 1000)} с` : e?.message ?? e).slice(0, 300);
+        if (i < list.length - 1) await o.onFail?.(m, last);       // запишем неудачу и пойдём к запасной модели
       }
     }
     throw new Error(list.length > 1 ? `Не ответила ни одна модель из списка (${list.join(', ')}). Последняя ошибка: ${last}` : last);
@@ -86,18 +117,21 @@ async function provider(model: string, system: string, messages: Msg[], maxToken
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages }),
+    signal: AbortSignal.timeout(per),
+    body: JSON.stringify(anthropicBody(model, sys, messages, maxTokens)),
   });
   const j: any = await r.json();
   if (!r.ok) throw new Error(j?.error?.message || 'ai_error');
-  return { text: (j.content || []).map((c: any) => c.text || '').join('').trim(), tokens_in: j.usage?.input_tokens ?? 0, tokens_out: j.usage?.output_tokens ?? 0, cost: null, model };
+  const u = j.usage ?? {}, write = u.cache_creation_input_tokens ?? 0, read = u.cache_read_input_tokens ?? 0;
+  // запись в кэш дороже обычного входа на 25%, чтение — в 10 раз дешевле
+  const cost = o.prices && (write || read) ? ((u.input_tokens ?? 0) * o.prices.in + write * o.prices.in * 1.25 + read * o.prices.in * 0.1 + (u.output_tokens ?? 0) * o.prices.out) / 1e6 : null;
+  return { text: (j.content || []).map((c: any) => c.text || '').join('').trim(), tokens_in: (u.input_tokens ?? 0) + write + read, tokens_out: u.output_tokens ?? 0, cost, model };
 }
 
 /** Устаревший прямой вызов (без учёта и лимитов) — оставлен для совместимости; новый код использует aiCall. */
 export async function claude(model: string, system: string, messages: Msg[], maxTokens = 700) {
   if (!aiEnabled()) return null;
-  return (await provider(model, system + `\n\n${process.env.AI_STYLE || AI_VOICE}`, messages, maxTokens)).text;
+  return (await provider(model, { shared: process.env.AI_STYLE || AI_VOICE, specific: system }, messages, maxTokens)).text;
 }
 
 /* =================== ядро ИИ: роли, лимит стоимости, кэш, журнал =================== */
@@ -132,6 +166,8 @@ const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
 export interface AiCallOpts {
   role: AiRole; user?: { id: number } | null; model: string; system: string; messages: Msg[]; maxTokens?: number;
+  /** Рассуждение модели: по умолчанию только у аналитика (см. thinksByDefault). */
+  think?: boolean;
   /** Сюда записывается модель, которая реально ответила (при сбое первой это запасная). */
   used?: { model?: string };
   /** Кэшировать одинаковые запросы: число часов хранения (true = 24 ч). */
@@ -140,7 +176,8 @@ export interface AiCallOpts {
 export async function aiCall(o: AiCallOpts): Promise<string> {
   const st = await aiStatus(o.role);
   if (!st.available) throw new AiUnavailable(st.reason!);
-  const system = `${o.system}\n\n${await aiStyle()}`;
+  const parts: SysParts = { shared: await aiStyle(), specific: o.system };
+  const system = joinSys(parts);
   guardPrompt(system + o.messages.map((m) => m.content).join('\n'));
   const key = o.cache ? sha(`${o.role}|${o.model}|${system}|${JSON.stringify(o.messages)}`) : null;
   if (key) {
@@ -154,7 +191,10 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
   }
   const cfg = await aiConfig();
   try {
-    const r = await provider(o.model, system, o.messages, o.maxTokens ?? 700, (m, err) => q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, m, `${err} → пробуем следующую модель`]).then(() => undefined));
+    const r = await provider(o.model, parts, o.messages, o.maxTokens ?? 700, {
+      think: o.think ?? thinksByDefault(o.role), prices: cfg.prices,
+      onFail: (m, err) => q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, m, `${err} → пробуем следующую модель`]).then(() => undefined),
+    });
     const tin = r.tokens_in || Math.round((system.length + o.messages.reduce((n, m) => n + m.content.length, 0)) / 4), tout = r.tokens_out || Math.round(r.text.length / 4);
     const cost = r.cost ?? (tin * cfg.prices.in + tout * cfg.prices.out) / 1e6;
     if (o.used) o.used.model = r.model || o.model;
