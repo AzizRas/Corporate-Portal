@@ -47,8 +47,8 @@
   }
   load();
   // сводка по подразделениям: только HR и администратор
-  let units: any[] = $state([]);
-  if (app.user?.roles.some((r) => r === 'hr' || r === 'admin')) api.get('/api/panel/units').then((r) => (units = r.units ?? [])).catch(() => {});
+  let units: any[] = $state([]), sigs: any = $state(null);
+  if (app.user?.roles.some((r) => r === 'hr' || r === 'admin')) api.get('/api/panel/units').then((r) => { units = r.units ?? []; sigs = r.signals ?? null; }).catch(() => {});
 
   async function talked(p: Item) {
     try { await api.post(`/api/panel/signal/${p.id}/dismiss`, { talked: true }); dismissed[p.id] = true; flash(pt('p_talked_ok')); }
@@ -108,6 +108,7 @@
     {#if units.length}
       <section class="card units">
         <h3 class="card-title">{pt('u_title')}</h3><p class="muted xs">{pt('u_sub')}</p>
+        {#if sigs && (sigs.open || sigs.closed.talked.n || sigs.closed.gone.n || sigs.closed.dismissed.n)}<p class="xs muted">{pt('sg_line', { open: sigs.open, om: sigs.open_median_days ?? '—', tn: sigs.closed.talked.n, tm: sigs.closed.talked.median_days ?? '—', gn: sigs.closed.gone.n, gm: sigs.closed.gone.median_days ?? '—', dn: sigs.closed.dismissed.n, d: sigs.days })}</p>{/if}
         <table><thead><tr><th>{pt('u_unit')}</th><th>{pt('u_people')}</th><th>{pt('u_high')}</th><th>{pt('u_loweng')}</th></tr></thead>
           <tbody>{#each units as r}<tr><td>{r.unit}</td><td>{r.people}</td><td><b class={r.high_load_pct >= 25 ? 'pill-warn' : ''}>{r.high_load_pct}%</b> <span class="muted xs">({pt('u_prev')}: {r.prev_pct}%)</span></td><td>{r.low_engagement_pct}%</td></tr>{/each}</tbody></table>
       </section>
