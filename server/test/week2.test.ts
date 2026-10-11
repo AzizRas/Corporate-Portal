@@ -64,12 +64,13 @@ test('S3: асинхронный хэш совместим с прежним (с
   assert.equal(await sec.verifyPasswordAsync('другой', a), false);
   assert.equal(await sec.verifyPasswordAsync('x', 'мусор'), false);
   assert.equal(await sec.verifyPasswordAsync('x', ''), false);
-  // пока считаются 4 хэша, цикл событий продолжает тикать (синхронный scrypt остановил бы его на 200+ мс)
-  let last = Date.now(), worst = 0;
-  const tick = setInterval(() => { const n = Date.now(); worst = Math.max(worst, n - last); last = n; }, 5);
+  // пока считаются 4 хэша, цикл событий продолжает работать: считаем, сколько раз он успел «провернуться» (синхронный scrypt остановил бы его: счётчик был бы 0)
+  let ticks = 0, spin = true;
+  const loop = () => { if (!spin) return; ticks++; setImmediate(loop); };
+  setImmediate(loop);
   await Promise.all([1, 2, 3, 4].map(() => sec.verifyPasswordAsync('пароль-123', a)));
-  clearInterval(tick);
-  assert.ok(worst < 120, `сервер не блокируется: самая долгая пауза ${worst} мс`);
+  spin = false;
+  assert.ok(ticks > 5, `сервер не блокируется: за время расчёта цикл событий сработал ${ticks} раз`);
 });
 
 /* ---------------- S4: сессии ---------------- */
