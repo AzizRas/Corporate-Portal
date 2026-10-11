@@ -22,5 +22,5 @@
     </ul>
   {:else}<span class="pill mid">{at('sc_noaddr')}</span>{/if}
   {#if s.note}<div class="box gap">{s.note}</div>{/if}
-  {#if s.addrs.length}<div><button class="cp" style="margin:0" onclick={() => copy(scClientText(s), at('copied'))}>{at('copy_client')}</button></div>{/if}
+  {#if s.addrs.length}<div><button class="cp u-1169661" onclick={() => copy(scClientText(s), at('copied'))}>{at('copy_client')}</button></div>{/if}
 </div>

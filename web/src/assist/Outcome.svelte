@@ -90,13 +90,13 @@
   const regUz = $derived(String(D.UZ.reg).replace('___', d7));
 </script>
 
-<div class="ticket" style="--pc:{pc}">
+<div class="ticket" style:--pc={pc}>
   <div class="tkhead">
     <span class="badge-k">{at('bd_' + o.k)}</span>
     <h3>{o.title}</h3>
   </div>
   <div class="tkmeta">
-    {#if sla}<div><div class="k">{at('priority')}</div><div class="v" style="color:{pc}">{sla.n}</div></div>{/if}
+    {#if sla}<div><div class="k">{at('priority')}</div><div class="v" style:color={pc}>{sla.n}</div></div>{/if}
     <div><div class="k">{at('stage')}</div><div class="v">{spec.stage}</div></div>
     {#if svc}<div><div class="k">{at('term_client')}</div><div class="v">{spec.urgent ? at('term_urgent') : at('term_plan', { d: d7 })}</div></div>
     {:else if spec.obr && spec.obr !== '—'}<div><div class="k">Тип обращения</div><div class="v">{spec.obr}</div></div>{/if}
@@ -120,9 +120,9 @@
     {#if svc}
       <div class="as-h5">{at('sticker_h')}</div>
       <div class="as-fields">
-        <label class="f" style="margin:0">{at('model_lbl')}<input autocomplete="off" placeholder="7WM4S1070GCS1" bind:value={A.extras.model} /></label>
-        <label class="f" style="margin:0">{at('pdate_lbl')}<input type="date" max={isoDay(today())} bind:value={A.extras.pdate} /></label>
-        <label class="f" style="margin:0">{at('code_lbl')}<input autocomplete="off" placeholder="E21" bind:value={A.extras.code} /></label>
+        <label class="f u-1169661">{at('model_lbl')}<input autocomplete="off" placeholder="7WM4S1070GCS1" bind:value={A.extras.model} /></label>
+        <label class="f u-1169661">{at('pdate_lbl')}<input type="date" max={isoDay(today())} bind:value={A.extras.pdate} /></label>
+        <label class="f u-1169661">{at('code_lbl')}<input autocomplete="off" placeholder="E21" bind:value={A.extras.code} /></label>
       </div>
       <ModelRes raw={A.extras.model} curApp={app} />
       {#if w}
@@ -156,16 +156,16 @@
         </div>
 
         {#if svc}
-          <div class="as-lbl5">{at('desc_h')} <span style="color:var(--bad)">*</span> — {at('desc_t')}</div>
+          <div class="as-lbl5">{at('desc_h')} <span class="u-83ef854">*</span> — {at('desc_t')}</div>
           <textarea class="desc" rows="3" aria-label={at('desc_h')} bind:value={descVal} oninput={() => (descDirty = true)}></textarea>
           <div class="acts">
-            <button class="cp" style="margin:0" onclick={() => copy(descVal, at('desc_copied'))}>{at('desc_copy')}</button>
-            <button class="cp" style="margin:0" onclick={() => { descDirty = false; descVal = descAuto; }}>{at('desc_regen')}</button>
+            <button class="cp u-1169661" onclick={() => copy(descVal, at('desc_copied'))}>{at('desc_copy')}</button>
+            <button class="cp u-1169661" onclick={() => { descDirty = false; descVal = descAuto; }}>{at('desc_regen')}</button>
           </div>
           <div class="as-lbl5">{at('ask_h')}</div>
           <ul class="chk">
             {#each ASK as a, i}
-              <li><label><input type="checkbox" bind:checked={checks[i]} /><span>{a.n}{#if a.req} <b style="color:var(--bad)">*</b>{/if}<span class="fmt">{a.f}</span></span></label></li>
+              <li><label><input type="checkbox" bind:checked={checks[i]} /><span>{a.n}{#if a.req} <b class="u-83ef854">*</b>{/if}<span class="fmt">{a.f}</span></span></label></li>
             {/each}
           </ul>
           <div class="box" class:ok={reqDone && devOk} class:gap={!(reqDone && devOk)}>
@@ -184,17 +184,17 @@
     {#if svc && info}
       <details class="wcard">
         <summary><b>{at('warr_of', { n: brand.n })}</b> · {info.t}</summary>
-        {#if !info.exact}<div class="box gap" style="margin-top:10px">{at('warr_general')}</div>{/if}
-        {#if brand.conflict}<div class="box warn" style="margin-top:10px"><b>{at('warr_conflict')}.</b> {at('warr_conflict_t')}</div>{/if}
-        <div class="wrow" style="margin-top:10px">
+        {#if !info.exact}<div class="box gap u-d2c171b">{at('warr_general')}</div>{/if}
+        {#if brand.conflict}<div class="box warn u-d2c171b"><b>{at('warr_conflict')}.</b> {at('warr_conflict_t')}</div>{/if}
+        <div class="wrow u-d2c171b">
           <div><span class="yes">{at('covers')}</span><ul>{#each info.cov as c}<li>{c}</li>{/each}</ul></div>
           <div><span class="no">{at('not_covers')}</span><ul>{#each info.exc.slice(0, 9) as c}<li>{c}</li>{/each}</ul></div>
         </div>
-        <p class="as-hint" style="margin-top:10px">{at('warr_nodecide')}</p>
+        <p class="as-hint u-d2c171b">{at('warr_nodecide')}</p>
       </details>
       <details class="wcard">
         <summary><b>{at('sc_addr_h')}</b> · {at('sc_addr_t')}</summary>
-        <div style="margin-top:10px"><ScPick label={at('sc_region')} /></div>
+        <div class="u-d2c171b"><ScPick label={at('sc_region')} /></div>
       </details>
     {/if}
 

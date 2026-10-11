@@ -139,15 +139,15 @@
 <header class="page-head">
   <div><h1>{wt('o_title')}<PageHelp topic="structure" /></h1><p class="sub">{wt('o_sub')}</p></div>
   {#if canLife}
-    <div class="head-actions row" style="gap:8px;flex-wrap:wrap">
+    <div class="head-actions row u-6447294">
       <a class="btn sm" href="/api/org/export.xlsx" download>{wt('o_export')}</a>
-      {#if canEdit}<label class="btn sm" style="cursor:pointer">{wt('o_import')}<input type="file" accept=".xlsx" class="sr" onchange={pickImport} /></label>{/if}
+      {#if canEdit}<label class="btn sm u-3b6a3a6">{wt('o_import')}<input type="file" accept=".xlsx" class="sr" onchange={pickImport} /></label>{/if}
     </div>
   {/if}
 </header>
 
-{#if app.user?.acting}<div class="alert info" style="margin-bottom:14px">{wt('o_acting')}</div>{/if}
-{#if toast}<div class="alert" style="margin-bottom:14px">{toast}</div>{/if}
+{#if app.user?.acting}<div class="alert info u-2b583d7">{wt('o_acting')}</div>{/if}
+{#if toast}<div class="alert u-2b583d7">{toast}</div>{/if}
 
 <nav class="tabs">
   <button class:on={tab === 'chart'} onclick={() => (tab = 'chart')}>{ot('tabChart')}</button>
@@ -157,7 +157,7 @@
 </nav>
 
 {#if imp}
-  <section class="card stack" style="margin-bottom:16px">
+  <section class="card stack u-87c136d">
     {#if imp.res.errors?.length}
       <h3 class="card-title">{wt('o_import_err')}</h3>
       <div class="list">{#each imp.res.errors as e}<div><span class="small">{e.sheet ? `${e.sheet}, ` : ''}{e.row ? `строка ${e.row}: ` : ''}{e.msg}</span></div>{/each}</div>
@@ -180,18 +180,18 @@
   {#if !tree}<span class="spin"></span>{:else}
   <div class="org-grid">
     <section class="card org-tree">
-      {#if canEdit}<p class="muted xs" style="margin-bottom:8px">{wt('o_move_hint')}</p>{/if}
+      {#if canEdit}<p class="muted xs u-fdf33f2">{wt('o_move_hint')}</p>{/if}
       {#snippet branch(pid: number | null, depth: number)}
         {#each kids.get(pid) ?? [] as n (n.id)}
           {@const ch = kids.get(n.id) ?? []}
           <div class="tn">
-            <div class="tn-row" class:sel={selected === n.id} class:drop={dropId === n.id} style="padding-left:{6 + depth * 18}px"
+            <div class="tn-row" class:sel={selected === n.id} class:drop={dropId === n.id} style:padding-left={`${6 + depth * 18}px`}
               role="treeitem" aria-selected={selected === n.id} tabindex="0" draggable={canEdit && n.kind !== 'root'}
               ondragstart={() => (dragId = n.id)} ondragend={() => { dragId = null; dropId = null; }}
               ondragover={(e) => { const d = dragId != null ? byId.get(dragId) : null; if (d && canDrop(d, n)) { e.preventDefault(); dropId = n.id; } }}
               ondragleave={() => dropId === n.id && (dropId = null)} ondrop={(e) => { e.preventDefault(); drop(n); }}
               onclick={() => pick(n)} onkeydown={(e) => e.key === 'Enter' && pick(n)}>
-              {#if ch.length}<button class="tn-t" aria-label="toggle" onclick={(e) => { e.stopPropagation(); open[n.id] = !(open[n.id] ?? depth < 2); }}><svg viewBox="0 0 24 24" style="transform:rotate({(open[n.id] ?? depth < 2) ? 90 : 0}deg)"><path d="M9 6l6 6-6 6" /></svg></button>{:else}<span class="tn-t"></span>{/if}
+              {#if ch.length}<button class="tn-t" aria-label="toggle" onclick={(e) => { e.stopPropagation(); open[n.id] = !(open[n.id] ?? depth < 2); }}><svg viewBox="0 0 24 24" style:transform="rotate({(open[n.id] ?? depth < 2) ? 90 : 0}deg)"><path d="M9 6l6 6-6 6" /></svg></button>{:else}<span class="tn-t"></span>{/if}
               <span class="tn-k k-{n.kind}">{kindL(n.kind)}</span>
               <b class="tn-n">{nm(n)}</b>
               {#if n.head}<span class="muted xs tn-h">{n.head.name}</span>{/if}
@@ -206,15 +206,15 @@
 
     <section class="card org-node stack">
       {#if sel}
-        <div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap">
-          <div style="min-width:0;flex:1">
+        <div class="row u-0b30386">
+          <div class="u-829299a">
             <div class="muted xs">{kindL(sel.kind)}{#if sel.kind !== 'root'} · {pathOf(sel.id)}{/if}</div>
-            <h2 style="margin:2px 0">{nm(sel)}</h2>
-            <div class="small muted">{wt('o_head')}: <b style="color:var(--text)">{sel.head?.name ?? wt('o_no_head')}</b> · {wt('o_direct')}: {sel.direct} · {wt('o_total')}: {sel.total}</div>
-            {#if sel.kind === 'external'}<div class="small" style="margin-top:6px">{wt('o_external_note')}<br />{#each sel.allowed as s}<span class="chip" style="margin:4px 4px 0 0">{wt(`o_s_${s}`)}</span>{/each}</div>{/if}
+            <h2 class="u-66dc289">{nm(sel)}</h2>
+            <div class="small muted">{wt('o_head')}: <b class="u-f045bbe">{sel.head?.name ?? wt('o_no_head')}</b> · {wt('o_direct')}: {sel.direct} · {wt('o_total')}: {sel.total}</div>
+            {#if sel.kind === 'external'}<div class="small u-fe7b497">{wt('o_external_note')}<br />{#each sel.allowed as s}<span class="chip u-b9d445e">{wt(`o_s_${s}`)}</span>{/each}</div>{/if}
           </div>
           {#if canEdit}
-            <div class="row wrap" style="gap:6px">
+            <div class="row wrap u-f0abc1d">
               {#if tree.child_kinds[sel.kind]?.length}<button class="btn sm" onclick={() => show('add', { node: sel })}>{wt('o_add_in')}</button>{/if}
               <button class="btn sm" onclick={() => show('edit', { node: sel })}>{wt('o_edit')}</button>
               {#if sel.kind !== 'root'}
@@ -241,7 +241,7 @@
                   <div class="muted xs">{p.position}</div>
                 </div>
                 {#if canLife || isLead}
-                  <div class="row wrap" style="gap:6px;justify-content:flex-end">
+                  <div class="row wrap u-a042bcd">
                     {#if canLife}<button class="btn sm" onclick={() => show('transfer', { person: p })}>{wt('o_a_transfer')}</button>{/if}
                     {#if canLife && p.employment === 'intern'}<button class="btn sm" onclick={() => show('staff', { person: p })}>{wt('o_a_staff')}</button>{/if}
                     <button class="btn sm" onclick={() => show('leave', { person: p })}>{wt('o_a_leave')}</button>
@@ -261,10 +261,10 @@
     {#if !archive.length}<p class="muted">{wt('o_arch_none')}</p>{:else}
       <div class="list">
         {#each archive as p (p.id)}
-          <div style="align-items:flex-start;gap:12px;flex-wrap:wrap">
-            <span style="min-width:0"><b>{p.name}</b> <span class="muted xs">({p.login})</span><br /><span class="muted xs">{p.position} · {p.node_path}</span><br />
+          <div class="u-0b30386">
+            <span class="u-3922d32"><b>{p.name}</b> <span class="muted xs">({p.login})</span><br /><span class="muted xs">{p.position} · {p.node_path}</span><br />
               <span class="xs">{wt('o_dismissed')}: {p.dismissed_at ? fmtDate(p.dismissed_at) : '—'}{#if p.dismiss_reason} · {wt('o_reason_l')}: {p.dismiss_reason}{/if}</span></span>
-            <span class="row" style="gap:6px"><button class="btn sm" onclick={() => show('restore', { person: p })}>{wt('o_restore')}</button>
+            <span class="row u-f0abc1d"><button class="btn sm" onclick={() => show('restore', { person: p })}>{wt('o_restore')}</button>
               {#if canEdit}<button class="btn sm danger" onclick={() => show('purge', { person: p })}>{wt('o_delete_person')}</button>{/if}</span>
           </div>
         {/each}
@@ -274,14 +274,14 @@
 {:else if tab === 'log'}
   <section class="card">
     {#if !log.length}<p class="muted">{wt('o_log_none')}</p>{:else}
-      <div class="list">{#each log as l (l.id)}<div style="align-items:flex-start"><span><b>{logL(l.action)}</b> <span class="muted xs">{metaTxt(l.meta)}</span></span><span class="muted xs" style="text-align:right">{l.by_name ?? '—'}<br />{fmtDateTime(l.created_at)}</span></div>{/each}</div>
+      <div class="list">{#each log as l (l.id)}<div class="u-0486f78"><span><b>{logL(l.action)}</b> <span class="muted xs">{metaTxt(l.meta)}</span></span><span class="muted xs u-54c2afb">{l.by_name ?? '—'}<br />{fmtDateTime(l.created_at)}</span></div>{/each}</div>
     {/if}
   </section>
 {:else}
   <section class="card stack">
     <h3 class="card-title">{wt('o_deleg_title')}</h3>
     <p class="muted small">{wt('o_deleg_hint')}</p>
-    <button class="btn grad" style="align-self:flex-start" onclick={() => show('deleg')}>{wt('o_deleg_add')}</button>
+    <button class="btn grad u-c9adc42" onclick={() => show('deleg')}>{wt('o_deleg_add')}</button>
     {#if !deleg.length}<p class="muted small">{wt('o_deleg_none')}</p>{:else}
       <div class="list">{#each deleg as d (d.id)}<div><span class="small">{d.from_name} → <b>{d.to_name}</b> · {fmtDate(d.from_date)} — {fmtDate(d.to_date)}</span>
         {#if d.from_user_id === app.user?.id || canEdit}<button class="btn sm" onclick={() => dropDeleg(d.id)}>{wt('o_cancel')}</button>{/if}</div>{/each}</div>
@@ -304,7 +304,7 @@
           <label class="f">→<select bind:value={f.parent}>{#each parents(dlg.node) as p}<option value={p.id}>{kindL(p.kind)}: {nm(p)}</option>{/each}</select></label>
         {/if}
         {#if (dlg.type === 'add' && f.kind === 'external') || (dlg.type === 'edit' && dlg.node.kind === 'external')}
-          <div><div class="muted small">{wt('o_allowed')}</div><div class="row wrap" style="gap:6px;margin-top:6px">
+          <div><div class="muted small">{wt('o_allowed')}</div><div class="row wrap u-48807bc">
             {#each sectionsAll as s}<button type="button" class="chip" class:on={f.allowed.includes(s)} onclick={() => toggleSec(s)}>{f.allowed.includes(s) ? '✓ ' : ''}{wt(`o_s_${s}`)}</button>{/each}</div></div>
         {/if}
       {:else if dlg.type === 'delete'}
@@ -318,8 +318,8 @@
         <h2>{wt('o_a_staff')}: {dlg.person.name}</h2><p class="muted">{wt('o_e_intern')} → {wt('o_e_staff')}</p>
       {:else if dlg.type === 'leave'}
         <h2>{wt('o_a_leave')}: {dlg.person.name}</h2>
-        <div class="tabs" style="margin:0"><button type="button" class:on={f.leave === 'vacation'} onclick={() => (f.leave = 'vacation')}>{wt('o_vacation')}</button><button type="button" class:on={f.leave === 'sick'} onclick={() => (f.leave = 'sick')}>{wt('o_sick')}</button></div>
-        <div class="row" style="gap:10px"><label class="f" style="flex:1;margin:0">{wt('o_from')}<input type="date" bind:value={f.from} required /></label><label class="f" style="flex:1;margin:0">{wt('o_to')}<input type="date" bind:value={f.to} required /></label></div>
+        <div class="tabs u-1169661"><button type="button" class:on={f.leave === 'vacation'} onclick={() => (f.leave = 'vacation')}>{wt('o_vacation')}</button><button type="button" class:on={f.leave === 'sick'} onclick={() => (f.leave = 'sick')}>{wt('o_sick')}</button></div>
+        <div class="row u-f3d7ce7"><label class="f u-5d50d57">{wt('o_from')}<input type="date" bind:value={f.from} required /></label><label class="f u-5d50d57">{wt('o_to')}<input type="date" bind:value={f.to} required /></label></div>
         <label class="f">{wt('o_deputy')}<select bind:value={f.deputy}><option value="">{wt('o_none')}</option>{#each allPeople.filter((p) => p.id !== dlg!.person.id) as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
         <p class="muted small">{wt('o_leave_note')}</p>
       {:else if dlg.type === 'dismiss'}
@@ -328,17 +328,17 @@
         <p class="muted small">{wt('o_dismiss_warn')}</p>
       {:else if dlg.type === 'restore'}
         <h2>{wt('o_restore')}: {dlg.person.name}</h2>
-        {#if result}<div class="alert ok" style="user-select:all">{result}</div>{/if}
+        {#if result}<div class="alert ok u-28fa523">{result}</div>{/if}
       {:else if dlg.type === 'purge'}
         <h2>{wt('o_delete_person')}</h2><p class="muted">{wt('o_delete_hint')} <b>{dlg.person.name}</b></p><input bind:value={f.confirm} required placeholder={dlg.person.name} />
       {:else if dlg.type === 'deleg'}
         <h2>{wt('o_deleg_title')}</h2>
         <label class="f">{wt('o_deleg_to')}<select bind:value={f.to_user} required><option value="">{wt('o_pick')}</option>{#each allPeople.filter((p) => p.id !== app.user?.id) as p}<option value={p.id}>{p.name} — {p.position}</option>{/each}</select></label>
-        <div class="row" style="gap:10px"><label class="f" style="flex:1;margin:0">{wt('o_from')}<input type="date" bind:value={f.from} required /></label><label class="f" style="flex:1;margin:0">{wt('o_to')}<input type="date" bind:value={f.to} required /></label></div>
+        <div class="row u-f3d7ce7"><label class="f u-5d50d57">{wt('o_from')}<input type="date" bind:value={f.from} required /></label><label class="f u-5d50d57">{wt('o_to')}<input type="date" bind:value={f.to} required /></label></div>
         <p class="muted small">{wt('o_deleg_hint')}</p>
       {/if}
       {#if err}<div class="alert">{err}</div>{/if}
-      <div class="row" style="gap:8px;justify-content:flex-end">
+      <div class="row u-9990cea">
         <button type="button" class="btn" onclick={close}>{result ? 'OK' : wt('o_cancel')}</button>
         {#if !result}<button class="btn grad" disabled={busy}>{dlg.type === 'dismiss' || dlg.type === 'delete' || dlg.type === 'purge' ? wt('o_confirm') : wt('o_save')}</button>{/if}
       </div>

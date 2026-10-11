@@ -27,7 +27,7 @@
       <div class="stack">
         <h2>{meta?.title[app.lang] ?? wt('hp_how')}</h2>
         <ol class="ph-steps">{#each text as step}<li>{step}</li>{/each}</ol>
-        <div class="row wrap" style="gap:8px;justify-content:flex-end">
+        <div class="row wrap u-9990cea">
           {#if meta?.target}<button class="btn" onclick={show}>{wt('hp_show')}</button>{/if}
           <a class="btn" href="#/help" onclick={() => (open = false)}>{wt('hp_all')}</a>
           <button class="btn grad" onclick={() => (open = false)}>{wt('tr_got')}</button>

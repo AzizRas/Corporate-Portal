@@ -33,29 +33,29 @@
 </script>
 
 {#if data}
-  <div class="card scroll-x" style="padding:16px 20px">
+  <div class="card scroll-x u-01b9273">
     <div class="card-head"><h3>Способы проверки по отделам</h3>{#if msg}<span class="pill-ok">{msg}</span>{/if}</div>
-    <p class="muted small" style="margin-bottom:12px">Если способ выключен, в интерфейсе нет соответствующего запроса (например, камеры). Строка отдела переопределяет настройки портала.</p>
+    <p class="muted small u-da12f28">Если способ выключен, в интерфейсе нет соответствующего запроса (например, камеры). Строка отдела переопределяет настройки портала.</p>
     <table class="table"><thead><tr><th>Отдел</th><th>Геолокация</th><th>Селфи</th><th>QR</th><th>Wi-Fi</th><th>Допуск, мин</th><th>Хранение фото, дн.</th><th></th></tr></thead>
       <tbody>{#each rows as r}
         <tr><td><b>{r.label}</b>{#if r.dept_id && !r._own}<div class="muted xs">наследует общие</div>{/if}</td>
-          {#each ['geo', 'selfie', 'qr', 'wifi'] as k}<td><input type="checkbox" bind:checked={r[k]} style="width:18px;height:18px;accent-color:var(--accent)" /></td>{/each}
-          <td><input type="number" bind:value={r.grace_min} style="width:80px" /></td><td><input type="number" bind:value={r.photo_days} style="width:90px" /></td>
+          {#each ['geo', 'selfie', 'qr', 'wifi'] as k}<td><input class="u-8a67e58" type="checkbox" bind:checked={r[k]} /></td>{/each}
+          <td><input class="u-8573bae" type="number" bind:value={r.grace_min} /></td><td><input class="u-581be41" type="number" bind:value={r.photo_days} /></td>
           <td class="row"><button class="btn sm grad" onclick={() => save(r)}>Сохранить</button>{#if r.dept_id && r._own}<button class="btn sm" onclick={() => resetDept(r)}>Сбросить</button>{/if}</td></tr>
       {/each}</tbody></table>
   </div>
 
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr));margin-top:24px">
+  <div class="grid u-00053bd">
     <section class="card">
       <div class="card-head"><h3>Точки (офис, склад)</h3></div>
       <div class="list">
         {#each data.points as p}
-          <div style="align-items:flex-start"><span><b>{p.name}</b><div class="muted xs">{p.lat?.toFixed(5) ?? '—'}, {p.lng?.toFixed(5) ?? '—'} · радиус {p.radius_m} м {p.active ? '' : '· выключена'}</div></span>
+          <div class="u-0486f78"><span><b>{p.name}</b><div class="muted xs">{p.lat?.toFixed(5) ?? '—'}, {p.lng?.toFixed(5) ?? '—'} · радиус {p.radius_m} м {p.active ? '' : '· выключена'}</div></span>
             <span class="row wrap"><button class="btn sm" onclick={() => here(p)}>Я здесь</button><button class="btn sm" onclick={() => openQr(p)}>QR-экран</button><button class="btn sm" onclick={() => patchPoint(p, { active: !p.active })}>{p.active ? 'Выкл' : 'Вкл'}</button></span></div>
         {/each}
       </div>
-      <h3 class="card-title" style="margin:18px 0 8px">Новая точка</h3>
-      <div class="stack"><input placeholder="Название" bind:value={np.name} /><div class="row"><input placeholder="Широта" bind:value={np.lat} /><input placeholder="Долгота" bind:value={np.lng} /><input type="number" bind:value={np.radius_m} style="width:100px" /></div><button class="btn grad" onclick={addPoint} disabled={!np.name}>Добавить</button></div>
+      <h3 class="card-title u-d4110cb">Новая точка</h3>
+      <div class="stack"><input placeholder="Название" bind:value={np.name} /><div class="row"><input placeholder="Широта" bind:value={np.lat} /><input placeholder="Долгота" bind:value={np.lng} /><input class="u-db4cf10" type="number" bind:value={np.radius_m} /></div><button class="btn grad" onclick={addPoint} disabled={!np.name}>Добавить</button></div>
     </section>
     <section class="card stack">
       <div class="card-head"><h3>IP-адреса офисного Wi-Fi</h3></div>
@@ -68,8 +68,8 @@
 {#if qrFor}
   <Modal onclose={closeQr}>
     <h2>{qrFor.name}: код входа</h2>
-    <div style="background:#fff;border-radius:20px;padding:12px;max-width:340px;margin:0 auto">{@html qrSvg}</div>
-    <p style="text-align:center;font-size:34px;font-weight:800;letter-spacing:.12em;margin:14px 0">{token}</p>
-    <p class="muted small" style="text-align:center">Код меняется каждую минуту. Откройте эту страницу на планшете у входа.</p>
+    <div class="u-3c7585e">{@html qrSvg}</div>
+    <p class="u-dc16e12">{token}</p>
+    <p class="muted small u-91a8701">Код меняется каждую минуту. Откройте эту страницу на планшете у входа.</p>
   </Modal>
 {/if}

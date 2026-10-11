@@ -60,19 +60,19 @@
     <section class="card hl tr-rdintro">
       <h2>{tt('rd_title')}</h2>
       <p class="muted">{tt('rd_sub')}</p>
-      <div class="row wrap" style="gap:8px">{#if info.ai}<span class="tag">✦ {tt('ai_on')}</span>{:else}<span class="chip" title={tt('ai_off_note')}>{tt('ai_off')}</span>{/if}
+      <div class="row wrap u-33fcd4c">{#if info.ai}<span class="tag">✦ {tt('ai_on')}</span>{:else}<span class="chip" title={tt('ai_off_note')}>{tt('ai_off')}</span>{/if}
         {#if info.cleared_at}<span class="chip tr-chip-ok">✓ {tt('rd_cleared')}</span>{/if}</div>
-      <h3 style="margin-top:18px">{tt('rd_rules')}</h3>
+      <h3 class="u-86de7ac">{tt('rd_rules')}</h3>
       <ul class="tr-rules"><li>{tt('rd_rule1')}</li><li>{tt('rd_rule2')}</li><li>{tt('rd_rule3')}</li></ul>
-      <div class="row wrap" style="margin-top:14px">
+      <div class="row wrap u-d6f2af6">
         {#if info.open}
           <button class="btn grad" disabled={busy} onclick={() => start(false)}>{tt('rd_resume')} ({tt('rd_answered', { n: info.open.answered, m: info.open.total })})</button>
           <button class="btn" disabled={busy} onclick={() => start(true)}>{tt('rd_new')}</button>
         {:else}<button class="btn grad" disabled={busy} onclick={() => start(true)}>{tt('rd_start')}</button>{/if}
       </div>
-      {#if err}<div class="alert" style="margin-top:12px">{err}</div>{/if}
+      {#if err}<div class="alert u-56f4356">{err}</div>{/if}
     </section>
-    <section class="card" style="margin-top:20px">
+    <section class="card u-a26bda7">
       <h3>{tt('rd_history')}</h3>
       {#if info.history.length}
         <ul class="tr-hist">
@@ -90,7 +90,7 @@
 {:else if view === 'run' && q}
   <section class="card tr-run">
     <div class="tr-qhead"><span class="muted small">{tt('rd_q', { n: idx + 1, m: sess.questions.length })} · <span class="tag">{tt(`area_${q.area}`)}</span></span>
-      <div class="tr-bar sm"><i style="width:{(Object.keys(ans).length / sess.questions.length) * 100}%"></i></div></div>
+      <div class="tr-bar sm"><i style:width={`${(Object.keys(ans).length / sess.questions.length) * 100}%`}></i></div></div>
     <h3 class="tr-q">{app.lang === 'uz' ? q.q_uz : q.q_ru}</h3>
     <div class="tr-opts">
       {#each q.opts as o}
@@ -111,7 +111,7 @@
 
 {:else if view === 'followup'}
   <section class="card tr-run">
-    <div class="row wrap" style="gap:10px"><h2 style="font-size:20px">{tt('rd_followup_h')}</h2><span class="tag">✦ {tt('ai_on')}</span></div>
+    <div class="row wrap u-f3d7ce7"><h2 class="u-b9199e2">{tt('rd_followup_h')}</h2><span class="tag">✦ {tt('ai_on')}</span></div>
     <p class="muted">{tt('rd_followup_t')}</p>
     {#each fq as f, i}
       <div class="tr-oq"><b>{f}</b><textarea rows="3" bind:value={fa[i]} placeholder={tt('open_ph')}></textarea></div>
@@ -131,14 +131,14 @@
     {#if res.verdict === 'ready'}<p>{tt('rd_wait_clear')}</p>{/if}
   </section>
 
-  <div class="tr-two" style="margin-top:20px">
+  <div class="tr-two u-a26bda7">
     <section class="card">
       <h3>{tt('rd_areas')}</h3>
-      <div class="stack" style="gap:12px;margin-top:12px">
+      <div class="stack u-69258de">
         {#each AREAS as a}
           {#if D.areas[a]?.n}
-            <div><div class="row" style="justify-content:space-between"><span>{tt(`area_${a}`)}</span><b class:pill-ok={D.areas[a].pct >= 85} class:pill-warn={D.areas[a].pct >= 70 && D.areas[a].pct < 85} class:pill-bad={D.areas[a].pct < 70}>{D.areas[a].ok}/{D.areas[a].n} · {D.areas[a].pct}%</b></div>
-              <div class="tr-bar sm" class:good={D.areas[a].pct >= 85}><i style="width:{D.areas[a].pct}%"></i></div></div>
+            <div><div class="row u-a562f4f"><span>{tt(`area_${a}`)}</span><b class:pill-ok={D.areas[a].pct >= 85} class:pill-warn={D.areas[a].pct >= 70 && D.areas[a].pct < 85} class:pill-bad={D.areas[a].pct < 70}>{D.areas[a].ok}/{D.areas[a].n} · {D.areas[a].pct}%</b></div>
+              <div class="tr-bar sm" class:good={D.areas[a].pct >= 85}><i style:width={`${D.areas[a].pct}%`}></i></div></div>
           {/if}
         {/each}
       </div>
@@ -148,26 +148,26 @@
       {#if D.ai_summary}<div class="tr-aisum"><span class="tag">✦ {tt('rd_summary')}</span><p>{D.ai_summary}</p></div>{/if}
       {#if D.ai_recs?.length}
         <ul class="tr-recs">{#each D.ai_recs as r}
-          <li>{r.text}{#if r.lessons.length}<div class="row wrap" style="gap:6px;margin-top:6px">{#each r.lessons as id}<a class="chip" href="#/training/lesson/{id}">{lessonTitle(id)}</a>{/each}</div>{/if}</li>
+          <li>{r.text}{#if r.lessons.length}<div class="row wrap u-48807bc">{#each r.lessons as id}<a class="chip" href="#/training/lesson/{id}">{lessonTitle(id)}</a>{/each}</div>{/if}</li>
         {/each}</ul>
       {:else if D.recs.length}
         <ul class="tr-recs">{#each D.recs as r}
           <li><b>{tt(`area_${r.area}`)} — {r.pct}%.</b> {tt('rd_repeat')}:
-            <div class="row wrap" style="gap:6px;margin-top:6px">{#each r.lessons as l}<a class="chip" href="#/training/lesson/{l.id}">{lf(l, 'title')}</a>{/each}</div></li>
+            <div class="row wrap u-48807bc">{#each r.lessons as l}<a class="chip" href="#/training/lesson/{l.id}">{lf(l, 'title')}</a>{/each}</div></li>
         {/each}</ul>
       {:else}<p class="muted">{tt('rd_recs_none')}</p>{/if}
     </section>
   </div>
 
   {#if D.followups?.length}
-    <section class="card" style="margin-top:20px"><h3>{tt('rd_followups')}</h3>
+    <section class="card u-a26bda7"><h3>{tt('rd_followups')}</h3>
       {#each D.followups as f}
         <div class="tr-oq"><b>{f.q}</b><p class="small">{f.a || '—'}</p>
           {#if f.fix}<p class="small pill-warn">{f.fix}</p>{/if}</div>
       {/each}</section>
   {/if}
 
-  <section class="card" style="margin-top:20px">
+  <section class="card u-a26bda7">
     <h3>{tt('rd_review')}</h3>
     <ol class="tr-rev">
       {#each D.review as r}

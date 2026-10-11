@@ -13,14 +13,14 @@
 
 {#if data && !data.hidden}
   <section class="card ck" data-tour="checklist">
-    <div class="row" style="align-items:center;gap:10px">
-      <h3 class="card-title" style="margin:0">{wt('ck_title')}</h3>
+    <div class="row u-2680fe3">
+      <h3 class="card-title u-1169661">{wt('ck_title')}</h3>
       <span class="chip">{wt('ck_n', { d: data.done, n: data.total })}</span>
       <span class="sp"></span>
       <button class="g-act" onclick={restartTour}>{wt('tr_restart')}</button>
       <button class="g-act" onclick={hide}>{wt('ck_hide')}</button>
     </div>
-    <div class="bar" style="margin:10px 0 12px"><i style="width:{pct}%"></i></div>
+    <div class="bar u-1b914c5"><i style:width={`${pct}%`}></i></div>
     {#if data.done === data.total}<p class="small">🎉 {wt('ck_done_all')}</p>{/if}
     <div class="ck-items">
       {#each data.items as it (it.id)}

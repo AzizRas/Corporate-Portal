@@ -60,21 +60,21 @@
   {:else if !cfg}<span class="spin"></span>
   {:else}
     <form class="card ai-form" onsubmit={save}>
-      <div class="alert" class:info={cfg.enabled} style="margin-bottom:18px">
+      <div class="alert u-905d8b3" class:info={cfg.enabled}>
         {cfg.enabled ? (cfg.provider === 'anthropic' ? at('ai_on_anthropic') : at('ai_on_openrouter')) : at('ai_no_key')}
       </div>
 
-      <label class="f">{at('ai_budget')}<input type="text" inputmode="decimal" bind:value={budget} placeholder="—" style="display:block;max-width:220px" /></label>
-      <p class="muted xs" style="margin:-8px 0 8px">{at('ai_budget_hint')}</p>
+      <label class="f">{at('ai_budget')}<input class="u-df9bce5" type="text" inputmode="decimal" bind:value={budget} placeholder="—" /></label>
+      <p class="muted xs u-7225e11">{at('ai_budget_hint')}</p>
       <label class="f">{at('ai_daily')}<input type="text" inputmode="numeric" bind:value={daily} placeholder="—" class="w-220" /></label>
       <p class="muted xs hint-tight">{at('ai_daily_hint')}</p>
       <div class="ai-meter">
         <div class="small">{limit ? at('ai_spent_of', { x: money(spent), y: money(limit) }) : at('ai_spent_nolimit', { x: money(spent) })}</div>
-        {#if limit}<div class="bar" class:good={pct < 90} style="margin-top:8px" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin="0" aria-valuemax="100"><i style="width:{pct}%"></i></div>{/if}
+        {#if limit}<div class="bar u-8a77e5a" class:good={pct < 90} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin="0" aria-valuemax="100"><i style:width={`${pct}%`}></i></div>{/if}
       </div>
 
       <h3 class="ai-h">{at('ai_roles')}</h3>
-      <p class="muted xs" style="margin-bottom:8px">{at('ai_roles_hint')}</p>
+      <p class="muted xs u-fdf33f2">{at('ai_roles_hint')}</p>
       <div class="ai-roles">
         {#each ROLES as r}
           <label class="chk ai-role"><input type="checkbox" bind:checked={roles[r]} /><span><b>{at('ai_role_' + r)}</b><span class="muted small">&nbsp;— {at('ai_role_' + r + '_d')}</span></span></label>
@@ -86,17 +86,17 @@
         <label class="f">{at('ai_price_in')}<input type="text" inputmode="decimal" bind:value={pin} /></label>
         <label class="f">{at('ai_price_out')}<input type="text" inputmode="decimal" bind:value={pout} /></label>
       </div>
-      <p class="muted xs" style="margin:-8px 0 8px">{at('ai_prices_hint')}</p>
+      <p class="muted xs u-7225e11">{at('ai_prices_hint')}</p>
 
       <h3 class="ai-h">{at('ai_style')}</h3>
       <textarea bind:value={style} maxlength="4000" rows="8" aria-label={at('ai_style')}></textarea>
-      <div class="row wrap" style="justify-content:space-between;margin-top:6px">
+      <div class="row wrap u-d51fcbe">
         <button type="button" class="btn sm" onclick={() => (style = cfg.default_style ?? '')}>{at('ai_style_default')}</button>
         <span class="muted xs">{at('ai_style_count', { n: style.length })}</span>
       </div>
-      <p class="muted xs" style="margin-top:6px">{at('ai_style_hint')}</p>
+      <p class="muted xs u-fe7b497">{at('ai_style_hint')}</p>
 
-      <div class="row wrap" style="margin-top:20px">
+      <div class="row wrap u-a26bda7">
         <button class="btn grad" disabled={saving}>{at('ai_save')}</button>
         {#if msg}<span class="small" class:pill-bad={msgBad} class:pill-ok={!msgBad} role="status">{msg}</span>{/if}
       </div>
@@ -108,8 +108,8 @@
   {:else}
     <div class="card">
       <div class="card-head"><h3>{at('ai_u_total')}</h3><span class="aside">{at('ai_u_budget')}: {usage.budget ? '$' + money(usage.budget) : at('ai_u_nolimit')}</span></div>
-      <div class="big-num" style="font-size:clamp(28px,3vw,44px)">${money(Number(usage.spent ?? 0))}</div>
-      {#if usage.reason === 'budget'}<div class="alert" style="margin-top:12px">{at('ai_u_reason_budget')}</div>{:else if usage.reason === 'no_key'}<div class="alert info" style="margin-top:12px">{at('ai_u_reason_no_key')}</div>{/if}
+      <div class="big-num u-7fa2d86">${money(Number(usage.spent ?? 0))}</div>
+      {#if usage.reason === 'budget'}<div class="alert u-56f4356">{at('ai_u_reason_budget')}</div>{:else if usage.reason === 'no_key'}<div class="alert info u-56f4356">{at('ai_u_reason_no_key')}</div>{/if}
     </div>
 
     <div class="card ai-gap">
@@ -130,11 +130,11 @@
         <div class="ai-chart" role="img" aria-label={at('ai_u_by_day')}>
           {#each days as d}
             <div class="ai-col" title="{d.day}: ${money(d.cost)} · {at('ai_u_calls_n', { n: d.calls })}">
-              <i style="height:{Math.max(4, (d.cost > 0 ? d.cost / maxDay : d.calls / maxCalls * 0.15) * 100)}%"></i>
+              <i style:height={`${Math.max(4, (d.cost > 0 ? d.cost / maxDay : d.calls / maxCalls * 0.15) * 100)}%`}></i>
             </div>
           {/each}
         </div>
-        <div class="row" style="justify-content:space-between"><span class="muted xs">{days[0].day}</span><span class="muted xs">{days[days.length - 1].day}</span></div>
+        <div class="row u-a562f4f"><span class="muted xs">{days[0].day}</span><span class="muted xs">{days[days.length - 1].day}</span></div>
       {/if}
     </div>
 
@@ -178,16 +178,16 @@
 {:else}
   <div class="card">
     <div class="card-head"><h3>{at('ai_tab_bad')}</h3></div>
-    <p class="muted small" style="margin-bottom:12px">{at('ai_b_hint')}</p>
+    <p class="muted small u-da12f28">{at('ai_b_hint')}</p>
     {#if !bad}<span class="spin"></span>
     {:else if !bad.length}<p class="muted">{at('ai_b_none')}</p>
     {:else}
       <div class="ai-bad">
         {#each bad as b (b.id)}
           <div class="ai-bad-row">
-            <div class="row wrap" style="gap:8px"><span class="chip" style="padding:2px 10px;font-size:12px">{roleName(b.role)}</span><b class="small">{b.user_name}</b><span class="muted xs">{fmtDateTime(b.at)}</span></div>
-            <div style="margin-top:6px;overflow-wrap:anywhere">{#if b.comment}{b.comment}{:else}<span class="muted">{at('ai_b_nocomment')}</span>{/if}</div>
-            <div class="muted xs" style="margin-top:2px;overflow-wrap:anywhere">{b.ref}</div>
+            <div class="row wrap u-33fcd4c"><span class="chip u-145ea9c">{roleName(b.role)}</span><b class="small">{b.user_name}</b><span class="muted xs">{fmtDateTime(b.at)}</span></div>
+            <div class="u-7487ceb">{#if b.comment}{b.comment}{:else}<span class="muted">{at('ai_b_nocomment')}</span>{/if}</div>
+            <div class="muted xs u-aa03834">{b.ref}</div>
           </div>
         {/each}
       </div>

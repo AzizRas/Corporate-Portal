@@ -49,8 +49,8 @@
   function delGoal(g: any) { const prev = goals; deferDelete(gt('goal_short'), { hide: () => (goals = goals.filter((x: any) => x.id !== g.id)), restore: () => (goals = prev), commit: async () => { await api.del(`/api/growth/goals/item/${g.id}`); await load(); } }); }
 </script>
 
-<div class="row wrap" style="margin-bottom:16px">
-  <h2 style="font-size:22px">{own ? gt('talk_mine') : emp?.name}</h2><span class="sp"></span>
+<div class="row wrap u-87c136d">
+  <h2 class="u-881f70f">{own ? gt('talk_mine') : emp?.name}</h2><span class="sp"></span>
   {#if people.length}
     <select class="g-sel" value={id} onchange={(e) => go(`/growth/talk/${e.currentTarget.value}`)}>
       <option value={me}>{gt('talk_mine')}</option>
@@ -62,12 +62,12 @@
 <div class="g-grid">
   <section class="card">
     <div class="card-head"><h3>{gt('talk_h')}</h3><span class="aside">{gt('talk_sub')}</span></div>
-    <div class="row wrap" style="margin-bottom:12px">
+    <div class="row wrap u-da12f28">
       <select class="g-sel" bind:value={template}><option value="month">{gt('talk_month')}</option><option value="stay">{gt('talk_stay')}</option></select>
       <button class="btn sm grad" onclick={newTalk}>{gt('talk_new')}</button>
     </div>
     {#if talks.length > 1}
-      <div class="tabs" style="margin-bottom:12px">{#each talks as x}<button class:on={x.id === sel} onclick={() => { sel = x.id; pick(); }}>{fmtDate(x.held_at)}</button>{/each}</div>
+      <div class="tabs u-da12f28">{#each talks as x}<button class:on={x.id === sel} onclick={() => { sel = x.id; pick(); }}>{fmtDate(x.held_at)}</button>{/each}</div>
     {/if}
     {#if cur}
       <div class="muted xs">{cur.template === 'stay' ? gt('talk_stay') : gt('talk_month')} · {fmtDate(cur.held_at)}</div>
@@ -75,30 +75,30 @@
         <div class="g-talk-q">
           <b>{i + 1}. {qn(q)}</b>
           <div class="g-two">
-            <label class="f" style="margin:0">{gt('talk_emp')}<textarea maxlength="1500" disabled={!own} bind:value={draft[i].emp}></textarea></label>
-            <label class="f" style="margin:0">{gt('talk_mgr')}<textarea maxlength="1500" disabled={!canManage} bind:value={draft[i].mgr}></textarea></label>
+            <label class="f u-1169661">{gt('talk_emp')}<textarea maxlength="1500" disabled={!own} bind:value={draft[i].emp}></textarea></label>
+            <label class="f u-1169661">{gt('talk_mgr')}<textarea maxlength="1500" disabled={!canManage} bind:value={draft[i].mgr}></textarea></label>
           </div>
         </div>
       {/each}
-      <div class="row wrap" style="margin-top:8px">
-        <label class="f" style="margin:0;flex:1;min-width:200px">{gt('talk_next')}<input type="datetime-local" bind:value={nextAt} disabled={!canManage} /></label>
-        <button class="btn grad" onclick={save} style="align-self:flex-end">{gt('save')}</button>
-        {#if saved}<span class="pill-ok small" style="align-self:flex-end">{saved}</span>{/if}
+      <div class="row wrap u-8a77e5a">
+        <label class="f u-7800929">{gt('talk_next')}<input type="datetime-local" bind:value={nextAt} disabled={!canManage} /></label>
+        <button class="btn grad u-ffd20f1" onclick={save}>{gt('save')}</button>
+        {#if saved}<span class="pill-ok small u-ffd20f1">{saved}</span>{/if}
       </div>
-    {:else}<p class="muted" style="text-align:center;padding:20px 0">{gt('talk_none')}</p>{/if}
+    {:else}<p class="muted u-6d46ebd">{gt('talk_none')}</p>{/if}
   </section>
 
   <section class="card">
     <div class="card-head"><h3>{gt('goals_h')}</h3><span class="tag">SMART</span></div>
     {#each goals as g}
-      <div style="border-top:1px solid var(--border);padding:12px 0">
-        <div class="row"><b style="flex:1">{g.title}</b>{#if g.status === 'done'}<span class="pill-ok small">✓ {gt('goal_done')}</span>{/if}
+      <div class="u-9537e11">
+        <div class="row"><b class="u-97445a8">{g.title}</b>{#if g.status === 'done'}<span class="pill-ok small">✓ {gt('goal_done')}</span>{/if}
           <button class="g-act" aria-label={gt('delete')} onclick={() => delGoal(g)}>✕</button></div>
         <div class="muted xs">{g.measure}{g.due ? ` · ${gt('goal_due')} ${g.due.slice(0, 10)}` : ''}</div>
-        <div class="row" style="margin-top:6px"><input type="range" min="0" max="100" step="10" value={g.progress} style="padding:0;accent-color:var(--accent)" onchange={(e) => prog(g, Number(e.currentTarget.value))} /><b class="small" style="width:44px;text-align:right">{g.progress}%</b></div>
+        <div class="row u-fe7b497"><input class="u-ea545dd" type="range" min="0" max="100" step="10" value={g.progress} onchange={(e) => prog(g, Number(e.currentTarget.value))} /><b class="small u-0245cae">{g.progress}%</b></div>
       </div>
     {:else}<p class="muted">{gt('goals_none')}</p>{/each}
-    <div class="stack" style="margin-top:14px;gap:10px;border-top:1px solid var(--border);padding-top:14px">
+    <div class="stack u-f09190e">
       <input maxlength="200" placeholder={gt('goal_title')} bind:value={goalTitle} />
       <input maxlength="300" placeholder={gt('goal_measure')} bind:value={gm} />
       <input type="date" bind:value={gd} />

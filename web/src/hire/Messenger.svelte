@@ -61,9 +61,9 @@
     {/each}
   </select>
   <input bind:value={subject} placeholder={ht('mTopic')} aria-label={ht('mTopic')} />
-  <textarea bind:value={body} placeholder={ht('mText')} aria-label={ht('mText')} style="min-height:170px"></textarea>
+  <textarea class="u-dddd515" bind:value={body} placeholder={ht('mText')} aria-label={ht('mText')}></textarea>
   {#if left.length}<p class="warn small">{ht('mFill', { n: left.join(' ') })}</p>{/if}
-  <div class="row wrap" style="gap:8px">
+  <div class="row wrap u-33fcd4c">
     <button type="button" class="btn grad" disabled={!body.trim() || (!tgExtra && !digits)} onclick={telegram}>{ht('mTg')}</button>
     <button type="button" class="btn" disabled={!body.trim() || (!waExtra && !digits)} onclick={whatsapp}>{ht('mWa')}</button>
     <button type="button" class="btn" disabled={!body.trim() || !applicant.email} onclick={mail}>{ht('mMail')}</button>

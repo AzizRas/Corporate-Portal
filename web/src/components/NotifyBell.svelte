@@ -64,14 +64,14 @@
               <div class="n-row" class:unread={!i.read}>
                 <button class="n-item" onclick={() => openItem(i)}>
                   <span class="ic">{kindIcon(i.kind)}</span>
-                  <div style="min-width:0"><b>{cleanTitle(i.title)}</b>{#if i.body && !i.body.startsWith('#')}<div class="muted small clip">{i.body}</div>{/if}<div class="muted xs">{fmtDateTime(i.created_at)}</div></div>
+                  <div class="u-3922d32"><b>{cleanTitle(i.title)}</b>{#if i.body && !i.body.startsWith('#')}<div class="muted small clip">{i.body}</div>{/if}<div class="muted xs">{fmtDateTime(i.created_at)}</div></div>
                 </button>
                 {#if !i.read}<button class="n-mark" title={wt('nt_mark')} aria-label={wt('nt_mark')} onclick={(e) => markOne(e, i)}><Icon name="check" /></button>{/if}
               </div>
             {/each}
           {/if}
         {/each}
-        {#if !notif.items.length && !notif.chat_total}<p class="muted small" style="padding:18px 6px">{st('nt_none')}</p>{/if}
+        {#if !notif.items.length && !notif.chat_total}<p class="muted small u-3c84007">{st('nt_none')}</p>{/if}
       </div>
       {#if 'Notification' in window}
         <div class="np-foot">

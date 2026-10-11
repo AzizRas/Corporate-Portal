@@ -32,7 +32,7 @@
   load();
 </script>
 
-<div class="row wrap" style="gap:12px;margin-bottom:16px;align-items:flex-end">
+<div class="row wrap u-7525ddd">
   <label class="f">{ht('hFromD')}<input type="date" bind:value={from} /></label>
   <label class="f">{ht('hToD')}<input type="date" bind:value={to} /></label>
   <button class="btn grad" onclick={load}>{ht('hApply')}</button>
@@ -59,7 +59,7 @@
         <div class="fcol leg">
           <div class="lh"><span>{ht('rAll')}</span><b>{fdata?.total ?? 0}</b></div>
           {#each fdata?.sources ?? [] as x}<div class="li"><i style:background={sc(x.name)}></i><span>{x.name}</span><b>{x.count}</b></div>{/each}
-          <div class="lh" style="margin-top:16px"><span>{ht('hReason')}</span><b>{reasonsTotal}</b></div>
+          <div class="lh u-1b0f499"><span>{ht('hReason')}</span><b>{reasonsTotal}</b></div>
           {#each fdata?.reasons ?? [] as x}<div class="li"><i style:background={rc(x.name)}></i><span>{x.name}</span><b>{x.count}</b></div>{:else}<p class="muted xs">{ht('rNoRej')}</p>{/each}
         </div>
       </div>
@@ -70,7 +70,7 @@
         <table class="table"><tbody>{#each ttf.vacancies as v}<tr><td>{v.title}</td><td>{v.days} {ht('hDays')}</td></tr>{/each}</tbody></table>
       {:else}<p class="muted">{ht('hNoClosed')}</p>{/if}
     </section>
-    <section class="card stack" style="overflow-x:auto"><h3 class="card-title">{ht('hRepRec')}</h3>
+    <section class="card stack u-0ddf068"><h3 class="card-title">{ht('hRepRec')}</h3>
       {#if recs.length}<table class="table"><thead><tr><th></th><th>{ht('hVacs')}</th><th>{ht('hAddedC')}</th><th>{ht('hHires')}</th></tr></thead>
         <tbody>{#each recs as r}<tr><td>{r.name}</td><td>{r.vacancies}</td><td>{r.added}</td><td><b>{r.hires}</b></td></tr>{/each}</tbody></table>
       {:else}<p class="muted">{ht('hNoItems')}</p>{/if}

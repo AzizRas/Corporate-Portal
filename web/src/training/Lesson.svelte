@@ -81,7 +81,7 @@
 {:else}
   <article class="tr-lesson">
     <header class="tr-lhead">
-      <div class="row wrap" style="gap:8px">
+      <div class="row wrap u-33fcd4c">
         <span class="chip">{tt('lesson_day', { n: L.day })}</span><span class="chip">{KIND_ICON[L.kind]} {tkind(L.kind)}</span>
         {#if done}<span class="chip tr-chip-ok">✓ {tt('st_done')}</span>{:else if failed}<span class="chip tr-chip-bad">{tt('st_failed')}</span>{/if}
       </div>
@@ -108,7 +108,7 @@
               <div class="muted small">{tt('correct_n', { n: result.correct, m: result.total })} · {tt('pass_need', { n: result.pass_score })}</div>
             </div>
           </div>
-          <div class="row wrap" style="margin:14px 0">
+          <div class="row wrap u-72373b5">
             {#if !result.passed}<button class="btn grad" disabled={busy} onclick={retake}>{tt('retake')}</button>{/if}
             {#if data.next}<a class="btn" class:grad={result.passed} href="#/training/lesson/{data.next}">{tt('next_lesson')} →</a>{/if}
           </div>
@@ -129,7 +129,7 @@
           {@const q = L.quiz[cur]}
           {@const p = picked[cur]}
           <div class="tr-qhead"><span class="muted small">{tt('q_of', { n: cur + 1, m: L.quiz.length })} · {tt('pass_need', { n: L.pass_score })}</span>
-            <div class="tr-bar sm"><i style="width:{(nAnswered / L.quiz.length) * 100}%"></i></div></div>
+            <div class="tr-bar sm"><i style:width={`${(nAnswered / L.quiz.length) * 100}%`}></i></div></div>
           <h3 class="tr-q">{lf(q, 'q')}</h3>
           <div class="tr-opts" role="group">
             {#each q.opts as o}
@@ -170,8 +170,8 @@
     <!-- ИИ «следит и проверяет» -->
     {#if (L.has_open || data.ai) && (!isQuiz || finished || nAnswered > 0)}
       <section class="card tr-ai">
-        <div class="row wrap" style="gap:10px">
-          <h3 style="margin:0">{tt('open_h')}</h3>
+        <div class="row wrap u-f3d7ce7">
+          <h3 class="u-1169661">{tt('open_h')}</h3>
           {#if data.ai}<span class="tag">✦ {tt('ai_on')}</span>{:else}<span class="chip">{tt('ai_off')}</span>{/if}
         </div>
         <p class="muted xs">{data.ai ? tt('ai_note') : tt('open_builtin')}</p>

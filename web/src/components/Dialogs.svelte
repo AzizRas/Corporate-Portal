@@ -27,7 +27,7 @@
         {#if dlg.cur.title}<h2>{dlg.cur.title}</h2>{/if}
         <p class="dlg-text">{dlg.cur.text}</p>
         {#if dlg.cur.kind === 'prompt'}<!-- svelte-ignore a11y_autofocus --><input bind:value placeholder={dlg.cur.placeholder ?? ''} aria-label={dlg.cur.text} autofocus />{/if}
-        <div class="row" style="justify-content:flex-end;gap:8px">
+        <div class="row u-76b9986">
           {#if dlg.cur.kind !== 'alert'}<button type="button" class="btn" onclick={cancel}>{dlgText('cancel')}</button>{/if}
           <!-- svelte-ignore a11y_autofocus -->
           <button class="btn {dlg.cur.danger ? 'danger' : 'grad'}" autofocus={dlg.cur.kind !== 'prompt'}>{okText}</button>

@@ -51,7 +51,7 @@
     <div class="side-top">
       <div class="logo"><i></i><span class="lbl">Qadam</span></div>
       <button class="collapse" onclick={toggle} aria-label={collapsed ? st('n_expand') : st('n_collapse')} title={collapsed ? st('n_expand') : st('n_collapse')}>
-        <svg viewBox="0 0 24 24" style="transform:rotate({collapsed ? 0 : 180}deg)"><path d="M9 6l6 6-6 6" /></svg>
+        <svg viewBox="0 0 24 24" style:transform="rotate({collapsed ? 0 : 180}deg)"><path d="M9 6l6 6-6 6" /></svg>
       </button>
     </div>
     <div class="side-tools"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search /></span><span class="tr-wrap" data-tour="bell"><NotifyBell /></span><ThemeToggle /></div>
@@ -67,8 +67,8 @@
     </nav>
     <a class="me-card" href="#/profile" title={app.user!.name}>
       <Avatar u={{ ...app.user!, bday: false }} size={44} />
-      <div class="lbl" style="min-width:0">
-        <div style="font-weight:700">{app.user!.name}</div>
+      <div class="lbl u-3922d32">
+        <div class="u-e3ec02a">{app.user!.name}</div>
         <div class="muted xs clip1">{app.user!.status || app.user!.position}</div>
       </div>
     </a>

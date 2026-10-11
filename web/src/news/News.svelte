@@ -39,11 +39,11 @@
 <header class="page-head"><div><h1>{st('nw_title')}<PageHelp topic="news" /></h1><p class="sub">{st('nw_sub')}</p></div></header>
 
 <div class="nw">
-  <div class="stack" style="min-width:0">
-    <div class="card stack" style="gap:12px">
-      <div class="row" style="align-items:flex-start">
+  <div class="stack u-3922d32">
+    <div class="card stack u-ed7b3d8">
+      <div class="row u-0486f78">
         <Avatar u={{ ...app.user!, bday: false }} size={44} />
-        <textarea placeholder={st('nw_ph')} maxlength="2000" bind:value={body} style="min-height:80px"></textarea>
+        <textarea class="u-f15b2e8" placeholder={st('nw_ph')} maxlength="2000" bind:value={body}></textarea>
       </div>
       <div class="row wrap">
         {#each kinds as k}<button class="chip" class:on={kind === k} onclick={() => (kind = k)}>{icon(k)} {st('nw_' + k)}</button>{/each}
@@ -51,7 +51,7 @@
       </div>
     </div>
 
-    <div class="tabs" style="margin:0">
+    <div class="tabs u-1169661">
       {#each ['all', 'announce', 'kudos', 'win', 'thought'] as f}<button class:on={filter === f} onclick={() => (filter = f)}>{f === 'all' ? st('nw_all') : st('nw_' + f)}</button>{/each}
     </div>
 
@@ -59,8 +59,8 @@
       <article class="card g-post" class:pinned={p.pinned} class:ann={p.kind === 'announce'}>
         <div class="head">
           <Avatar u={{ id: p.user_id, name: p.author, avatar_v: p.avatar_v, bday: p.bday }} size={44} />
-          <div style="flex:1;min-width:0"><b>{p.author}</b>{#if p.bday}<span class="small"> 🎂</span>{/if}<div class="muted xs">{p.status || p.author_position} · {fmtDateTime(p.created_at)}</div></div>
-          <span class="chip" style="padding:4px 12px;font-size:12px">{icon(p.kind)} {st('nw_' + p.kind)}</span>
+          <div class="u-7f784dd"><b>{p.author}</b>{#if p.bday}<span class="small"> 🎂</span>{/if}<div class="muted xs">{p.status || p.author_position} · {fmtDateTime(p.created_at)}</div></div>
+          <span class="chip u-8c46ff0">{icon(p.kind)} {st('nw_' + p.kind)}</span>
           {#if p.pinned}<span class="amber xs">📌</span>{/if}
         </div>
         <div class="body">{p.body}</div>
@@ -72,11 +72,11 @@
           {#if mine(p)}<button class="g-act" onclick={() => del(p)}>{st('nw_delete')}</button>{/if}
         </div>
         {#if open[p.id]}
-          <div class="stack" style="gap:10px;border-top:1px solid var(--border);padding-top:12px">
+          <div class="stack u-555f50d">
             {#each open[p.id] as c}
-              <div class="row" style="align-items:flex-start;gap:10px">
+              <div class="row u-a891081">
                 <Avatar u={{ id: c.user_id, name: c.author, avatar_v: c.avatar_v, bday: c.bday }} size={32} />
-                <div class="small" style="min-width:0"><b>{c.author}</b> <span class="muted xs">{fmtDateTime(c.created_at)}</span><div style="white-space:pre-wrap;word-break:break-word">{c.body}</div></div>
+                <div class="small u-3922d32"><b>{c.author}</b> <span class="muted xs">{fmtDateTime(c.created_at)}</span><div class="u-28c23e4">{c.body}</div></div>
               </div>
             {/each}
             <form class="row" onsubmit={(e) => { e.preventDefault(); comment(p); }}>
@@ -87,14 +87,14 @@
     {:else}<div class="card"><p class="muted">{st('nw_empty')}</p></div>{/each}
   </div>
 
-  <aside class="stack" style="min-width:0">
+  <aside class="stack u-3922d32">
     {#if bd.length}
-      <section class="card stack" style="gap:10px">
+      <section class="card stack u-f3d7ce7">
         <h3 class="card-title">🎂 {st('nw_bday')}</h3>
         {#each todays as b}
-          <a class="row bd today" href="#/chat" style="text-decoration:none;color:inherit"><Avatar u={{ ...b, bday: true }} size={40} /><div><b>{b.name}</b><div class="small pill-ok">{st('nw_bday_today')} 🎉</div></div></a>
+          <a class="row bd today u-38b741b" href="#/chat"><Avatar u={{ ...b, bday: true }} size={40} /><div><b>{b.name}</b><div class="small pill-ok">{st('nw_bday_today')} 🎉</div></div></a>
         {/each}
-        {#each soon as b}<div class="row bd"><Avatar u={{ ...b, bday: false }} size={34} /><div style="flex:1;min-width:0"><b class="small">{b.name}</b></div><span class="muted small">{md(b.md)}</span></div>{/each}
+        {#each soon as b}<div class="row bd"><Avatar u={{ ...b, bday: false }} size={34} /><div class="u-7f784dd"><b class="small">{b.name}</b></div><span class="muted small">{md(b.md)}</span></div>{/each}
       </section>
     {/if}
   </aside>

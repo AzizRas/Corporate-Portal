@@ -81,7 +81,7 @@
   {#if ov && !ov.ai?.available}
     <div class="head-actions">
       <span class="chip" title={isAdmin && ov.ai?.reason ? ov.ai.reason : ''}>{et('a_builtin')}</span>
-      {#if isAdmin && ov.ai?.reason}<div class="muted xs" style="margin-top:6px;max-width:320px">{et('a_ai_reason')}: {ov.ai.reason}</div>{/if}
+      {#if isAdmin && ov.ai?.reason}<div class="muted xs u-2e175c9">{et('a_ai_reason')}: {ov.ai.reason}</div>{/if}
     </div>
   {/if}
 </header>
@@ -100,18 +100,18 @@
   {#if tab === 'trainer'}
     {#if scLoading}<span class="spin"></span>
     {:else if scErr && !sc}
-      <div class="alert" style="margin-bottom:14px">{scErr}</div><button class="btn" onclick={closeScenario}>← {et('a_back')}</button>
+      <div class="alert u-2b583d7">{scErr}</div><button class="btn" onclick={closeScenario}>← {et('a_back')}</button>
     {:else if sc}
-      <p class="small" style="margin-bottom:12px"><button class="as-link" onclick={closeScenario}>← {et('a_back')}</button></p>
+      <p class="small u-da12f28"><button class="as-link" onclick={closeScenario}>← {et('a_back')}</button></p>
       <section class="card stack as-sc">
-        <div class="row wrap" style="gap:8px"><span class="chip" style="padding:4px 12px;font-size:12px">{et(sc.area === 'soft' ? 'a_soft' : 'a_hard')}</span><span class="muted xs">{et('a_criteria', { n: sc.criteria_n })}</span></div>
+        <div class="row wrap u-33fcd4c"><span class="chip u-8c46ff0">{et(sc.area === 'soft' ? 'a_soft' : 'a_hard')}</span><span class="muted xs">{et('a_criteria', { n: sc.criteria_n })}</span></div>
         <h2 class="as-h2">{loc(sc.title)}</h2>
-        <div class="as-situation"><div class="muted xs" style="margin-bottom:4px">{et('a_situation')}</div>{loc(sc.situation)}</div>
+        <div class="as-situation"><div class="muted xs u-c81ce4b">{et('a_situation')}</div>{loc(sc.situation)}</div>
 
         {#if !result}
-          <label class="f" style="margin:0">{et('a_your_answer')}
+          <label class="f u-1169661">{et('a_your_answer')}
             <textarea rows="7" bind:value={answer} placeholder={et('a_answer_ph')} maxlength="2000"></textarea></label>
-          <div class="row wrap" style="gap:10px">
+          <div class="row wrap u-f3d7ce7">
             <button class="btn grad" disabled={checking || answer.trim().length < 20} onclick={check}>{checking ? et('a_checking') : et('a_check')}</button>
             {#if checking}<span class="spin"></span>{/if}
             <span class="muted xs">{answer.trim().length < 20 ? et('a_min20') : et('a_chars', { n: answer.trim().length })}</span>
@@ -121,16 +121,16 @@
       </section>
 
       {#if result}
-        <section class="card stack as-res" style="margin-top:18px" aria-live="polite">
-          <div class="row wrap" style="gap:10px;justify-content:space-between">
-            <h3 class="card-title" style="font-size:16px;color:var(--text)">{et('a_result')}</h3>
-            <span class="chip" style="padding:4px 12px;font-size:12px">{result.ai ? '✨ ' + et('a_by_ai') : et('a_by_builtin')}</span>
+        <section class="card stack as-res u-86de7ac" aria-live="polite">
+          <div class="row wrap u-e9d24fb">
+            <h3 class="card-title u-b2297c5">{et('a_result')}</h3>
+            <span class="chip u-8c46ff0">{result.ai ? '✨ ' + et('a_by_ai') : et('a_by_builtin')}</span>
           </div>
           <div class="as-score">
             <div class="as-num {tone(result.score)}"><b>{result.score}</b><span>{et('a_score')}</span></div>
-            <div style="flex:1;min-width:200px">
-              <div class="bar as-meter" role="meter" aria-valuenow={result.score} aria-valuemin="0" aria-valuemax="100"><i class="m-{tone(result.score)}" style="width:{result.score}%"></i></div>
-              <div class="small" style="margin-top:10px"><b>{verdict(result.score)}</b></div>
+            <div class="u-eeb8c10">
+              <div class="bar as-meter" role="meter" aria-valuenow={result.score} aria-valuemin="0" aria-valuemax="100"><i class="m-{tone(result.score)}" style:width={`${result.score}%`}></i></div>
+              <div class="small u-d2c171b"><b>{verdict(result.score)}</b></div>
             </div>
           </div>
           <div class="as-cols">
@@ -149,7 +149,7 @@
           {#if result.model && result.model !== result.better}
             <details class="as-model" open><summary>{et('a_model')}</summary><p>{result.model}</p></details>
           {/if}
-          <div class="row wrap" style="gap:10px">
+          <div class="row wrap u-f3d7ce7">
             <button class="btn grad" onclick={retry}>{et('a_again')}</button>
             <button class="btn" onclick={closeScenario}>{et('a_to_list')}</button>
             <span class="sp"></span>
@@ -159,8 +159,8 @@
       {/if}
     {:else}
       {#each [['soft', 'a_soft', 'a_soft_d'], ['hard', 'a_hard', 'a_hard_d']] as [a, t, dsc]}
-        <section style="margin-bottom:26px">
-          <div style="margin-bottom:12px"><h3 class="as-h3">{et(t)}</h3><p class="muted small">{et(dsc)}</p></div>
+        <section class="u-6e12ab0">
+          <div class="u-da12f28"><h3 class="as-h3">{et(t)}</h3><p class="muted small">{et(dsc)}</p></div>
           <div class="as-grid">
             {#each area(a) as s (s.id)}
               <button class="card as-card" onclick={() => openScenario(s.id)}>
@@ -171,7 +171,7 @@
                   {:else}<span class="muted xs">{et('a_not_tried')}</span>{/if}
                   <span class="muted xs">{et('a_attempts')}: {s.attempts}</span>
                 </div>
-                {#if s.best != null}<div class="bar as-meter"><i class="m-{tone(s.best)}" style="width:{s.best}%"></i></div>{/if}
+                {#if s.best != null}<div class="bar as-meter"><i class="m-{tone(s.best)}" style:width={`${s.best}%`}></i></div>{/if}
               </button>
             {/each}
           </div>
@@ -180,20 +180,20 @@
     {/if}
 
   {:else if tab === 'plan'}
-    <section class="card stack" style="margin-bottom:18px">
-      <div class="row" style="justify-content:space-between;gap:12px">
-        <h3 class="card-title" style="font-size:16px;color:var(--text)">{et('a_progress')}</h3>
+    <section class="card stack u-905d8b3">
+      <div class="row u-b4a0603">
+        <h3 class="card-title u-b2297c5">{et('a_progress')}</h3>
         <b>{et('a_of', { d: ov.progress.done, t: ov.progress.total })} · {pct}%</b>
       </div>
-      <div class="bar as-meter big" role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100"><i class="m-good" style="width:{pct}%"></i></div>
+      <div class="bar as-meter big" role="progressbar" aria-valuenow={pct} aria-valuemin="0" aria-valuemax="100"><i class="m-good" style:width={`${pct}%`}></i></div>
     </section>
-    {#if planErr}<div class="alert" style="margin-bottom:14px">{planErr}</div>{/if}
+    {#if planErr}<div class="alert u-2b583d7">{planErr}</div>{/if}
 
     <div class="as-plan">
-      <div class="stack" style="gap:16px">
+      <div class="stack u-f6ce4d1">
         {#each weeks as [w, items]}
           <section class="card">
-            <h3 class="as-h3" style="margin-bottom:6px">{et('a_week', { n: w })}</h3>
+            <h3 class="as-h3 u-4e420af">{et('a_week', { n: w })}</h3>
             <div class="list">
               {#each items as p (p.id)}
                 <div class="as-item" class:done={p.done}>
@@ -234,7 +234,7 @@
       <h3 class="as-h3">{et('a_ask_t')}</h3>
       <p class="muted small">{et('a_ask_hint')}</p>
       <textarea rows="4" bind:value={question} placeholder={et('a_ask_ph')} maxlength="600" aria-label={et('a_ask_t')}></textarea>
-      <div class="row wrap" style="gap:10px">
+      <div class="row wrap u-f3d7ce7">
         <button class="btn grad" disabled={asking || question.trim().length < 5} onclick={ask}>{asking ? et('a_asking') : et('a_ask')}</button>
         {#if asking}<span class="spin"></span>{/if}
       </div>
@@ -243,13 +243,13 @@
         {#if reply.ai === false}
           <div class="alert info" role="status">
             {et('a_ask_off')}
-            <div style="margin-top:10px"><button class="btn sm" onclick={() => (tab = 'trainer')}>{et('a_ask_to_trainer')}</button></div>
+            <div class="u-d2c171b"><button class="btn sm" onclick={() => (tab = 'trainer')}>{et('a_ask_to_trainer')}</button></div>
           </div>
         {:else}
           <div class="as-answer">
-            <div class="muted xs" style="margin-bottom:6px">{et('a_answer')}</div>
+            <div class="muted xs u-4e420af">{et('a_answer')}</div>
             <div class="md">{@html md(reply.answer ?? '')}</div>
-            <div style="margin-top:12px"><AiFeedback role="supervisor" refId={reply.ref} /></div>
+            <div class="u-56f4356"><AiFeedback role="supervisor" refId={reply.ref} /></div>
           </div>
         {/if}
       {/if}

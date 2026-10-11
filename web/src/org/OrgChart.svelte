@@ -78,14 +78,14 @@
       <button type="button" class="chip dchip" class:on={div === d.id} style:--dc={m.colorOf(d)} onclick={() => (div = d.id)}><i></i>{m.nm(d)} · {d.total}</button>
     {/each}
   </div>
-  <p class="muted xs" style="margin:0 0 10px">{ot('hint')}</p>
+  <p class="muted xs u-759e41d">{ot('hint')}</p>
 
   <OrgRefs refs={refsAbove} title={ot('refsAbove')} lang={app.lang} onpick={(r) => (refId = r.id)} />
   {#if !m.nodes.length}<p class="muted">{ot('empty')}</p>
   {:else if view === 'cards'}<OrgCards {m} {top} {q} picked={pick?.id ?? null} onpick={openNode} />
   {:else if view === 'map'}<OrgMap {m} {top} {q} picked={pick?.id ?? null} onpick={openNode} />
   {:else}<OrgGroups {m} {divs} {q} onpick={openNode} />{/if}
-  <div style="height:14px"></div>
+  <div class="u-946a990"></div>
   <OrgRefs refs={refsOther} title={ot('refsOther')} lang={app.lang} onpick={(r) => (refId = r.id)} />
 {/if}
 
@@ -100,7 +100,7 @@
       <label class="f">{ot('refPlace')}<select bind:value={nf.placement}><option value="above">{ot('pAbove')}</option><option value="other">{ot('pOther')}</option></select></label>
       <label class="f">{ot('refNote')}<input bind:value={nf.note} maxlength="500" /></label>
       {#if nerr}<p class="alert">{nerr}</p>{/if}
-      <div class="row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn" onclick={() => (newRef = false)}>{ot('cancel')}</button><button class="btn grad" disabled={nbusy}>{ot('save')}</button></div>
+      <div class="row u-76b9986"><button type="button" class="btn" onclick={() => (newRef = false)}>{ot('cancel')}</button><button class="btn grad" disabled={nbusy}>{ot('save')}</button></div>
     </form>
   </Modal>
 {/if}
@@ -114,7 +114,7 @@
       <div class="hrow">
         {#if pick.head}<Avatar u={pick.head} size={36} /><span><b>{pick.head.name}</b><br /><span class="muted xs">{pick.head.position || ot('head')}</span></span>{:else}<span class="muted small">{ot('noHead')}</span>{/if}
       </div>
-      <div class="muted small">{ot('total')}: <b style="color:var(--text)">{pick.total}</b> · {ot('direct')}: <b style="color:var(--text)">{pick.direct}</b></div>
+      <div class="muted small">{ot('total')}: <b class="u-f045bbe">{pick.total}</b> · {ot('direct')}: <b class="u-f045bbe">{pick.direct}</b></div>
       <button type="button" class="x btn sm" onclick={() => (pick = null)} aria-label={ot('close')}>✕</button>
     </header>
     <div class="body">
@@ -128,9 +128,9 @@
         </div>
       {:else}<p class="muted small">{ot('none')}</p>{/each}
       {#if children.length}
-        <h3 class="card-title" style="margin-top:16px">{ot('inside')}</h3>
+        <h3 class="card-title u-1b0f499">{ot('inside')}</h3>
         {#each children as c (c.id)}
-          <button type="button" class="kid" onclick={() => openNode(c)}><span class="kd"></span><span style="flex:1"><b>{m.nm(c)}</b><br /><span class="muted xs">{wt(`o_k_${c.kind}`)}</span></span><span class="muted small">{c.total}</span></button>
+          <button type="button" class="kid" onclick={() => openNode(c)}><span class="kd"></span><span class="u-97445a8"><b>{m.nm(c)}</b><br /><span class="muted xs">{wt(`o_k_${c.kind}`)}</span></span><span class="muted small">{c.total}</span></button>
         {/each}
       {/if}
     </div>

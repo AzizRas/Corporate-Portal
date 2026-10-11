@@ -12,7 +12,7 @@
 </script>
 
 {#if raw.trim()}
-  <div class="box" style="display:flex;flex-direction:column;gap:6px">
+  <div class="box u-fb92c9b">
     {#if !md}
       {#if zt.length}
         <div><span class="pill mid">Ziffler</span> {at('mr_ziffler', { t: searchIndex()!.codes.byId(zt[0]).title })}
@@ -27,7 +27,7 @@
       <div>
         <span class="pill {wrong ? 'bad' : 'good'}">{md.prefix}…</span>
         {#if md.crm}{at('mr_type')}: <code>{md.crm}</code>{:else}{md.note} — {at('mr_nocrm')}{/if}{#if md.crm && md.note} · {md.note}{/if}
-        {#if wrong}<b style="color:var(--bad)">{at('mr_wrong', { n: curApp.name })}</b>{/if}
+        {#if wrong}<b class="u-83ef854">{at('mr_wrong', { n: curApp.name })}</b>{/if}
         {#if (!curApp || wrong) && app}<a class="cp" href="#/assist/app/{app.id}">{at('mr_open', { n: app.name })}</a>{/if}
       </div>
     {/if}

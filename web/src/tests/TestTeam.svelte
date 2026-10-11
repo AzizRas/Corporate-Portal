@@ -29,14 +29,14 @@
 {#if err}<div class="alert">{tt('err')}</div>
 {:else if !d}<span class="spin"></span>
 {:else}
-  <div class="card hl" style="margin-bottom:20px">
+  <div class="card hl u-49f14f8">
     <div class="card-head"><h3>{tt('tm_paei')}</h3>{#if d.paei}<span class="aside">{tt('tm_paei_n', { n: d.paei.n, total: d.paei.total })}</span>{/if}</div>
     {#if d.paei}
       <div class="t-hero">
         <Radar axes={['P', 'A', 'E', 'I'].map((a) => ({ id: a, value: d.paei.avg[a] }))} label="PAEI" />
         <div class="grow stack">
           {#if d.paei.high.length || d.paei.low.length}
-            <p style="font-size:17px;line-height:1.45">
+            <p class="u-a760fa7">
               {tt('tm_you_have')}
               {#if d.paei.high.length}<b>{tt('tm_paei_many').toLowerCase()} {d.paei.high.join(', ')}</b>{/if}{#if d.paei.high.length && d.paei.low.length} {tt('tm_and')} {/if}{#if d.paei.low.length}<b>{tt('tm_paei_few').toLowerCase()} {d.paei.low.join(', ')}</b>{/if}.
             </p>
@@ -50,7 +50,7 @@
 
   <div class="card">
     <div class="card-head"><h3>{tt('tm_title')}</h3><button class="btn sm grad" onclick={openAssign} disabled={!d.members.length}>{tt('tm_assign')}</button></div>
-    <p class="muted small" style="margin-bottom:14px">{tt('tm_hint')}</p>
+    <p class="muted small u-2b583d7">{tt('tm_hint')}</p>
     {#if !d.members.length}<p class="muted">{tt('tm_empty')}</p>
     {:else}
       <div class="scroll-x">
@@ -79,12 +79,12 @@
     <Modal onclose={() => (open = false)}>
       <h2>{tt('tm_assign')}</h2>
       <label class="f">{tt('tm_test')}<select bind:value={slug}>{#each d.tests as t}<option value={t.slug}>{tl(t.title)}</option>{/each}</select></label>
-      <div class="row" style="justify-content:space-between"><span class="muted small">{tt('tm_to')}</span>
+      <div class="row u-a562f4f"><span class="muted small">{tt('tm_to')}</span>
         <button class="btn sm" onclick={() => { const all = chosen.length < d.members.length; sel = Object.fromEntries(d.members.map((m: any) => [m.id, all])); }}>{tt('tm_all')}</button></div>
       <div class="t-chk">{#each d.members as m}<label><input type="checkbox" bind:checked={sel[m.id]} /><Avatar u={m} size={26} /><span>{m.name}</span></label>{/each}</div>
       <label class="f">{tt('tm_note')}<input type="text" bind:value={note} maxlength="300" /></label>
-      {#if msg}<div class="alert" class:ok={sent} style="margin-bottom:12px">{msg}</div>{/if}
-      <div class="row" style="justify-content:flex-end"><button class="btn" onclick={() => (open = false)}>{tt('cancel')}</button><button class="btn grad" disabled={busy} onclick={send}>{tt('tm_send')}</button></div>
+      {#if msg}<div class="alert u-da12f28" class:ok={sent}>{msg}</div>{/if}
+      <div class="row u-455f8cc"><button class="btn" onclick={() => (open = false)}>{tt('cancel')}</button><button class="btn grad" disabled={busy} onclick={send}>{tt('tm_send')}</button></div>
     </Modal>
   {/if}
 {/if}

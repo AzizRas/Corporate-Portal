@@ -11,7 +11,7 @@
 <div class="stack">
   {#each groups as g (g.id)}
     <section class="card more-g">
-      <h3 class="card-title" style="margin-bottom:10px">{hubLabel(g.id)}</h3>
+      <h3 class="card-title u-761d3ad">{hubLabel(g.id)}</h3>
       <div class="more-items">
         {#each g.items as i (i.id)}
           <a class="more-i" href={'#' + i.href}><i><Icon name={i.icon} /></i><span>{i.label}</span>{#if i.badge}<em>{i.badge}</em>{/if}</a>

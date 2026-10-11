@@ -42,14 +42,14 @@
   async function reset() { tempPw = (await api.post(`/api/admin/users/${edit.id}/reset-password`)).password; }
 </script>
 
-<div class="row" style="margin-bottom:16px"><input type="search" placeholder="Поиск" bind:value={q} style="max-width:320px" /><span class="sp"></span><button class="btn" onclick={() => (imp = { dept: '', file: null, res: null, busy: false })}>Импорт из Excel</button><button class="btn grad" onclick={() => open(null)}>+ Сотрудник</button></div>
-<div class="card scroll-x" style="padding:12px 16px">
+<div class="row u-87c136d"><input class="u-3521b3d" type="search" placeholder="Поиск" bind:value={q} /><span class="sp"></span><button class="btn" onclick={() => (imp = { dept: '', file: null, res: null, busy: false })}>Импорт из Excel</button><button class="btn grad" onclick={() => open(null)}>+ Сотрудник</button></div>
+<div class="card scroll-x u-fdf20b9">
   <table class="table">
     <thead><tr><th>Таб.</th><th>ФИО</th><th>Должность</th><th>Отдел</th><th>Роли</th><th></th></tr></thead>
     <tbody>
       {#each shown as u}
         <tr style:opacity={u.active ? 1 : .5}><td>{u.tab_number ?? ''}</td><td><b>{u.name}</b><div class="muted xs">{u.login}</div></td><td>{u.position}</td><td>{nodePath(u.node_id) || deptName(u.dept_id)}{#if u.employment === 'intern'} <span class="chip">стажёр</span>{/if}</td>
-          <td>{#each u.roles as r}<span class="chip" style="padding:2px 8px;font-size:12px;margin:1px">{r}</span>{/each}</td><td><button class="btn sm" onclick={() => open(u)}>Править</button></td></tr>
+          <td>{#each u.roles as r}<span class="chip u-ec1174f">{r}</span>{/each}</td><td><button class="btn sm" onclick={() => open(u)}>Править</button></td></tr>
       {/each}
     </tbody>
   </table>
@@ -58,7 +58,7 @@
 {#if edit}
   <Modal onclose={() => (edit = null)} wide>
     <h2>{isNew ? 'Новый сотрудник' : edit.name}</h2>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px">
+    <div class="grid u-e5976ac">
       <label class="f">ФИО<input bind:value={edit.name} /></label>
       <label class="f">Логин (латиница){#if !isNew}<input value={edit.login} disabled />{:else}<input bind:value={edit.login} />{/if}</label>
       <label class="f">Табельный №<input bind:value={edit.tab_number} /></label>
@@ -71,12 +71,12 @@
       <label class="f">Смена с<input type="time" bind:value={edit.shift_start} /></label>
       <label class="f">Смена до<input type="time" bind:value={edit.shift_end} /></label>
     </div>
-    <div class="muted small" style="margin-bottom:8px">Роли (можно несколько)</div>
-    <div class="row wrap" style="margin-bottom:14px">{#each ROLES as [r, l]}<label class="chk chip" class:on={edit.roles.includes(r)}><input type="checkbox" class="sr" checked={edit.roles.includes(r)} onchange={() => toggleRole(r)} />{l}</label>{/each}</div>
-    {#if !isNew}<label class="chk" style="margin-bottom:14px"><input type="checkbox" bind:checked={edit.active} /> Активен (при снятии фото прихода удаляются)</label>{/if}
-    {#if tempPw}<div class="alert ok">Временный пароль (показывается один раз): <b style="user-select:all">{tempPw}</b></div>{/if}
+    <div class="muted small u-fdf33f2">Роли (можно несколько)</div>
+    <div class="row wrap u-2b583d7">{#each ROLES as [r, l]}<label class="chk chip" class:on={edit.roles.includes(r)}><input type="checkbox" class="sr" checked={edit.roles.includes(r)} onchange={() => toggleRole(r)} />{l}</label>{/each}</div>
+    {#if !isNew}<label class="chk u-2b583d7"><input type="checkbox" bind:checked={edit.active} /> Активен (при снятии фото прихода удаляются)</label>{/if}
+    {#if tempPw}<div class="alert ok">Временный пароль (показывается один раз): <b class="u-28fa523">{tempPw}</b></div>{/if}
     {#if msg}<div class="alert">{msg}</div>{/if}
-    <div class="row" style="justify-content:flex-end;margin-top:12px">
+    <div class="row u-ee23b8e">
       {#if !isNew}<button class="btn" onclick={reset}>Сбросить пароль</button>{/if}
       <span class="sp"></span><button class="btn" onclick={() => (edit = null)}>Закрыть</button><button class="btn grad" onclick={save}>Сохранить</button>
     </div>
@@ -87,26 +87,26 @@
   <Modal onclose={() => (imp = null)} wide>
     <h2>Импорт сотрудников из Excel</h2>
     {#if !imp.res?.committed}
-      <p class="muted small" style="margin-bottom:12px">Нужны колонки «ФИО», «Должность», «Дата приёма» (можно тот же файл с зарплатой). Каждому создаётся логин (латиницей, например <b>kosimjonov.davron</b>) и пароль из 6 цифр; при первом входе сотрудник задаёт свой. Уже существующие ФИО пропускаются.</p>
-      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+      <p class="muted small u-da12f28">Нужны колонки «ФИО», «Должность», «Дата приёма» (можно тот же файл с зарплатой). Каждому создаётся логин (латиницей, например <b>kosimjonov.davron</b>) и пароль из 6 цифр; при первом входе сотрудник задаёт свой. Уже существующие ФИО пропускаются.</p>
+      <div class="grid u-9a8dcf5">
         <label class="f">Отдел<select bind:value={imp.dept}><option value="">—</option>{#each depts as d}<option value={d.id}>{d.name_ru}</option>{/each}</select></label>
         <label class="f">Файл .xlsx<input type="file" accept=".xlsx" onchange={(e) => { imp.file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null; imp.res = null; imp.err = ''; }} /></label>
       </div>
       {#if imp.err}<div class="alert">{imp.err}</div>{/if}
       {#if imp.res}
-        <div class="scroll-x" style="max-height:340px;overflow:auto;margin:8px 0"><table class="table"><thead><tr><th>ФИО</th><th>Должность</th><th>Принят</th><th>Логин</th><th></th></tr></thead><tbody>
+        <div class="scroll-x u-c06aa7a"><table class="table"><thead><tr><th>ФИО</th><th>Должность</th><th>Принят</th><th>Логин</th><th></th></tr></thead><tbody>
           {#each imp.res.rows as r}<tr style:opacity={r.status === 'new' ? 1 : .5}><td>{r.name}</td><td>{r.position}</td><td>{r.hired ? fmtDate(r.hired) : ''}</td><td>{r.login ?? ''}</td><td class="xs">{r.status === 'new' ? 'будет создан' : 'уже есть'}</td></tr>{/each}
         </tbody></table></div>
       {/if}
-      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" onclick={() => (imp = null)}>Отмена</button>
+      <div class="row u-9ace0bf"><button class="btn" onclick={() => (imp = null)}>Отмена</button>
         {#if !imp.res}<button class="btn grad" disabled={!imp.file || imp.busy} onclick={() => runImport(false)}>Проверить</button>
         {:else}<button class="btn grad" disabled={imp.busy || !imp.res.rows.some((r) => r.status === 'new')} onclick={() => runImport(true)}>Создать {imp.res.rows.filter((r) => r.status === 'new').length}</button>{/if}</div>
     {:else}
-      <div class="alert ok" style="margin-bottom:12px">Создано: {imp.res.rows.filter((r) => r.status === 'new').length}. Пароли показаны один раз — сохраните список и передайте сотрудникам.</div>
-      <div class="scroll-x" style="max-height:340px;overflow:auto"><table class="table"><thead><tr><th>ФИО</th><th>Логин</th><th>Пароль</th></tr></thead><tbody>
-        {#each imp.res.rows.filter((r) => r.status === 'new') as r}<tr><td>{r.name}</td><td><b style="user-select:all">{r.login}</b></td><td><b style="user-select:all">{r.password}</b></td></tr>{/each}
+      <div class="alert ok u-da12f28">Создано: {imp.res.rows.filter((r) => r.status === 'new').length}. Пароли показаны один раз — сохраните список и передайте сотрудникам.</div>
+      <div class="scroll-x u-364e470"><table class="table"><thead><tr><th>ФИО</th><th>Логин</th><th>Пароль</th></tr></thead><tbody>
+        {#each imp.res.rows.filter((r) => r.status === 'new') as r}<tr><td>{r.name}</td><td><b class="u-28fa523">{r.login}</b></td><td><b class="u-28fa523">{r.password}</b></td></tr>{/each}
       </tbody></table></div>
-      <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn grad" onclick={downloadCreds}>Скачать список (CSV для Excel)</button><button class="btn" onclick={() => (imp = null)}>Закрыть</button></div>
+      <div class="row u-ee23b8e"><button class="btn grad" onclick={downloadCreds}>Скачать список (CSV для Excel)</button><button class="btn" onclick={() => (imp = null)}>Закрыть</button></div>
     {/if}
   </Modal>
 {/if}

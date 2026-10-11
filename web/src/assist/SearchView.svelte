@@ -64,7 +64,7 @@
     {#each g.hits as h (h.id)}
       <a class="as-r" class:red={h.red} href="#/assist/{h.to}" onclick={() => picked(h)}>
         <span class="ico">{ico(h)}</span>
-        <span style="min-width:0">
+        <span class="u-3922d32">
           <b>{#each parts(h.kind === 'zset' && h.title === 'zcodes' ? at('nav_codes') : h.title) as p}{#if p.m}<mark>{p.t}</mark>{:else}{p.t}{/if}{/each}</b>
           <small>{h.sub ?? ''}{h.kind === 'zset' && h.tag ? ` · ${h.tag}` : ''}</small>
         </span>

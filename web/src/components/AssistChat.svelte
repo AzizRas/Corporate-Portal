@@ -86,7 +86,7 @@
                 {/if}
                 {#if ai.queued}<p class="note small">{wt(ai.dup ? 'ac_queued_dup' : 'ac_queued')}</p>{/if}
                 {#if ai.limit}<p class="note small">{wt('ac_limit')}</p>{/if}
-                {#if ai.error}<p class="small" style="color:var(--bad)">{ai.error}</p>{/if}
+                {#if ai.error}<p class="small u-83ef854">{ai.error}</p>{/if}
               {/if}
             </div>
           {/if}

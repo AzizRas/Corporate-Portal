@@ -32,7 +32,7 @@
 {#if app.user}
   <!-- профиль уже оборачивает блок в карточку с заголовком, поэтому здесь только содержимое -->
   <div class="ws">
-    <p class="muted small" style="margin-bottom:16px">{wt('s_sub')}</p>
+    <p class="muted small u-87c136d">{wt('s_sub')}</p>
     <div class="ws-msg" class:bad aria-live="polite">{msg}</div>
 
     <label class="ws-sw">
@@ -47,7 +47,7 @@
           <button role="radio" aria-checked={app.user.wellness_min === m} class:on={app.user.wellness_min === m} disabled={!app.user.wellness} onclick={() => save({ wellness_min: m })}>{m} {wt('s_min')}</button>
         {/each}
       </div>
-      <p class="muted xs" style="margin-top:8px">{wt('s_hours', { from: app.user.shift_start, to: app.user.shift_end })}</p>
+      <p class="muted xs u-8a77e5a">{wt('s_hours', { from: app.user.shift_start, to: app.user.shift_end })}</p>
     </div>
 
     <div class="ws-blk">
@@ -55,7 +55,7 @@
       {#if perm === 'granted'}<p class="small pill-ok">✓ {wt('s_notif_granted')}</p>
       {:else if perm === 'denied'}<p class="small pill-bad">{wt('s_notif_denied')}</p>
       {:else if perm === 'unsupported'}<p class="small muted">{wt('s_notif_off')}</p>
-      {:else}<button class="btn sm" onclick={askPermission}>🔔 {wt('s_notif_btn')}</button><p class="muted xs" style="margin-top:6px">{wt('s_notif_hint')}</p>{/if}
+      {:else}<button class="btn sm" onclick={askPermission}>🔔 {wt('s_notif_btn')}</button><p class="muted xs u-fe7b497">{wt('s_notif_hint')}</p>{/if}
     </div>
 
     <div class="ws-blk">
@@ -67,7 +67,7 @@
           {/each}
         </div>
       {/if}
-      <button class="btn sm" style="margin-top:12px" onclick={() => window.dispatchEvent(new Event('wellness-preview'))}>{wt('s_preview')}</button>
+      <button class="btn sm u-56f4356" onclick={() => window.dispatchEvent(new Event('wellness-preview'))}>{wt('s_preview')}</button>
     </div>
   </div>
 {/if}

@@ -19,16 +19,16 @@
   {#each SAFE as [k, t, h]}
     <a class="as-rbtn red" href="#/assist/safe/{k}"><b>{at(t)}</b><span>{at(h)}</span></a>
   {/each}
-  <button class="as-rbtn" style="cursor:pointer;border-color:var(--accent)" onclick={() => devEl?.scrollIntoView({ behavior: 'smooth' })}>
-    <b style="color:var(--accent-ink)">{at('sf_none')}</b><span>{at('sf_none_h')}</span>
+  <button class="as-rbtn u-7a174e5" onclick={() => devEl?.scrollIntoView({ behavior: 'smooth' })}>
+    <b class="u-c3176bf">{at('sf_none')}</b><span>{at('sf_none_h')}</span>
   </button>
 </div>
 
-<div bind:this={devEl} style="scroll-margin-top:90px"></div>
+<div class="u-109e0a6" bind:this={devEl}></div>
 <h2 class="as-h2">{at('dev_h')}</h2>
 <p class="as-sub">{at('dev_sub')}</p>
-<div style="max-width:520px" class="stack">
-  <label class="f" style="margin:0">{at('model_lbl')}<input autocomplete="off" placeholder="7WM4S1070GCS1" bind:value={A.extras.model} /></label>
+<div class="stack u-04391f0">
+  <label class="f u-1169661">{at('model_lbl')}<input autocomplete="off" placeholder="7WM4S1070GCS1" bind:value={A.extras.model} /></label>
   <ModelRes raw={A.extras.model} />
 </div>
 {#each groups as gr}

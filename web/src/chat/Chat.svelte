@@ -152,7 +152,7 @@
 
 <div class="ch">
   <nav class="card ch-side">
-    <div class="row" style="justify-content:space-between;margin:0 4px 6px"><h4 style="margin:0">{st('c_channels')}</h4><button class="ch-plus" data-tour="chat-new" onclick={() => (showNew = true)} title={wt('ch_new')} aria-label={wt('ch_new')}>＋</button></div>
+    <div class="row u-b9c245b"><h4 class="u-1169661">{st('c_channels')}</h4><button class="ch-plus" data-tour="chat-new" onclick={() => (showNew = true)} title={wt('ch_new')} aria-label={wt('ch_new')}>＋</button></div>
     {#snippet item(c: any)}
       <a class="ch-ch" class:on={c.id === channel} href="#/chat/{encodeURIComponent(c.id)}">
         {#if c.kind === 'dm'}<Avatar u={{ id: c.peer?.id ?? 0, name: c.peer?.name ?? '?', avatar_v: c.peer?.avatar_v, bday: false }} size={26} />{:else}<span class="ch-h">{c.kind === 'group' ? '👥' : '#'}</span>{/if}
@@ -168,11 +168,11 @@
 
   <section class="card ch-main">
     {#if loaded && !channels.length}
-      <p class="muted" style="margin:auto;padding:24px;text-align:center">{wt('ch_no_chats')}</p>
+      <p class="muted u-ebff41e">{wt('ch_no_chats')}</p>
     {:else}
     <div class="ch-head">
-      <div style="min-width:0;flex:1">
-        <h3 class="clip1" style="max-width:100%">{icon(cur ?? {})}{title}</h3>
+      <div class="u-829299a">
+        <h3 class="clip1 u-27aeb61">{icon(cur ?? {})}{title}</h3>
         {#if cur?.kind === 'dm' && cur.peer}<div class="muted xs">{cur.peer.active ? wt('ch_dm_info') : wt('ch_former')}</div>{:else if cur?.kind === 'group'}<div class="muted xs">{wt('ch_members_n', { n: members.length })}{#if archived} · {wt('ch_archive')}{/if}</div>{/if}
       </div>
       <button class="ch-ib" class:on={panel === 'search'} title={wt('ch_search')} aria-label={wt('ch_search')} onclick={() => (panel = panel === 'search' ? 'none' : 'search')}><Icon name="search" /></button>
@@ -191,7 +191,7 @@
     {/if}
 
     <div class="ch-list" bind:this={box}>
-      {#if hasMore}<button class="btn sm" style="align-self:center" onclick={older}>{wt('ch_older')}</button>{/if}
+      {#if hasMore}<button class="btn sm u-9162a24" onclick={older}>{wt('ch_older')}</button>{/if}
       {#each msgs as m, i (m.id)}
         {@const prev = msgs[i - 1]}
         {#if !prev || dayKey(prev.created_at) !== dayKey(m.created_at)}<div class="ch-day">{dayKey(m.created_at) === todayKey() ? st('c_today') : fmtDate(m.created_at)}</div>{/if}
@@ -204,7 +204,7 @@
             <div class="ch-bub">
               {#if !cont && !mine(m)}<div class="ch-who">{m.author}{#if m.former}<small class="former">{wt('ch_former')}</small>{:else if m.bday}<small>🎂 {st('c_birthday')}</small>{:else if m.status}<small>{m.status}</small>{/if}</div>{/if}
               {#if m.reply_to && m.reply_author}
-                <button class="ch-quote" style="border:0;border-left:3px solid var(--accent);text-align:left;color:inherit;font:inherit" onclick={() => jump(m.reply_to)}><b>{m.reply_author}</b><span>{m.reply_body}</span></button>
+                <button class="ch-quote u-09bc681" onclick={() => jump(m.reply_to)}><b>{m.reply_author}</b><span>{m.reply_body}</span></button>
               {/if}
               {#if m.file}
                 {#if /^image\//.test(m.file.mime)}<a href="/api/chat/file/{m.file.id}" target="_blank" rel="noopener"><img class="ch-img" src="/api/chat/file/{m.file.id}" alt={m.file.name} loading="lazy" /></a>
@@ -223,13 +223,13 @@
             </div>
           </div>
         {/if}
-      {:else}{#if loaded && !hasMore}<p class="muted" style="margin:auto">{st('c_empty')}</p>{/if}{/each}
+      {:else}{#if loaded && !hasMore}<p class="muted u-ddcc802">{st('c_empty')}</p>{/if}{/each}
     </div>
 
     <div class="ch-form">
       {#if err}<div class="alert">{err}</div>{/if}
-      {#if archived}<p class="muted small" style="text-align:center">{wt('ch_archived_note')}</p>
-      {:else if peerGone}<p class="muted small" style="text-align:center">{wt('ch_gone_note')}</p>
+      {#if archived}<p class="muted small u-91a8701">{wt('ch_archived_note')}</p>
+      {:else if peerGone}<p class="muted small u-91a8701">{wt('ch_gone_note')}</p>
       {:else}
         {#if replyTo}<div class="rep"><span>↩ {st('c_replying')} <b>{replyTo.author}</b>: {replyTo.body || `📎 ${replyTo.file?.name ?? ''}`}</span><button class="g-act" onclick={() => (replyTo = null)}>✕</button></div>{/if}
         {#if mentionQ !== null && candidates.length}

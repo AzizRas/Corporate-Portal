@@ -28,8 +28,8 @@
 
 <section class="stack">
   <div>
-    <h2 style="margin:0">Использование разделов</h2>
-    <p class="muted small" style="margin:4px 0 0">Доля сотрудников подразделения, открывших раздел за {d?.days ?? 30} дней. Раздел, который открыли меньше {d?.hide_below ?? 10}%, отмечается «кандидат на скрытие». Раздел, который ищут через поиск и помощь, а в меню его нет, — «вынести в меню».</p>
+    <h2 class="u-1169661">Использование разделов</h2>
+    <p class="muted small u-63e775f">Доля сотрудников подразделения, открывших раздел за {d?.days ?? 30} дней. Раздел, который открыли меньше {d?.hide_below ?? 10}%, отмечается «кандидат на скрытие». Раздел, который ищут через поиск и помощь, а в меню его нет, — «вынести в меню».</p>
   </div>
   {#if err}<p class="alert">{err}</p>
   {:else if !d}<span class="spin"></span>
@@ -37,14 +37,14 @@
     {#if msg}<p class="alert ok">{msg}</p>{/if}
 
     <section class="card stack">
-      <div class="row wrap" style="gap:10px;align-items:center"><h3 class="card-title" style="margin:0">Вывод недели</h3>
+      <div class="row wrap u-aab16c0"><h3 class="card-title u-1169661">Вывод недели</h3>
         <button class="btn sm" disabled={aiBusy} onclick={refreshAi}>{aiBusy ? 'Думаю…' : 'Обновить вывод'}</button>
         {#if d.ai?.at}<span class="muted xs">{fmt(d.ai.at)}{d.ai.stale ? ' · давнее' : ''}</span>{/if}</div>
       {#if d.ai?.text}<p>{d.ai.text}</p>{:else}<p class="muted small">ИИ не подключён или ещё не писал вывод. Ниже — выводы по правилам.</p>{/if}
       {#if d.rules.length}<ul class="rules">{#each d.rules as r}<li>{r}</li>{/each}</ul>{:else}<p class="muted small">Правила не нашли ни лишних, ни недостающих разделов.</p>{/if}
     </section>
 
-    <div style="overflow-x:auto">
+    <div class="u-0ddf068">
       <table class="table usage">
         <thead><tr><th>Раздел</th>{#each d.profiles as p}<th>{PROF[p]}<br /><span class="muted xs">{d.members[p] ?? 0} чел.</span></th>{/each}</tr></thead>
         <tbody>

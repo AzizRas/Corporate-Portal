@@ -65,7 +65,7 @@
 <Modal {onclose} wide>
   <div class="stack">
     <h2>{ht('hAddCand')}</h2>
-    <div class="tabs" style="margin-bottom:0">
+    <div class="tabs u-ef0b7a1">
       <button type="button" class:on={tab === 'file'} onclick={() => (tab = 'file')}>{ht('iTab')}</button>
       <button type="button" class:on={tab === 'new'} onclick={() => (tab = 'new')}>{ht('hNew')}</button>
       {#if vacancyId}<button type="button" class:on={tab === 'base'} onclick={() => (tab = 'base')}>{ht('hFromBase')}</button>{/if}
@@ -73,9 +73,9 @@
 
     {#if tab === 'base'}
       <input type="search" placeholder={ht('hSearchPh')} aria-label={ht('hSearchPh')} bind:value={q} oninput={onq} />
-      <div class="stack" style="gap:8px;max-height:280px;overflow:auto">
+      <div class="stack u-e9953b7">
         {#each found as a (a.id)}
-          <div class="row"><div style="flex:1"><b>{fullName(a)}</b><div class="muted small">{a.position}</div></div><button class="btn sm grad" onclick={() => attachTo(a.id)}>{ht('hAdd')}</button></div>
+          <div class="row"><div class="u-97445a8"><b>{fullName(a)}</b><div class="muted small">{a.position}</div></div><button class="btn sm grad" onclick={() => attachTo(a.id)}>{ht('hAdd')}</button></div>
         {:else}<p class="muted">{ht('hEmptyCand')}</p>{/each}
       </div>
     {:else}
@@ -88,7 +88,7 @@
         {#if err}<p class="alert">{err}</p>{/if}
       {:else}
         {#if tab === 'file' && imp}
-          <div class="alert info row wrap" style="gap:10px"><span style="flex:1">
+          <div class="alert info row wrap u-f3d7ce7"><span class="u-97445a8">
             <b>{file?.name}</b><br />
             {#if imp.chars < 20}{ht('iNoText')}{:else}{ht('iFound', { n: foundN })}{#if imp.kind === 'doc'} {ht('iPartial')}{/if}{/if}</span>
             <button type="button" class="btn sm" onclick={() => { imp = null; file = null; }}>{ht('iAnother')}</button></div>
@@ -124,14 +124,14 @@
           {#if tab === 'file' && file}<label class="chk"><input type="checkbox" bind:checked={attach} /> {ht('vResumeFile')}: {file.name}</label>{/if}
           {#if dupes.length}
             <div class="alert info"><b>{ht('hDupes')}</b>
-              {#each dupes as d}<div class="row" style="margin-top:6px"><span style="flex:1">{fullName(d)}</span><button type="button" class="btn sm" onclick={() => attachTo(d.id)}>{ht('hAdd')}</button></div>{/each}</div>
+              {#each dupes as d}<div class="row u-fe7b497"><span class="u-97445a8">{fullName(d)}</span><button type="button" class="btn sm" onclick={() => attachTo(d.id)}>{ht('hAdd')}</button></div>{/each}</div>
           {/if}
           {#if err}<p class="alert">{err}</p>{/if}
           <button class="btn grad" disabled={busy}>{force ? ht('hCreateAnyway') : ht('hCreate')}</button>
         </form>
       {/if}
     {/if}
-    <div class="row" style="justify-content:flex-end"><button class="btn" onclick={onclose}>{ht('hCancel')}</button></div>
+    <div class="row u-455f8cc"><button class="btn" onclick={onclose}>{ht('hCancel')}</button></div>
   </div>
 </Modal>
 

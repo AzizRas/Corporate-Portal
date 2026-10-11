@@ -102,9 +102,9 @@
 {#if form}<LibForm item={form.id ? form : null} categories={data.categories} comps={data.comps} onclose={() => (form = null)} onsaved={saved} />{/if}
 {#if playing}
   <Modal wide onclose={() => (playing = null)}>
-    <h2 style="font-size:19px">{playing.title}</h2>
+    <h2 class="u-94aa034">{playing.title}</h2>
     <LibPlayer e={parseEmbed(playing.url)} title={playing.title} />
-    {#if playing.author}<p class="muted small" style="margin-top:10px">{playing.author}</p>{/if}
-    <div class="row" style="margin-top:14px;justify-content:flex-end"><a class="btn" href={playing.url} target="_blank" rel="noopener noreferrer">{lt('read')}</a><button class="btn" onclick={() => (playing = null)}>✕</button></div>
+    {#if playing.author}<p class="muted small u-d2c171b">{playing.author}</p>{/if}
+    <div class="row u-3c34e67"><a class="btn" href={playing.url} target="_blank" rel="noopener noreferrer">{lt('read')}</a><button class="btn" onclick={() => (playing = null)}>✕</button></div>
   </Modal>
 {/if}

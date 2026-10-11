@@ -84,7 +84,7 @@
       <label class="f">{ot('refPlace')}<select bind:value={f.placement}><option value="above">{ot('pAbove')}</option><option value="other">{ot('pOther')}</option></select></label>
       <label class="f">{ot('refNote')}<input bind:value={f.note} maxlength="500" /></label>
       {#if err}<p class="alert">{err}</p>{/if}
-      <div class="row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn" onclick={() => (dlg = null)}>{ot('cancel')}</button><button class="btn grad" disabled={busy}>{ot('save')}</button></div>
+      <div class="row u-76b9986"><button type="button" class="btn" onclick={() => (dlg = null)}>{ot('cancel')}</button><button class="btn grad" disabled={busy}>{ot('save')}</button></div>
     </form>
   </Modal>
 {:else if dlg?.type === 'contact'}
@@ -106,14 +106,14 @@
       <label class="f">{ot('cEmail')}<input type="email" bind:value={f.email} maxlength="120" /></label>
       <label class="f">{ot('cNote')}<input bind:value={f.note} maxlength="300" /></label>
       {#if !(mode === 'portal' && !person) && !person?.user_id}
-        <div class="row wrap" style="gap:10px">
-          <label class="btn sm" style="cursor:pointer">{ot('upPhoto')}<input type="file" accept="image/jpeg,image/png" class="sr" onchange={(e) => (photo = e.currentTarget.files?.[0] ?? null)} /></label>
+        <div class="row wrap u-f3d7ce7">
+          <label class="btn sm u-3b6a3a6">{ot('upPhoto')}<input type="file" accept="image/jpeg,image/png" class="sr" onchange={(e) => (photo = e.currentTarget.files?.[0] ?? null)} /></label>
           {#if photo}<span class="small muted">{photo.name}</span>{/if}
           {#if person?.has_photo}<button type="button" class="btn sm" onclick={() => rmPhoto(person)}>{ot('rmPhoto')}</button>{/if}
         </div>
       {/if}
       {#if err}<p class="alert">{err}</p>{/if}
-      <div class="row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn" onclick={() => (dlg = null)}>{ot('cancel')}</button><button class="btn grad" disabled={busy}>{ot('save')}</button></div>
+      <div class="row u-76b9986"><button type="button" class="btn" onclick={() => (dlg = null)}>{ot('cancel')}</button><button class="btn grad" disabled={busy}>{ot('save')}</button></div>
     </form>
   </Modal>
 {/if}

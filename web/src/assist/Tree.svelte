@@ -94,7 +94,7 @@
         <div class="step">
           <span class="dot" aria-hidden="true">{t.path.length + 1}</span>
           <p class="q">{nd.q}</p>
-          {#if nd.hint}<p class="as-hint" style="font-size:14px">{nd.hint}</p>{/if}
+          {#if nd.hint}<p class="as-hint u-433de30">{nd.hint}</p>{/if}
           <div class="opts">
             {#each nd.opts as o, i}
               <button class="opt" onclick={() => choose(i)}><kbd>{i + 1}</kbd><span>{o.l}</span>{#if o.go}<span class="go">→ {at('section')}</span>{/if}</button>

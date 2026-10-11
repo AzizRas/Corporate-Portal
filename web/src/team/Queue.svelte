@@ -57,7 +57,7 @@
 {#if loading}<p class="muted"><span class="spin"></span></p>
 {:else if failed}<p class="alert">{pt('q_load_err')}</p>
 {:else if !items.length}
-  <section class="card" style="text-align:center;padding:40px 20px"><p class="muted">{total ? pt('q_empty_tab') : pt('q_empty')}</p></section>
+  <section class="card u-a4c941d"><p class="muted">{total ? pt('q_empty_tab') : pt('q_empty')}</p></section>
 {:else}
   <div class="stack">
     {#each items as it (it.id)}
@@ -94,7 +94,7 @@
           {#if it.answer}<label class="chk xs muted"><input type="checkbox" bind:checked={polish} /> {pt('q_polish')}</label>{/if}
         </div>
         {#if msg[it.id]}
-          <p class="small {msg[it.id].ok ? 'pill-ok' : 'pill-bad'}" style="margin-top:10px">{msg[it.id].t}
+          <p class="small {msg[it.id].ok ? 'pill-ok' : 'pill-bad'} u-d2c171b">{msg[it.id].t}
             {#if msg[it.id].draft}<a href="#/editor?draft={msg[it.id].draft}">{pt('q_draft_open')} →</a>{/if}</p>
         {/if}
       </article>

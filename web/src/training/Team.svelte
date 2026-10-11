@@ -38,14 +38,14 @@
   <section class="card hl">
     <h2>{tt('tm_title')}</h2>
     <p class="muted">{tt('tm_sub')}</p>
-    <div class="tabs" style="margin:14px 0 0">
+    <div class="tabs u-2d724d0">
       <button class:on={filter === 'all'} onclick={() => (filter = 'all')}>{tt('tm_filter_all')} · {data.rows.length}</button>
       <button class:on={filter === 'wait'} onclick={() => (filter = 'wait')}>{tt('tm_filter_wait')} · {data.rows.filter((r: any) => !r.cleared).length}</button>
       <button class:on={filter === 'cleared'} onclick={() => (filter = 'cleared')}>{tt('tm_filter_cleared')} · {data.rows.filter((r: any) => r.cleared).length}</button>
     </div>
   </section>
 
-  <div class="stack" style="margin-top:20px">
+  <div class="stack u-a26bda7">
     {#each rows as r}
       <button class="card tr-trow" onclick={() => open(r.user.id)}>
         <Avatar u={r.user} size={44} />
@@ -54,8 +54,8 @@
           <div class="muted small">{r.user.position}{#if r.mentor} · {tt('tm_mentor')}: {r.mentor.name}{/if}</div>
         </div>
         <div class="tr-tprog">
-          <div class="row" style="justify-content:space-between"><b>{r.pct}%</b><span class="muted xs">{tt('day_of', { n: r.day, m: 10 })}</span></div>
-          <div class="tr-bar sm"><i style="width:{r.pct}%"></i></div>
+          <div class="row u-a562f4f"><b>{r.pct}%</b><span class="muted xs">{tt('day_of', { n: r.day, m: 10 })}</span></div>
+          <div class="tr-bar sm"><i style:width={`${r.pct}%`}></i></div>
           <div class="muted xs">{tt('lessons_done', { n: r.done, m: r.total })}</div>
         </div>
         <div class="tr-tmeta small">
@@ -77,21 +77,21 @@
     {@const r = det.row}
     <div class="tr-mhead">
       <Avatar u={r.user} size={52} />
-      <div><h2 style="margin:0">{r.user.name}</h2><div class="muted small">{r.user.position} · {tt('tm_started')} {fmtDate(r.started_at)}</div>
+      <div><h2 class="u-1169661">{r.user.name}</h2><div class="muted small">{r.user.position} · {tt('tm_started')} {fmtDate(r.started_at)}</div>
         <div class="muted small">{tt('tm_mentor')}: {r.mentor ? r.mentor.name : tt('no_mentor')}</div></div>
     </div>
-    <div class="row wrap" style="gap:8px;margin:10px 0">
+    <div class="row wrap u-a15eecb">
       {#if r.cleared}<span class="chip tr-chip-ok">✓ {tt('cleared')} · {tt('tm_cleared_by', { name: r.cleared.by ?? '—' })}</span>{/if}
       {#if r.recommended}<span class="chip tr-chip-warn">★ {tt('tm_rec_by', { name: r.recommended.by ?? '—' })}</span>{/if}
     </div>
-    <div class="row wrap" style="margin-bottom:6px">
+    <div class="row wrap u-4e420af">
       {#if data.can_recommend && !r.cleared}<button class="btn" disabled={busy} onclick={() => act('recommend')}>★ {tt('tm_recommend')}</button>{/if}
       {#if data.can_clear && !r.cleared}<button class="btn grad" disabled={busy} onclick={() => act('clear')}>✓ {tt('tm_clear')}</button>{/if}
       {#if data.can_clear && r.cleared}<button class="btn danger" disabled={busy} onclick={() => act('revoke')}>{tt('tm_revoke')}</button>{/if}
     </div>
     {#if !data.can_clear}<p class="muted xs">{tt('rd_wait_clear')}</p>{/if}
 
-    <h3 style="margin-top:14px">{tt('tm_ready')}</h3>
+    <h3 class="u-d6f2af6">{tt('tm_ready')}</h3>
     {#if det.sessions.length}
       <ul class="tr-hist">
         {#each det.sessions as s}
@@ -102,7 +102,7 @@
       </ul>
     {:else}<p class="muted small">{tt('tm_no_ready')}</p>{/if}
 
-    <h3 style="margin-top:14px">{tt('tm_lessons')} · {r.done}/{r.total}</h3>
+    <h3 class="u-d6f2af6">{tt('tm_lessons')} · {r.done}/{r.total}</h3>
     <div class="tr-mdays">
       {#each days as d}
         <div class="tr-mday"><b class="small">{tt('day', { n: d })}</b>
@@ -114,10 +114,10 @@
       {/each}
     </div>
 
-    <h3 style="margin-top:14px">{tt('tm_scen')}</h3>
+    <h3 class="u-d6f2af6">{tt('tm_scen')}</h3>
     <div class="tr-mscen small">
       {#each det.trainer as s}<span class="chip" title={tt('tm_attempts', { n: s.attempts })}>{ratingIco(s.last_rating)} {lf(s, 'title')}</span>{/each}
     </div>
-    <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn" onclick={() => (det = null)}>{tt('close')}</button></div>
+    <div class="row u-092b7a7"><button class="btn" onclick={() => (det = null)}>{tt('close')}</button></div>
   </Modal>
 {/if}

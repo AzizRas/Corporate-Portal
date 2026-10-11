@@ -217,7 +217,7 @@
         {#if !aiOn && kind && kind !== 'assign'}
           <div class="alert info">
             {et(needsAi ? 'e_ai_off' : 'e_ai_off_manual')}
-            {#if isAdmin && meta.ai.reason}<div class="xs muted" style="margin-top:4px">{et('e_ai_reason')}: {meta.ai.reason}</div>{/if}
+            {#if isAdmin && meta.ai.reason}<div class="xs muted u-96ad609">{et('e_ai_reason')}: {meta.ai.reason}</div>{/if}
           </div>
         {/if}
 
@@ -268,7 +268,7 @@
           <label class="f">{et('e_item_descr')}<textarea bind:value={libItem.descr} rows="3" maxlength="1000"></textarea></label>
           <div><button class="btn" disabled={busy} onclick={createManual}>{busy ? et('e_creating') : et('e_manual_create')}</button></div>
         {:else if kind === 'assign'}
-          <div class="tabs" style="margin-bottom:0" role="radiogroup" aria-label={et('e_as_mode')}>
+          <div class="tabs u-ef0b7a1" role="radiogroup" aria-label={et('e_as_mode')}>
             <button class:on={asMode === 'task'} role="radio" aria-checked={asMode === 'task'} onclick={() => (asMode = 'task')}>{et('e_as_task')}</button>
             <button class:on={asMode === 'test'} role="radio" aria-checked={asMode === 'test'} onclick={() => (asMode = 'test')}>{et('e_as_test')}</button>
           </div>
@@ -283,13 +283,13 @@
           {/if}
           <label class="f">{et('e_as_note')}<textarea bind:value={asNote} rows="2" maxlength="1000"></textarea></label>
           <div>
-            <div class="row wrap" style="margin-bottom:8px;gap:8px">
+            <div class="row wrap u-3db4700">
               <b class="small">{et('e_as_people')}</b><span class="muted xs">{et('e_as_chosen', { n: asUsers.length })}</span><span class="sp"></span>
               <button class="btn sm" onclick={() => (asUsers = [...new Set([...asUsers, ...shownPeople.map((p) => p.id)])])}>{et('e_as_all')}</button>
               <button class="btn sm" onclick={() => (asUsers = [])}>{et('e_as_none')}</button>
             </div>
             <input type="search" bind:value={asSearch} placeholder={et('e_as_search')} />
-            {#if !people.length}<p class="muted small" style="margin-top:10px">{et('e_as_no_people')}</p>{/if}
+            {#if !people.length}<p class="muted small u-d2c171b">{et('e_as_no_people')}</p>{/if}
             <div class="ed-people">
               {#each shownPeople as p (p.id)}
                 <label class="chk ed-person"><input type="checkbox" checked={asUsers.includes(p.id)} onchange={() => toggleUser(p.id)} /><span>{p.name}</span></label>
@@ -333,13 +333,13 @@
 
   {:else}
     <!-- ===== деталь ===== -->
-    <p class="small" style="margin-bottom:12px"><a href="#/editor">← {et('e_back')}</a></p>
+    <p class="small u-da12f28"><a href="#/editor">← {et('e_back')}</a></p>
     {#if dLoading}<span class="spin"></span>
     {:else if !d}<div class="alert">{dErr || et('e_err_not_found')}</div>
     {:else}
       <section class="card stack">
-        <div class="row wrap" style="align-items:flex-start;gap:10px">
-          <div style="flex:1;min-width:0">
+        <div class="row wrap u-a891081">
+          <div class="u-7f784dd">
             <div class="muted xs">{et(`e_k_${d.kind}`)}</div>
             <h2 class="ed-h2">{d.title}</h2>
             <div class="muted xs">
@@ -358,9 +358,9 @@
 
         <!-- ----- содержимое ----- -->
         {#if ed}
-          <div class="row wrap" style="gap:8px">
+          <div class="row wrap u-33fcd4c">
             <span class="muted small">{et('e_f_lang')}:</span>
-            <div class="tabs" style="margin:0">
+            <div class="tabs u-1169661">
               <button class:on={el === 'ru'} onclick={() => (el = 'ru')}>RU</button><button class:on={el === 'uz'} onclick={() => (el = 'uz')}>UZ</button>
             </div>
           </div>
@@ -370,7 +370,7 @@
             <label class="f ed-narrow">{et('e_f_minutes')}<input type="number" min="1" max="60" bind:value={ed.minutes} /></label>
             {#each ed.questions as qq, i (i)}
               <div class="ed-q">
-                <div class="row" style="gap:8px"><b>{i + 1}.</b><span class="sp"></span>
+                <div class="row u-33fcd4c"><b>{i + 1}.</b><span class="sp"></span>
                   {#if ed.questions.length > 3}<button class="btn sm danger" onclick={() => removeQ(i)}>{et('e_f_remove')}</button>{/if}</div>
                 <label class="f">{et('e_f_question')}<textarea rows="2" bind:value={qq[`q_${el}`]} maxlength="400"></textarea></label>
                 {#each qq.opts_ru as _o, k}
@@ -379,7 +379,7 @@
                     <input type="text" bind:value={qq[`opts_${el}`][k]} placeholder="{et('e_f_option')} {k + 1}" maxlength="300" />
                   </div>
                 {/each}
-                <label class="f" style="margin:8px 0 0">{et('e_f_why')}<textarea rows="2" bind:value={qq[`why_${el}`]} maxlength="600"></textarea></label>
+                <label class="f u-c94d43e">{et('e_f_why')}<textarea rows="2" bind:value={qq[`why_${el}`]} maxlength="600"></textarea></label>
               </div>
             {/each}
           {:else if d.kind === 'article_new' || d.kind === 'article_edit'}
@@ -392,7 +392,7 @@
           {:else if d.kind === 'library_add'}
             {#each ed.items as it, i (i)}
               <div class="ed-q">
-                <div class="row" style="gap:8px"><b>{i + 1}.</b><span class="sp"></span>
+                <div class="row u-33fcd4c"><b>{i + 1}.</b><span class="sp"></span>
                   {#if ed.items.length > 1}<button class="btn sm danger" onclick={() => removeItem(i)}>{et('e_f_remove')}</button>{/if}</div>
                 <div class="ed-2">
                   <label class="f">{et('e_item_kind')}<select bind:value={it.kind}>{#each ['book', 'video', 'link', 'article', 'course'] as k}<option value={k}>{et(`e_k_${k}`)}</option>{/each}</select></label>
@@ -400,7 +400,7 @@
                   <label class="f">{et('e_item_author')}<input type="text" bind:value={it.author} maxlength="200" /></label>
                   <label class="f">{et('e_item_url')}<input type="text" bind:value={it.url} placeholder="https://" maxlength="500" /></label>
                 </div>
-                <label class="f" style="margin:0">{et('e_item_descr')}<textarea rows="2" bind:value={it.descr} maxlength="1000"></textarea></label>
+                <label class="f u-1169661">{et('e_item_descr')}<textarea rows="2" bind:value={it.descr} maxlength="1000"></textarea></label>
               </div>
             {/each}
           {:else if d.kind === 'assign'}
@@ -436,29 +436,29 @@
             </ol>
           {:else if d.kind === 'article_new' || d.kind === 'article_edit'}
             <div class="muted xs">{et('e_pv_section')}: {sectionName(pv.section_id) || pv.section_id}{#if pv.tags} · {et('e_pv_tags')}: {pv.tags}{/if}{#if pv.changes} · {pv.changes}{/if}</div>
-            <div class="md card" style="background:var(--card-2)"><h2 style="margin-top:0">{loc(pv, 'title')}</h2>{@html md(loc(pv, 'body'))}</div>
+            <div class="md card u-cf4d271"><h2 class="u-d462248">{loc(pv, 'title')}</h2>{@html md(loc(pv, 'body'))}</div>
           {:else if d.kind === 'library_add'}
             {#if missingUrl && d.status === 'draft'}<div class="alert">{et('e_pv_url_missing')}</div>{/if}
             <div class="ed-cards">
               {#each pv.items as it}
                 <div class="ed-card">
-                  <span class="chip" style="padding:3px 10px;font-size:12px">{et(`e_k_${it.kind}`)}</span>
+                  <span class="chip u-34f20b5">{et(`e_k_${it.kind}`)}</span>
                   <b>{it.title}</b>
                   {#if it.author}<span class="muted small">{it.author}</span>{/if}
                   {#if it.descr}<span class="small">{it.descr}</span>{/if}
-                  {#if it.url}<span class="xs" style="overflow-wrap:anywhere">{et('e_pv_url_ok')}: <a href={it.url} target="_blank" rel="noopener">{it.url}</a></span>
+                  {#if it.url}<span class="xs u-115422e">{et('e_pv_url_ok')}: <a href={it.url} target="_blank" rel="noopener">{it.url}</a></span>
                   {:else}<span class="xs pill-warn">{et('e_pv_url_missing')}</span>{/if}
                 </div>
               {/each}
             </div>
           {:else if d.kind === 'assign'}
-            <div class="stack" style="gap:8px">
+            <div class="stack u-33fcd4c">
               <div><span class="chip">{pv.mode === 'test' ? et('e_pv_mode_test') : et('e_pv_mode_task')}</span></div>
               <b>{pv.mode === 'test' ? (loc(allTests.find((t: any) => t.slug === pv.test_slug), 'title') || pv.test_slug) : pv.title}</b>
               {#if pv.due}<div class="small">{et('e_pv_due')}: {pv.due}</div>{/if}
               {#if pv.note}<div class="small">{et('e_pv_note')}: {pv.note}</div>{/if}
               <div class="small"><b>{et('e_pv_people')} ({pv.user_ids.length}):</b></div>
-              <div class="row wrap" style="gap:6px">{#each pv.user_ids as id}<span class="chip" style="padding:4px 12px;font-size:13px">{pname(id)}</span>{/each}</div>
+              <div class="row wrap u-f0abc1d">{#each pv.user_ids as id}<span class="chip u-843c997">{pname(id)}</span>{/each}</div>
             </div>
           {/if}
         {/if}

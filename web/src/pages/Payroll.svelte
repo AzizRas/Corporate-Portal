@@ -51,25 +51,25 @@
 
 <header class="page-head"><div><h1>{t('pay_title')}<PageHelp topic="pay_show" /></h1><p class="sub">{t('pay_sub')}</p></div>
   {#if d?.periods.length}
-    <div class="head-actions row" style="gap:10px">
+    <div class="head-actions row u-f3d7ce7">
       {#if visible}<span class="muted small">{wt('pz_auto', { n: left })}</span><button class="btn sm" onclick={hide}>{wt('pz_hide')}</button>
       {:else}<button class="btn grad" onclick={reveal} disabled={loadingRev}>{wt('pz_show')}</button>{/if}
     </div>
   {/if}
 </header>
-{#if d?.periods.length && !visible}<div class="alert info" style="margin-bottom:16px">{wt('pz_hidden')}</div>{/if}
+{#if d?.periods.length && !visible}<div class="alert info u-87c136d">{wt('pz_hidden')}</div>{/if}
 
 {#if !d}<span class="spin"></span>
 {:else if !d.periods.length}<div class="card"><p class="muted">{t('pay_none')}</p></div>
 {:else}
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
-    <section class="card hl" style="grid-column:1/-1">
+  <div class="grid u-a3c2e2b">
+    <section class="card hl u-068a8dd">
       <div class="card-head"><h3>{t('pay_chart')}</h3><span class="aside">{t('pay_net')}</span></div>
       <div class="scroll-x">
-        <svg viewBox="0 0 {d.periods.length * 64} 190" style="width:100%;min-width:{d.periods.length * 44}px;height:190px" role="img" aria-label={t('pay_chart')}>
+        <svg viewBox="0 0 {d.periods.length * 64} 190" class="pay-chart" style:min-width="{d.periods.length * 44}px" role="img" aria-label={t('pay_chart')}>
           {#each d.periods as p, i}
             {@const h = Math.max(6, p.ratio * 130)}
-            <g onclick={() => (sel = p.month)} onkeydown={(e) => e.key === 'Enter' && (sel = p.month)} role="button" tabindex="0" style="cursor:pointer">
+            <g class="u-3b6a3a6" onclick={() => (sel = p.month)} onkeydown={(e) => e.key === 'Enter' && (sel = p.month)} role="button" tabindex="0">
               <rect x={i * 64 + 10} y={150 - h} width="44" height={h} rx="10" fill={p.month === sel ? 'url(#pg)' : 'var(--track)'} />
               <text x={i * 64 + 32} y="172" text-anchor="middle" font-size="12" fill="var(--muted)">{monthShort(p.month)}</text>
               {#if p.month === sel && visible}<text x={i * 64 + 32} y={142 - h} text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">{fmtMln(rev!.data.total)}</text>{/if}
@@ -84,7 +84,7 @@
       <section class="card">
         <div class="card-head"><h3>{monthLong(cur.month)}</h3></div>
         <div class="muted small">{t('pay_net')}</div>
-        <div class="big-num" class:masked={!visible} style="margin:6px 0 18px;font-size:clamp(30px,3.4vw,46px)">{money('total')}</div>
+        <div class="big-num u-e6069c5" class:masked={!visible}>{money('total')}</div>
         <div class="list">
           {#if cur.lines.includes('fixed')}<div><span>{t('pay_fixed')}</span><b>{money('fixed')}</b></div>{/if}
           {#if cur.lines.includes('earned')}<div><span>{t('pay_earned')}</span><b>{money('earned')}</b></div>{/if}
@@ -93,8 +93,8 @@
           {#if cur.lines.includes('deductions')}<div><span>{t('pay_deductions')}</span><b>{visible ? '− ' : ''}{money('deductions')}</b></div>{/if}
         </div>
         {#if d.formula.text_ru}
-          <button class="btn sm" style="margin-top:16px" onclick={() => (why = !why)}>{t('pay_why')} {why ? '▴' : '▾'}</button>
-          {#if why}<p class="small" style="margin-top:12px;white-space:pre-line">{app.lang === 'uz' && d.formula.text_uz ? d.formula.text_uz : d.formula.text_ru}</p>{/if}
+          <button class="btn sm u-1b0f499" onclick={() => (why = !why)}>{t('pay_why')} {why ? '▴' : '▾'}</button>
+          {#if why}<p class="small u-a996042">{app.lang === 'uz' && d.formula.text_uz ? d.formula.text_uz : d.formula.text_ru}</p>{/if}
         {/if}
       </section>
 
@@ -105,8 +105,8 @@
           {@const p = kpiPct(k)}
           <div class="comp">
             <div class="top"><span>{k.name}</span><span>{p}%</span></div>
-            <div class="bar" class:good={p >= 100}><i style="width:{Math.min(p, 100)}%"></i></div>
-            <div class="muted xs" style="margin-top:6px">{t('pay_plan')} {fmtMoney(k.plan)} · {t('pay_fact')} {fmtMoney(k.fact)}
+            <div class="bar" class:good={p >= 100}><i style:width={`${Math.min(p, 100)}%`}></i></div>
+            <div class="muted xs u-fe7b497">{t('pay_plan')} {fmtMoney(k.plan)} · {t('pay_fact')} {fmtMoney(k.fact)}
               {#if k.per_unit && k.fact < k.plan} · {t('pay_boost')} {fmtMoney(k.plan - k.fact)} → <b class:pill-ok={visible}>{visible ? '+' : ''}{maskedSum((k.plan - k.fact) * k.per_unit)}</b>{/if}</div>
           </div>
         {/each}
@@ -117,9 +117,9 @@
     {#if d.formula.calc?.enabled}
       <section class="card">
         <div class="card-head"><h3>{t('pay_whatif')}</h3></div>
-        <p class="muted small" style="margin-bottom:12px">{t('pay_whatif_hint')}</p>
-        <label class="f">KPI, % — <b style="color:var(--text)">{pct}</b><input type="range" min="50" max="120" bind:value={pct} oninput={calc} onchange={calc} style="padding:0;accent-color:var(--accent)" /></label>
-        {#if what != null}<p class="muted small">{t('pay_expected')}</p><div class="big-num" class:masked={!visible} style="font-size:36px">{maskedSum(what)}</div>{/if}
+        <p class="muted small u-da12f28">{t('pay_whatif_hint')}</p>
+        <label class="f">KPI, % — <b class="u-f045bbe">{pct}</b><input class="u-ea545dd" type="range" min="50" max="120" bind:value={pct} oninput={calc} onchange={calc} /></label>
+        {#if what != null}<p class="muted small">{t('pay_expected')}</p><div class="big-num u-f2d0bec" class:masked={!visible}>{maskedSum(what)}</div>{/if}
       </section>
     {/if}
 
@@ -131,7 +131,7 @@
         {#if qsent}<div class="alert ok">{t('pay_q_sent')}</div>{/if}
       </form>
       {#if mine.length}
-        <h3 class="card-title" style="margin:18px 0 6px">{t('pay_my_q')}</h3>
+        <h3 class="card-title u-66be9e2">{t('pay_my_q')}</h3>
         <div class="list">{#each mine.slice(0, 5) as r}<div><span class="small">{r.period ?? ''} {r.body.slice(0, 50)}</span><span class="chip">{t(stKey[r.status as 'new'])}</span></div>{/each}</div>
       {/if}
     </section>

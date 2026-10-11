@@ -12,30 +12,30 @@
 </script>
 
 {#if loading}<span class="spin"></span>{:else}
-  <div class="card hl" style="margin-bottom:20px">
+  <div class="card hl u-49f14f8">
     <div class="card-head"><h3>{gt('res_title')}</h3><span class="aside">{gt('res_threshold')} {threshold}%</span></div>
-    <div class="row wrap" style="gap:32px">
+    <div class="row wrap u-8f5d1a5">
       <div><div class="big-num">{ready}</div><span class="muted small">{gt('res_ready')}</span></div>
       <div><div class="big-num">{rows.length}</div><span class="muted small">{gt('res_total')}</span></div>
     </div>
-    <p class="muted small" style="margin-top:12px">{gt('res_hint')}</p>
+    <p class="muted small u-56f4356">{gt('res_hint')}</p>
   </div>
   <div class="stack">
     {#each rows as r}
-      <a class="card" href="#/growth/person/{r.id}" style="text-decoration:none;color:inherit;padding:18px 22px">
-        <div class="row wrap" style="gap:18px">
-          <div style="flex:1;min-width:200px"><b style="font-size:17px">{r.name}</b>
+      <a class="card u-063098b" href="#/growth/person/{r.id}">
+        <div class="row wrap u-6857c69">
+          <div class="u-eeb8c10"><b class="u-2b99ca6">{r.name}</b>
             <div class="muted small">{app.lang === 'uz' ? r.position_uz : r.position} → {app.lang === 'uz' ? r.target_uz : r.target}</div></div>
-          <div class="g-spark" aria-hidden="true">{#each r.history as h}<i class:n={h == null} style="height:{h == null ? 3 : Math.max(4, (h / 100) * 22)}px"></i>{/each}</div>
-          <div style="width:140px"><div class="row"><b style="font-size:22px" class:pill-ok={r.has_data && tier(r.pct) === 'good'} class:pill-warn={r.has_data && tier(r.pct) === 'warn'}>{r.has_data ? `${r.pct}%` : '—'}</b>
+          <div class="g-spark" aria-hidden="true">{#each r.history as h}<i class:n={h == null} style:height={`${h == null ? 3 : Math.max(4, (h / 100) * 22)}px`}></i>{/each}</div>
+          <div class="u-830eb98"><div class="row"><b class="u-881f70f" class:pill-ok={r.has_data && tier(r.pct) === 'good'} class:pill-warn={r.has_data && tier(r.pct) === 'warn'}>{r.has_data ? `${r.pct}%` : '—'}</b>
               {#if r.delta != null}<span class="small {r.delta >= 0 ? 'pill-ok' : 'pill-bad'}">{r.delta >= 0 ? '+' : ''}{r.delta}</span>{/if}</div>
-            <div class="g-prog" style="margin-top:6px"><i style="width:{r.has_data ? r.pct : 0}%"></i></div>{#if !r.has_data}<span class="muted xs">{gt('res_nodata')}</span>{/if}</div>
-          <div class="muted small" style="width:110px">{r.eta == null ? '—' : r.eta === 0 ? `✓ ${gt('res_now')}` : `≈ ${r.eta} ${t('month_unit')}`}</div>
+            <div class="g-prog u-fe7b497"><i style:width={`${r.has_data ? r.pct : 0}%`}></i></div>{#if !r.has_data}<span class="muted xs">{gt('res_nodata')}</span>{/if}</div>
+          <div class="muted small u-6074682">{r.eta == null ? '—' : r.eta === 0 ? `✓ ${gt('res_now')}` : `≈ ${r.eta} ${t('month_unit')}`}</div>
         </div>
         {#if r.gaps.length}
-          <div class="row wrap" style="margin-top:10px;gap:8px">
+          <div class="row wrap u-7fb3da5">
             <span class="muted xs">{gt('res_gaps')}:</span>
-            {#each r.gaps as g}<span class="chip" style="padding:3px 10px;font-size:12px">{nm(g, 'name')} {g.cur.toFixed(1)}→{g.req}</span>{/each}
+            {#each r.gaps as g}<span class="chip u-34f20b5">{nm(g, 'name')} {g.cur.toFixed(1)}→{g.req}</span>{/each}
           </div>
         {/if}
       </a>

@@ -13,30 +13,30 @@
 </script>
 
 <section class="stack">
-  <h2 style="margin:0">{wt('ts_title')}</h2>
+  <h2 class="u-1169661">{wt('ts_title')}</h2>
   {#if !d}<span class="spin"></span>
   {:else}
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-      <div class="card"><div class="muted small">{wt('ts_users')}</div><div class="big-num" style="font-size:30px">{d.users.total}</div></div>
-      <div class="card"><div class="muted small">{wt('ts_done')}</div><div class="big-num" style="font-size:30px">{d.users.done}</div></div>
-      <div class="card"><div class="muted small">{wt('ts_skipped')}</div><div class="big-num" style="font-size:30px">{d.users.skipped}</div></div>
-      <div class="card"><div class="muted small">{wt('ts_pending')}</div><div class="big-num" style="font-size:30px">{d.users.pending}</div></div>
+    <div class="grid u-877607c">
+      <div class="card"><div class="muted small">{wt('ts_users')}</div><div class="big-num u-12f66eb">{d.users.total}</div></div>
+      <div class="card"><div class="muted small">{wt('ts_done')}</div><div class="big-num u-12f66eb">{d.users.done}</div></div>
+      <div class="card"><div class="muted small">{wt('ts_skipped')}</div><div class="big-num u-12f66eb">{d.users.skipped}</div></div>
+      <div class="card"><div class="muted small">{wt('ts_pending')}</div><div class="big-num u-12f66eb">{d.users.pending}</div></div>
     </div>
     {#each d.kinds as k (k.kind)}
       <section class="card stack">
-        <div class="row wrap" style="gap:10px;align-items:baseline"><h3 class="card-title" style="margin:0">{KIND_RU[k.kind] ?? k.kind}</h3>
+        <div class="row wrap u-be0bb7b"><h3 class="card-title u-1169661">{KIND_RU[k.kind] ?? k.kind}</h3>
           <span class="chip">{wt('ts_started')}: {k.started}</span><span class="chip">{wt('ts_done')}: {k.done} ({pct(k.done, k.started)}%)</span><span class="chip">{wt('ts_skipped')}: {k.skipped}</span><span class="chip">{wt('ts_restarts')}: {k.restarts}</span></div>
         {#each stepsOf(k.kind) as s (s.step)}
           <div class="ts-row">
             <span class="ts-n">{s.step + 1}</span>
             <span class="ts-t">{stepTitle(k.kind, s.step_id)}</span>
-            <div class="bar" style="flex:1;min-width:80px"><i style="width:{pct(s.reached, max(k.kind))}%"></i></div>
-            <span class="muted small" style="min-width:150px;text-align:right">{wt('ts_reached')}: {s.reached}{#if s.skipped_here} · {wt('ts_skip_here')}: <b style="color:var(--text)">{s.skipped_here}</b>{/if}</span>
+            <div class="bar u-92e180b"><i style:width={`${pct(s.reached, max(k.kind))}%`}></i></div>
+            <span class="muted small u-fdc127a">{wt('ts_reached')}: {s.reached}{#if s.skipped_here} · {wt('ts_skip_here')}: <b class="u-f045bbe">{s.skipped_here}</b>{/if}</span>
           </div>
         {:else}<p class="muted small">{wt('ts_none')}</p>{/each}
       </section>
     {:else}<p class="muted">{wt('ts_none')}</p>{/each}
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+    <div class="grid u-0e12b30">
       <section class="card"><h3 class="card-title">{wt('ts_pages')}</h3>
         <div class="list">{#each d.pages as p}<div><span>{p.page}</span><span class="muted small">{p.users} · {p.visits}</span></div>{:else}<p class="muted small">{wt('ts_none')}</p>{/each}</div></section>
       <section class="card"><h3 class="card-title">{wt('ts_misses')}</h3>

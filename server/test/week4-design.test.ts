@@ -80,3 +80,15 @@ test('Доступность: кнопки только с иконкой под
   const BASELINE = 813;
   assert.ok(inline <= BASELINE, `встроенных style="…" стало ${inline}, а было не больше ${BASELINE}: используйте классы и токены из tokens.css`);
 });
+
+test('Классы u-… из перенесённых стилей: каждый используемый класс описан в inline.css, лишних нет', () => {
+  const css = read('src/inline.css');
+  const defined = new Set([...css.matchAll(/^\.(u-[0-9a-f]{7}) \{/gm)].map((m) => m[1]));
+  const used = new Set<string>();
+  for (const f of walk(srcDir).filter((x) => x.endsWith('.svelte'))) for (const m of fs.readFileSync(f, 'utf8').matchAll(/\bu-[0-9a-f]{7}\b/g)) used.add(m[0]);
+  assert.ok(used.size > 200, `перенесено много стилей: ${used.size}`);
+  assert.deepEqual([...used].filter((c) => !defined.has(c)), [], 'класс используется, но не описан');
+  assert.deepEqual([...defined].filter((c) => !used.has(c)), [], 'класс описан, но не используется');
+  assert.ok(/!important/.test(css), 'объявления с !important, чтобы вести себя как встроенные');
+  assert.match(read('src/main.ts'), /import '\.\/inline\.css'/);
+});

@@ -53,7 +53,7 @@
 {#if open && spec}
   <div use:portal class="tr-layer" role="dialog" aria-modal="true" aria-label={spec.title} bind:this={box}>
     <div class="tr-block" role="presentation"></div>
-    {#if rect}<div class="tr-spot" style="left:{rect.x}px;top:{rect.y}px;width:{rect.w}px;height:{rect.h}px"></div>{:else}<div class="tr-dim"></div>{/if}
+    {#if rect}<div class="tr-spot" style:left="{rect.x}px" style:top="{rect.y}px" style:width="{rect.w}px" style:height="{rect.h}px"></div>{:else}<div class="tr-dim"></div>{/if}
     <div class="tr-tip card" class:center={!rect} style={tipStyle} bind:this={tipEl}>
       <div class="tr-h">{spec.title}</div>
       <p class="tr-t">{spec.text}</p>

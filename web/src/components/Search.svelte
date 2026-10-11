@@ -99,8 +99,8 @@
   {@const t = h.topic}
   {#if h.answer}<p class="small">{h.ai ? '✨ ' : ''}{h.answer}</p>{/if}
   <b>{t.title[app.lang]}</b>
-  <ol style="margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px">{#each (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? []) as step}<li>{step}</li>{/each}</ol>
-  <div class="row wrap" style="gap:8px;margin-top:10px">
+  <ol class="u-ba31dbb">{#each (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? []) as step}<li>{step}</li>{/each}</ol>
+  <div class="row wrap u-f6c3b0c">
     <button class="btn grad sm" onclick={() => showHelp(t)}>{wt('hp_show')}</button>
     <a class="btn sm" href={'#' + t.route} onclick={hide}>{wt('hp_where')}</a>
   </div>
@@ -117,12 +117,12 @@
         <button class="sr-x" aria-label={st('c_cancel')} onclick={hide}><Icon name="close" /></button>
       </div>
       <div class="sr-list">
-        {#if helpHit}<div class="sr-ans" style="margin-top:0">{@render helpCard(helpHit.help)}</div>{/if}
+        {#if helpHit}<div class="sr-ans u-d462248">{@render helpCard(helpHit.help)}</div>{/if}
         {#each rows as r, i (r.key)}
           {#if i === 0 || rows[i - 1].group !== r.group}<div class="sr-group">{r.group}</div>{/if}
           <button class="sr-row" class:on={i === sel} onmouseenter={() => (sel = i)} onclick={() => pick(r)}>
             {#if r.person}<Avatar u={{ ...r.person, bday: false }} size={32} />{/if}
-            <span style="min-width:0"><b class="clip1" style="max-width:100%">{r.label}</b>{#if r.sub}<span class="muted xs clip1" style="display:block;max-width:100%">{r.sub}</span>{/if}</span>
+            <span class="u-3922d32"><b class="clip1 u-27aeb61">{r.label}</b>{#if r.sub}<span class="muted xs clip1 u-dd471cb">{r.sub}</span>{/if}</span>
           </button>
           {#if r.person && personOpen?.id === r.person.id}
             <div class="sr-person"><b>{r.person.name}</b><div class="muted small">{r.person.position}</div>{#if r.person.status}<div class="small">«{r.person.status}»</div>{/if}</div>
@@ -142,14 +142,14 @@
               {@render helpCard(ans.help)}
             {:else if ans.found}
               <div class="muted xs">{wt('sr_answer')}</div>
-              <p style="white-space:pre-line">{ans.answer}</p>
-              <div class="muted xs" style="margin-top:6px">{wt('sr_sources')}</div>
-              <div class="row wrap" style="gap:6px;margin-top:4px">{#each ans.sources as s}<a class="chip" href="#/kb/{s.id}" onclick={hide}>{s.title}</a>{/each}</div>
-              <div style="margin-top:10px"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
+              <p class="u-94badf9">{ans.answer}</p>
+              <div class="muted xs u-fe7b497">{wt('sr_sources')}</div>
+              <div class="row wrap u-c231079">{#each ans.sources as s}<a class="chip" href="#/kb/{s.id}" onclick={hide}>{s.title}</a>{/each}</div>
+              <div class="u-d2c171b"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
             {:else}
               <p class="small">{ans.queued ? (ans.dup ? wt('sr_queued_dup') : wt('sr_queued')) : wt('sr_none')}</p>
               {#if ans.ai === false && !ans.error}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}
-              {#if ans.error}<p class="xs" style="color:var(--bad,#ff6b8a)">{wt('sr_err')}: {ans.error}</p>{/if}
+              {#if ans.error}<p class="xs u-ae5afff">{wt('sr_err')}: {ans.error}</p>{/if}
             {/if}
           </div>
         {/if}

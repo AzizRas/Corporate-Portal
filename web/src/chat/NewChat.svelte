@@ -26,19 +26,19 @@
 <Modal {onclose}>
   <div class="stack">
     <h2>{wt('ch_new')}</h2>
-    {#if canGroup}<div class="tabs" style="margin:0"><button class:on={mode === 'dm'} onclick={() => (mode = 'dm')}>{wt('ch_new_dm')}</button><button class:on={mode === 'group'} onclick={() => (mode = 'group')}>{wt('ch_new_group')}</button></div>{/if}
-    {#if mode === 'group'}<label class="f" style="margin:0">{wt('ch_name')}<input bind:value={name} maxlength="60" /></label>{/if}
+    {#if canGroup}<div class="tabs u-1169661"><button class:on={mode === 'dm'} onclick={() => (mode = 'dm')}>{wt('ch_new_dm')}</button><button class:on={mode === 'group'} onclick={() => (mode = 'group')}>{wt('ch_new_group')}</button></div>{/if}
+    {#if mode === 'group'}<label class="f u-1169661">{wt('ch_name')}<input bind:value={name} maxlength="60" /></label>{/if}
     <input placeholder={wt('ch_search_ppl')} bind:value={find} />
     <div class="np-list">
       {#each list as p (p.id)}
         <button class="np-row" class:on={mode === 'group' && chosen.includes(p.id)} onclick={() => (mode === 'dm' ? openDm(p.id) : toggle(p.id))} disabled={busy}>
-          <Avatar u={{ ...p, bday: false }} size={34} /><span style="min-width:0;flex:1;text-align:left"><b>{p.name}</b><span class="muted xs" style="display:block">{p.position}</span></span>
+          <Avatar u={{ ...p, bday: false }} size={34} /><span class="u-f657004"><b>{p.name}</b><span class="muted xs u-2a1b75c">{p.position}</span></span>
           {#if mode === 'group'}<span class="np-ck">{chosen.includes(p.id) ? '✓' : ''}</span>{/if}
         </button>
       {/each}
     </div>
     {#if err}<div class="alert">{err}</div>{/if}
-    <div class="row" style="gap:8px;justify-content:flex-end">
+    <div class="row u-9990cea">
       <button class="btn" onclick={onclose}>{wt('ch_close')}</button>
       {#if mode === 'group'}<button class="btn grad" onclick={create} disabled={busy || !name.trim() || !chosen.length}>{wt('ch_create')} ({chosen.length})</button>{/if}
     </div>

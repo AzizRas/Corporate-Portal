@@ -48,9 +48,9 @@
 
 {#if kind === 'string'}
   <div class="fn-row">{#if label}<span class="fn-l">{labelText}</span>{/if}
-    {#if value.length > 70 || value.includes('\n')}<textarea bind:value style="min-height:70px"></textarea>{:else}<input bind:value />{/if}</div>
+    {#if value.length > 70 || value.includes('\n')}<textarea class="u-a6e1332" bind:value></textarea>{:else}<input bind:value />{/if}</div>
 {:else if kind === 'number'}
-  <div class="fn-row">{#if label}<span class="fn-l">{labelText}</span>{/if}<input type="number" bind:value step="any" style="max-width:200px" /></div>
+  <div class="fn-row">{#if label}<span class="fn-l">{labelText}</span>{/if}<input class="u-a828909" type="number" bind:value step="any" /></div>
 {:else if kind === 'boolean'}
   <div class="fn-row">{#if label}<span class="fn-l">{labelText}</span>{/if}<label class="chk"><input type="checkbox" bind:checked={value} />{value ? 'да' : 'нет'}</label></div>
 {:else if kind === 'null'}
@@ -59,31 +59,31 @@
   <div class="fn-block" style:--d={depth}>
     {#if label}<div class="fn-h"><b>{labelText}</b><span class="muted xs"> · {value.length}</span></div>{/if}
     {#if arr === 'prims' && stringsOnly}
-      <textarea value={text} oninput={setLines} placeholder="по одному пункту на строку" style="min-height:{Math.min(260, 40 + value.length * 24)}px"></textarea>
+      <textarea value={text} oninput={setLines} placeholder="по одному пункту на строку" style:min-height={`${Math.min(260, 40 + value.length * 24)}px`}></textarea>
     {:else if arr === 'prims'}
-      {#each value as _, i}<div class="row" style="margin-bottom:6px"><FormNode bind:value={value[i]} /><button class="btn sm danger" onclick={() => rm(i)}>×</button></div>{/each}
+      {#each value as _, i}<div class="row u-4e420af"><FormNode bind:value={value[i]} /><button class="btn sm danger" onclick={() => rm(i)}>×</button></div>{/each}
       <button class="btn sm" onclick={() => value.push('')}>+ пункт</button>
     {:else if arr === 'table'}
-      <div class="scroll-x" style="border:1px solid var(--border);border-radius:14px">
+      <div class="scroll-x u-2d124ff">
         <table class="table fn-table"><thead><tr><th></th>{#each cols as c}<th>{c}</th>{/each}<th></th></tr></thead>
           <tbody>{#each value as row, i}
             <tr><td class="xs muted">{i + 1}</td>
               {#each cols as c}<td>
                 {#if typeof row[c] === 'boolean'}<input type="checkbox" bind:checked={row[c]} />
-                {:else if typeof row[c] === 'number'}<input type="number" step="any" bind:value={row[c]} style="min-width:80px" />
-                {:else}<input bind:value={row[c]} style="min-width:{Math.min(260, Math.max(90, (String(row[c] ?? '').length || 8) * 8))}px" />{/if}
+                {:else if typeof row[c] === 'number'}<input class="u-c3c7cd9" type="number" step="any" bind:value={row[c]} />
+                {:else}<input bind:value={row[c]} style:min-width={`${Math.min(260, Math.max(90, (String(row[c] ?? '').length || 8) * 8))}px`} />{/if}
               </td>{/each}
-              <td style="white-space:nowrap"><button class="btn sm" onclick={() => move(i, -1)}>↑</button> <button class="btn sm" onclick={() => move(i, 1)}>↓</button> <button class="btn sm danger" onclick={() => rm(i)}>×</button></td></tr>
+              <td class="u-86abdab"><button class="btn sm" onclick={() => move(i, -1)}>↑</button> <button class="btn sm" onclick={() => move(i, 1)}>↓</button> <button class="btn sm danger" onclick={() => rm(i)}>×</button></td></tr>
           {/each}</tbody></table>
       </div>
-      <div class="row" style="margin-top:8px"><button class="btn sm" onclick={addRow}>+ строка</button>
+      <div class="row u-8a77e5a"><button class="btn sm" onclick={addRow}>+ строка</button>
         {#if cols.length}<button class="btn sm" onclick={() => (pasteOpen = !pasteOpen)}>Вставить из Excel</button>{/if}</div>
-      {#if pasteOpen}<div class="stack" style="margin-top:8px"><textarea bind:value={paste} placeholder={`Скопируйте ячейки из Excel и вставьте сюда. Колонки: ${cols.join(' | ')}`}></textarea><button class="btn sm grad" onclick={applyPaste}>Добавить строки</button></div>{/if}
+      {#if pasteOpen}<div class="stack u-8a77e5a"><textarea bind:value={paste} placeholder={`Скопируйте ячейки из Excel и вставьте сюда. Колонки: ${cols.join(' | ')}`}></textarea><button class="btn sm grad" onclick={applyPaste}>Добавить строки</button></div>{/if}
     {:else}
       {#each value as item, i}
         <details class="fn-card" open={value.length === 1}><summary><span>{nameOf(item, i)}</span>
-          <span class="row" style="gap:4px"><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, -1); }}>↑</button><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, 1); }}>↓</button><button class="btn sm danger" onclick={async (e) => { e.preventDefault(); if (await confirmBox('Удалить элемент?')) rm(i); }}>×</button></span></summary>
-          <div style="padding:12px 4px 4px"><FormNode bind:value={value[i]} depth={depth + 1} /></div></details>
+          <span class="row u-d767683"><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, -1); }}>↑</button><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, 1); }}>↓</button><button class="btn sm danger" onclick={async (e) => { e.preventDefault(); if (await confirmBox('Удалить элемент?')) rm(i); }}>×</button></span></summary>
+          <div class="u-a95dc73"><FormNode bind:value={value[i]} depth={depth + 1} /></div></details>
       {/each}
       <button class="btn sm" onclick={addRow}>+ элемент</button>
     {/if}
@@ -97,7 +97,7 @@
         <button class="fn-x" title="Удалить поле" onclick={() => delete value[k]}>×</button>
       </div>
     {/each}
-    <div class="row" style="margin-top:6px"><input placeholder="новое поле" bind:value={newKey} style="max-width:200px;padding:7px 12px" onkeydown={(e) => e.key === 'Enter' && addField()} /><button class="btn sm" onclick={addField} disabled={!newKey}>+ поле</button></div>
+    <div class="row u-fe7b497"><input class="u-147a003" placeholder="новое поле" bind:value={newKey} onkeydown={(e) => e.key === 'Enter' && addField()} /><button class="btn sm" onclick={addField} disabled={!newKey}>+ поле</button></div>
   </div>
 {/if}
 

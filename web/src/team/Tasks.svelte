@@ -23,9 +23,9 @@
 {#if loading}<p class="muted"><span class="spin"></span></p>
 {:else if failed}<p class="alert">{pt('t_load_err')}</p>
 {:else}
-  {#if err}<p class="alert" style="margin-bottom:14px">{err}</p>{/if}
+  {#if err}<p class="alert u-2b583d7">{err}</p>{/if}
   {#if !items.length}
-    <section class="card empty"><p style="font-size:18px;font-weight:600">🎉 {pt('t_empty')}</p></section>
+    <section class="card empty"><p class="u-5f296a9">🎉 {pt('t_empty')}</p></section>
   {:else}
     <div class="grid cols">
       {#snippet row(t: any)}

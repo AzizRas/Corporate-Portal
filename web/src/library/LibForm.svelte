@@ -42,7 +42,7 @@
       {:else if pv.type === 'video'}{lt('f_prev_mp4')}
       {:else if pv.type === 'link'}{lt('f_prev_link')}: <b>{pv.host}</b>
       {:else}{lt('f_prev_none')}{/if}
-      {#if pv.type === 'iframe' || pv.type === 'video'}<div style="margin-top:10px"><LibPlayer e={pv} small title={f.title} /></div>{/if}
+      {#if pv.type === 'iframe' || pv.type === 'video'}<div class="u-d2c171b"><LibPlayer e={pv} small title={f.title} /></div>{/if}
     </div>
     <label class="f">{lt('f_descr')}<textarea bind:value={f.descr} maxlength="1000" rows="3"></textarea></label>
     <div class="l-form2">
@@ -51,8 +51,8 @@
     </div>
     <datalist id="lib-cats">{#each categories as c}<option value={c}></option>{/each}</datalist>
     <label class="f">{lt('f_tags')}<input type="text" bind:value={f.tags} maxlength="200" /></label>
-    {#if item}<label class="chk" style="margin-bottom:14px"><input type="checkbox" bind:checked={f.active} /><span>{lt('f_active')}</span></label>{/if}
-    {#if err}<div class="alert" style="margin-bottom:12px">{err}</div>{/if}
-    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" onclick={onclose}>{lt('f_cancel')}</button><button class="btn grad" disabled={busy}>{lt('f_save')}</button></div>
+    {#if item}<label class="chk u-2b583d7"><input type="checkbox" bind:checked={f.active} /><span>{lt('f_active')}</span></label>{/if}
+    {#if err}<div class="alert u-da12f28">{err}</div>{/if}
+    <div class="row u-455f8cc"><button type="button" class="btn" onclick={onclose}>{lt('f_cancel')}</button><button class="btn grad" disabled={busy}>{lt('f_save')}</button></div>
   </form>
 </Modal>

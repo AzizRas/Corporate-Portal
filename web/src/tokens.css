@@ -23,6 +23,10 @@
 /* ---- служебные классы вместо встроенных стилей ---- */
 .mt-2 { margin-top: var(--sp-2); } .mt-4 { margin-top: var(--sp-4); } .mb-4 { margin-bottom: var(--sp-4); } .gap-2 { gap: var(--sp-2); } .gap-3 { gap: var(--sp-3); }
 .w-220 { display: block; max-width: 220px; } .hint-tight { margin: -8px 0 8px; }
+.ai-start { align-items: start; }
+.btn-bare { background: none; border: 0; cursor: pointer; }
+.pg-text { flex: 1; min-width: 0; } .pg-text.pg-done { text-decoration: line-through; opacity: .6; }
+.pay-chart { width: 100%; height: 190px; }
 .flash-bar { margin-bottom: 14px; gap: 10px; align-items: center; }
 
 /* ---- состояния кнопок и полей: обычное, наведение, фокус, отключено, загрузка, ошибка ---- */

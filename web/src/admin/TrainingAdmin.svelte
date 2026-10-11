@@ -148,14 +148,14 @@
 <div class="tr">
   {#if ov}
     {#if !ov.ai}
-      <div class="alert info" style="margin-bottom:16px"><b>ИИ выключен.</b> Не задан OPENROUTER_API_KEY — тренажёр, проверка уроков и интервью работают во встроенном режиме
+      <div class="alert info u-87c136d"><b>ИИ выключен.</b> Не задан OPENROUTER_API_KEY — тренажёр, проверка уроков и интервью работают во встроенном режиме
         (готовые вопросы и сверка по ключевым словам). Сотрудники видят пометку «ИИ не подключён». Чтобы включить ИИ, добавьте ключ в переменные сервиса; модель — TRAIN_MODEL, лимит — {ov.ai_limit} запросов в сутки на человека.</div>
     {:else}
-      <div class="alert ok" style="margin-bottom:16px">ИИ подключён (модель {ov.model}, лимит {ov.ai_limit} запросов в сутки на человека). ИИ опирается только на текст урока или сценария.</div>
+      <div class="alert ok u-87c136d">ИИ подключён (модель {ov.model}, лимит {ov.ai_limit} запросов в сутки на человека). ИИ опирается только на текст урока или сценария.</div>
     {/if}
   {/if}
-  {#if msg}<div class="alert ok" style="margin-bottom:12px">{msg}</div>{/if}
-  {#if err && !ed && !sed}<div class="alert" style="margin-bottom:12px">{err}</div>{/if}
+  {#if msg}<div class="alert ok u-da12f28">{msg}</div>{/if}
+  {#if err && !ed && !sed}<div class="alert u-da12f28">{err}</div>{/if}
 
   <nav class="tabs">
     <button class:on={tab === 'plan'} onclick={() => (tab = 'plan')}>Курсы и уроки</button>
@@ -178,8 +178,8 @@
 
       {#if course}
         <section class="card">
-          <div class="card-head" style="align-items:flex-start;flex-wrap:wrap">
-            <div><h3 style="color:var(--text);font-size:19px">{course.title_ru}</h3><div class="muted small">{course.descr_ru}</div></div>
+          <div class="card-head u-e3db048">
+            <div><h3 class="u-79ef5bb">{course.title_ru}</h3><div class="muted small">{course.descr_ru}</div></div>
             <div class="tra-btns">
               <button class="btn sm" onclick={() => (cEdit = { ...course })}>Править</button>
               {#if !course.is_default}<button class="btn sm" onclick={setDefault}>Сделать основным</button>{/if}
@@ -187,7 +187,7 @@
               {#if !course.is_default}<button class="btn sm danger" onclick={delCourse}>Удалить</button>{/if}
             </div>
           </div>
-          <div class="row wrap" style="gap:8px;margin-bottom:6px">
+          <div class="row wrap u-eed49c3">
             <button class="btn grad sm" onclick={() => editLesson(null, days[days.length - 1] ?? 1)}>+ Урок</button>
             {#if course.is_default}<button class="btn sm" disabled={busy} onclick={restore}>Вернуть план по умолчанию</button>{/if}
           </div>
@@ -216,7 +216,7 @@
     </div>
 
   {:else if tab === 'scen'}
-    <div class="row wrap" style="margin-bottom:14px"><button class="btn grad sm" onclick={() => editScenario(null)}>+ Сценарий</button>
+    <div class="row wrap u-2b583d7"><button class="btn grad sm" onclick={() => editScenario(null)}>+ Сценарий</button>
       <span class="muted small">Сценарии видят все сотрудники в разделе «Тренажёр».</span></div>
     <div class="card">
       {#each scenarios as s}
@@ -233,8 +233,8 @@
     </div>
 
   {:else}
-    <section class="card" style="margin-bottom:20px">
-      <h3 style="margin-bottom:12px">Записать сотрудника на курс</h3>
+    <section class="card u-49f14f8">
+      <h3 class="u-da12f28">Записать сотрудника на курс</h3>
       <div class="tra-form">
         <label class="f">Сотрудник
           <select bind:value={nu.user_id}><option value="">—</option>{#each people as p}<option value={String(p.id)}>{p.name}{p.position ? ` · ${p.position}` : ''}{p.roles.includes('newbie') ? ' (новичок)' : ''}</option>{/each}</select></label>
@@ -244,7 +244,7 @@
           <select bind:value={nu.mentor_id}><option value="">— не назначен —</option>{#each people as p}<option value={String(p.id)}>{p.name}</option>{/each}</select></label>
       </div>
       <button class="btn grad" disabled={!nu.user_id} onclick={enroll}>Записать</button>
-      <p class="muted xs" style="margin-top:8px">Новички с ролью «newbie» записываются на основной курс сами при первом заходе в раздел.</p>
+      <p class="muted xs u-8a77e5a">Новички с ролью «newbie» записываются на основной курс сами при первом заходе в раздел.</p>
     </section>
     <section class="card">
       <div class="scroll-x">
@@ -277,7 +277,7 @@
     <label class="f">Название (UZ)<input bind:value={cEdit.title_uz} /></label>
     <label class="f">Описание (RU)<textarea rows="2" bind:value={cEdit.descr_ru}></textarea></label>
     <label class="f">Описание (UZ)<textarea rows="2" bind:value={cEdit.descr_uz}></textarea></label>
-    <div class="row" style="justify-content:flex-end;gap:10px"><button class="btn" onclick={() => (cEdit = null)}>Отмена</button><button class="btn grad" disabled={busy || !cEdit.title_ru.trim()} onclick={saveCourse}>Сохранить</button></div>
+    <div class="row u-65878ff"><button class="btn" onclick={() => (cEdit = null)}>Отмена</button><button class="btn grad" disabled={busy || !cEdit.title_ru.trim()} onclick={saveCourse}>Сохранить</button></div>
   </Modal>
 {/if}
 
@@ -289,7 +289,7 @@
       <label class="f">День<input type="number" min="1" max="60" bind:value={ed.day} /></label>
       <label class="f">Тип<select bind:value={ed.kind}>{#each KINDS as k}<option value={k[0]}>{k[1]}</option>{/each}</select></label>
       <label class="f">Область (для рекомендаций после интервью)<select bind:value={ed.area}>{#each AREAS as a}<option value={a[0]}>{a[1]}</option>{/each}</select></label>
-      <label class="chk f" style="align-self:end"><input type="checkbox" bind:checked={ed.active} /> Показывать сотрудникам</label>
+      <label class="chk f u-53cf909"><input type="checkbox" bind:checked={ed.active} /> Показывать сотрудникам</label>
       <label class="f">Название (RU)<input bind:value={ed.title_ru} /></label>
       <label class="f">Название (UZ)<input bind:value={ed.title_uz} /></label>
       <label class="f wide">Текст урока (RU) — простой markdown: ## заголовок, - список, **жирный**, &gt; цитата<textarea rows="9" bind:value={ed.body_ru}></textarea></label>
@@ -299,7 +299,7 @@
       {#if ed.kind === 'quiz' || ed.kind === 'exam'}<label class="f">Проходной балл, %<input type="number" min="1" max="100" bind:value={ed.pass_score} /></label>{/if}
     </div>
 
-    <h3 style="margin:10px 0">Вопросы теста ({ed.quiz.length})</h3>
+    <h3 class="u-f4e719a">Вопросы теста ({ed.quiz.length})</h3>
     <p class="muted xs">Варианты — по одному в строке; сотруднику они показываются в перемешанном порядке. Разбор виден сразу после ответа. Для kind «Тест» и «Экзамен» нужен минимум один вопрос.</p>
     {#each ed.quiz as q, i}
       <div class="tra-q">
@@ -319,7 +319,7 @@
     {/each}
     <button class="btn sm" onclick={addQ}>+ Вопрос</button>
 
-    <h3 style="margin:18px 0 6px">Вопросы «своими словами» (для ИИ-проверки и встроенной сверки)</h3>
+    <h3 class="u-66be9e2">Вопросы «своими словами» (для ИИ-проверки и встроенной сверки)</h3>
     <p class="muted xs">Критерии — по строке: «что должно быть (RU) | то же (UZ) | ключевые слова через запятую». Критерий засчитан, если встретилось любое слово (пишите основы слов, регистр и «ё» не важны). Пройдено при ≥ 50% критериев. Без ключа ИИ используются именно эти вопросы.</p>
     {#each ed.open_q as o, i}
       <div class="tra-q">
@@ -335,7 +335,7 @@
     {/each}
     <button class="btn sm" onclick={addOpen}>+ Вопрос «своими словами»</button>
 
-    {#if err}<div class="alert" style="margin-top:12px">{err}</div>{/if}
+    {#if err}<div class="alert u-56f4356">{err}</div>{/if}
     <div class="tra-modal-foot"><button class="btn" onclick={() => (ed = null)}>Отмена</button><button class="btn grad" disabled={busy} onclick={saveLesson}>Сохранить урок</button></div>
   </Modal>
 {/if}
@@ -355,11 +355,11 @@
       <label class="f">Что видно в CRM (UZ)<input bind:value={sed.context_uz} /></label>
     </div>
 
-    <h3 style="margin:10px 0">Варианты ответа ({sed.options.length})</h3>
+    <h3 class="u-f4e719a">Варианты ответа ({sed.options.length})</h3>
     <p class="muted xs">Нужно минимум 2 варианта и хотя бы один «лучший». Сотруднику они показываются в перемешанном порядке. «Почему» — разбор варианта.</p>
     {#each sed.options as o, i}
       <div class="tra-q">
-        <div class="head"><select style="width:auto" bind:value={o.rating}><option value="best">лучший</option><option value="ok">приемлемый</option><option value="bad">плохой</option></select>
+        <div class="head"><select class="u-30e741d" bind:value={o.rating}><option value="best">лучший</option><option value="ok">приемлемый</option><option value="bad">плохой</option></select>
           <button class="tra-icon" title="Удалить" onclick={() => sed.options.splice(i, 1)}>✕</button></div>
         <div class="tra-form">
           <label class="f">Ответ (RU)<textarea rows="2" bind:value={o.t_ru}></textarea></label>
@@ -371,7 +371,7 @@
     {/each}
     <button class="btn sm" onclick={() => sed.options.push({ rating: 'ok', t_ru: '', t_uz: '', why_ru: '', why_uz: '' })}>+ Вариант</button>
 
-    <h3 style="margin:18px 0 6px">Критерии свободного ответа</h3>
+    <h3 class="u-66be9e2">Критерии свободного ответа</h3>
     <p class="muted xs">По строке: «что должно быть (RU) | то же (UZ) | ключевые слова через запятую (основы слов на ru и uz)». Оценка: ≥ 66% критериев — лучший, ≥ 34% — приемлемо; слова из «Чего быть не должно» понижают оценку. ИИ при наличии ключа оценивает по тем же критериям.</p>
     <div class="tra-form">
       <label class="f wide">Что должно быть<textarea rows="5" bind:value={sed.criteria} placeholder="извинение | uzr | извин, жаль, uzr, kechir"></textarea></label>
@@ -381,9 +381,9 @@
       <label class="f">Обоснование «Потому что…» (RU)<textarea rows="4" bind:value={sed.why_ru}></textarea></label>
       <label class="f">Обоснование (UZ)<textarea rows="4" bind:value={sed.why_uz}></textarea></label>
       <label class="f">Порядок в списке<input type="number" bind:value={sed.sort} /></label>
-      <label class="chk f" style="align-self:end"><input type="checkbox" bind:checked={sed.active} /> Показывать сотрудникам</label>
+      <label class="chk f u-53cf909"><input type="checkbox" bind:checked={sed.active} /> Показывать сотрудникам</label>
     </div>
-    {#if err}<div class="alert" style="margin-top:12px">{err}</div>{/if}
+    {#if err}<div class="alert u-56f4356">{err}</div>{/if}
     <div class="tra-modal-foot"><button class="btn" onclick={() => (sed = null)}>Отмена</button><button class="btn grad" disabled={busy} onclick={saveScenario}>Сохранить сценарий</button></div>
   </Modal>
 {/if}

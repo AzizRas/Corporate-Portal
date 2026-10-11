@@ -53,8 +53,8 @@
         <div class="card t-hist">
           {#each hist as h}
             <a href="#/tests/result/{h.id}">
-              <div style="min-width:0"><b>{tl(h.title)}</b><small>{fmtDate(h.created_at)}</small></div>
-              <span class="t-badge {h.tone}" style="text-align:right">{tl(h.headline)}</span>
+              <div class="u-3922d32"><b>{tl(h.title)}</b><small>{fmtDate(h.created_at)}</small></div>
+              <span class="t-badge {h.tone} u-54c2afb">{tl(h.headline)}</span>
             </a>
           {/each}
         </div>
@@ -81,7 +81,7 @@
             <p>{tl(x.descr)}</p>
             {#if x.assigned}<div class="t-assigned">📌 {tt('assigned')}{x.assigned.by ? ` · ${tt('assigned_by', { name: x.assigned.by })}` : ''}{x.assigned.note ? ` — ${x.assigned.note}` : ''}</div>{/if}
             {#if x.last}
-              <a class="t-last {x.last.tone}" href="#/tests/result/{x.last.id}" style="text-decoration:none;color:inherit">
+              <a class="t-last {x.last.tone} u-38b741b" href="#/tests/result/{x.last.id}">
                 <span>{tt('passed')} {fmtDate(x.last.created_at)} · {x.last.attempts} {tt('attempts')}</span>
                 <b>{tl(x.last.headline)}</b>
               </a>

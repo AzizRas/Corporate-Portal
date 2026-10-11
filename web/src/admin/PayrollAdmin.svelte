@@ -28,37 +28,37 @@
   async function saveFormula() { await api.put('/api/admin/settings/payroll_formula', { value: formula }); fmsg = 'Сохранено'; }
 </script>
 
-<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))">
+<div class="grid u-e3865e7">
   <form class="card stack" onsubmit={upload}>
     <h3 class="card-title">Загрузить ведомость (.xlsx)</h3>
     <p class="muted small">Таблица с колонками ФИО, Фикс, Сумма, Бонус, Итого ЗП (Штраф и Удержания — по желанию). Строка заголовков может быть не первой. Сотрудники ищутся по ФИО (регистр и лишние пробелы не важны). Перед публикацией есть предпросмотр.</p>
-    <label class="f" style="margin:0">Месяц<input type="month" bind:value={month} required /></label>
+    <label class="f u-1169661">Месяц<input type="month" bind:value={month} required /></label>
     <input type="file" accept=".xlsx" onchange={(e) => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} required />
     <div class="row"><button class="btn grad" disabled={busy}>Загрузить</button><button type="button" class="btn" onclick={() => download('/api/payroll/template')}>Скачать шаблон</button></div>
     {#if msg}<div class="alert">{msg}</div>{/if}
     {#if result}
       {@const hard = result.errors.filter((e) => e.level !== 'warn')}
       <div class="alert" class:ok={!hard.length}>Принято строк: <b>{result.rows}</b>, ошибок: <b>{hard.length}</b>, предупреждений: <b>{result.errors.length - hard.length}</b></div>
-      {#if result.errors.length}<div class="small" style="max-height:220px;overflow:auto">{#each result.errors as er}<div class={er.level === 'warn' ? 'pill-warn' : 'pill-bad'}>{er.level === 'warn' ? '⚠' : '✕'} строка {er.row}: {er.msg}</div>{/each}</div>{/if}
+      {#if result.errors.length}<div class="small u-05665e9">{#each result.errors as er}<div class={er.level === 'warn' ? 'pill-warn' : 'pill-bad'}>{er.level === 'warn' ? '⚠' : '✕'} строка {er.row}: {er.msg}</div>{/each}</div>{/if}
     {/if}
   </form>
 
   {#if formula}
     <section class="card stack">
       <h3 class="card-title">Формула расчёта (показывается сотруднику)</h3>
-      <label class="f" style="margin:0">Текст, RU<textarea bind:value={formula.text_ru}></textarea></label>
-      <label class="f" style="margin:0">Текст, UZ<textarea bind:value={formula.text_uz}></textarea></label>
+      <label class="f u-1169661">Текст, RU<textarea bind:value={formula.text_ru}></textarea></label>
+      <label class="f u-1169661">Текст, UZ<textarea bind:value={formula.text_uz}></textarea></label>
       <label class="chk"><input type="checkbox" bind:checked={formula.calc.enabled} /> Калькулятор «что если»</label>
       {#if formula.calc.enabled}
-        <div class="row"><label class="f" style="margin:0;flex:1">Макс. бонус<input type="number" bind:value={formula.calc.bonus_max} /></label>
-          <label class="f" style="margin:0;flex:1">Порог KPI, %<input type="number" bind:value={formula.calc.min_pct} /></label></div>
+        <div class="row"><label class="f u-0935c1f">Макс. бонус<input type="number" bind:value={formula.calc.bonus_max} /></label>
+          <label class="f u-0935c1f">Порог KPI, %<input type="number" bind:value={formula.calc.min_pct} /></label></div>
       {/if}
       <button class="btn grad" onclick={saveFormula}>Сохранить</button>{#if fmsg}<div class="alert ok">{fmsg}</div>{/if}
     </section>
   {/if}
 </div>
 
-<div class="card scroll-x" style="margin-top:24px;padding:12px 16px">
+<div class="card scroll-x u-4bfc9e6">
   <table class="table"><thead><tr><th>Месяц</th><th>Файл</th><th>Строк</th><th>Ошибок</th><th>Статус</th><th></th></tr></thead>
     <tbody>
       {#each periods as p}

@@ -31,18 +31,18 @@
   async function addSection() { const t = await promptBox('Название раздела'); if (t) { await api.post('/api/kb/sections', { title_ru: t, title_uz: t }); sections = (await api.get('/api/kb/sections')).sections; } }
 </script>
 
-<div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr)">
+<div class="grid u-baa3889">
   <section class="card">
-    <div class="row" style="margin-bottom:12px"><h3 class="card-title">Статьи</h3><span class="sp"></span>{#if has('hr')}<button class="btn sm" onclick={addSection}>+ Раздел</button>{/if}<button class="btn sm grad" onclick={() => open(null)}>+ Статья</button></div>
+    <div class="row u-da12f28"><h3 class="card-title">Статьи</h3><span class="sp"></span>{#if has('hr')}<button class="btn sm" onclick={addSection}>+ Раздел</button>{/if}<button class="btn sm grad" onclick={() => open(null)}>+ Статья</button></div>
     <div class="list">
       {#each list as a}
         <div><span><b>{a.title_ru}</b><div class="muted xs">{secName(a.section_id)} · {a.owner_name ?? '—'} · v{a.version} · {fmtDate(a.updated_at)} {#if a.overdue}<span class="pill-warn">· пора пересмотреть</span>{/if}</div></span>
-          <span class="row"><span class="chip" style="font-size:12px;padding:3px 10px">{STATUS[a.status]}</span><button class="btn sm" onclick={() => open(a.id)}>Править</button></span></div>
+          <span class="row"><span class="chip u-8ea26a6">{STATUS[a.status]}</span><button class="btn sm" onclick={() => open(a.id)}>Править</button></span></div>
       {/each}
     </div>
   </section>
   <section class="card">
-    <h3 class="card-title" style="margin-bottom:12px">Не нашли ответ ({unanswered.length})</h3>
+    <h3 class="card-title u-da12f28">Не нашли ответ ({unanswered.length})</h3>
     <div class="list">
       {#each unanswered as u}<div><span class="small">{u.query} <span class="muted">×{u.n}</span></span><span class="row"><button class="btn sm" onclick={() => newFrom(u)}>Статья</button><button class="btn sm" onclick={() => resolve(u)}>✓</button></span></div>{:else}<p class="muted small">Очередь пуста</p>{/each}
     </div>
@@ -52,21 +52,21 @@
 {#if edit}
   <Modal onclose={() => (edit = null)} wide>
     <h2>{edit.id ? 'Статья' : 'Новая статья'}</h2>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px">
+    <div class="grid u-e5976ac">
       <label class="f">Раздел<select bind:value={edit.section_id}>{#each sections as s}<option value={s.id}>{s.title_ru}</option>{/each}</select></label>
       <label class="f">Пересмотр, мес.<input type="number" bind:value={edit.review_months} /></label>
       <label class="f">Теги (для поиска)<input bind:value={edit.tags} /></label>
     </div>
     <div class="tabs"><button class:on={lang === 'ru'} onclick={() => (lang = 'ru')}>RU</button><button class:on={lang === 'uz'} onclick={() => (lang = 'uz')}>UZ</button><button class:on={preview} onclick={() => (preview = !preview)}>Предпросмотр</button></div>
     <label class="f">Заголовок ({lang})<input bind:value={edit[`title_${lang}`]} /></label>
-    {#if preview}<div class="md card" style="background:var(--card-2)">{@html md(edit[`body_${lang}`])}</div>
-    {:else}<label class="f">Текст ({lang}) — markdown: ## заголовок, - список, **жирный**, [ссылка](url), ![картинка](url)<textarea bind:value={edit[`body_${lang}`]} style="min-height:240px;font-family:ui-monospace,monospace"></textarea></label>{/if}
-    <div class="muted small" style="margin-bottom:6px">Для каких отделов (пусто = для всех)</div>
-    <div class="row wrap" style="margin-bottom:14px">{#each depts as d}<label class="chk chip" class:on={edit.dept_ids.includes(d.id)}><input type="checkbox" class="sr" checked={edit.dept_ids.includes(d.id)} onchange={() => toggleDept(d.id)} />{d.name_ru}</label>{/each}</div>
-    {#if versions.length}<details style="margin-bottom:14px"><summary class="muted small" style="cursor:pointer">История версий ({versions.length})</summary>
+    {#if preview}<div class="md card u-cf4d271">{@html md(edit[`body_${lang}`])}</div>
+    {:else}<label class="f">Текст ({lang}) — markdown: ## заголовок, - список, **жирный**, [ссылка](url), ![картинка](url)<textarea class="u-f183042" bind:value={edit[`body_${lang}`]}></textarea></label>{/if}
+    <div class="muted small u-4e420af">Для каких отделов (пусто = для всех)</div>
+    <div class="row wrap u-2b583d7">{#each depts as d}<label class="chk chip" class:on={edit.dept_ids.includes(d.id)}><input type="checkbox" class="sr" checked={edit.dept_ids.includes(d.id)} onchange={() => toggleDept(d.id)} />{d.name_ru}</label>{/each}</div>
+    {#if versions.length}<details class="u-2b583d7"><summary class="muted small u-3b6a3a6">История версий ({versions.length})</summary>
       <div class="list">{#each versions as v}<div><span class="small">v{v.version} · {fmtDate(v.at)} · {v.by_name ?? ''}</span><button class="btn sm" onclick={() => restore(v.version)}>Откатить</button></div>{/each}</div></details>{/if}
     {#if msg}<div class="alert ok">{msg}</div>{/if}
-    <div class="row wrap" style="justify-content:flex-end">
+    <div class="row wrap u-455f8cc">
       <span class="chip">{STATUS[edit.status]}</span><span class="sp"></span>
       <button class="btn" onclick={save}>Сохранить</button>
       {#if edit.status === 'draft'}<button class="btn" onclick={() => setStatus('review')}>На проверку</button>{/if}

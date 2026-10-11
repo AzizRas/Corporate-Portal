@@ -31,7 +31,7 @@
   <nav class="tabs" aria-label={tt('title')}>{#each tabs as tb}<a href={tb.h} class:on={tabOn(tb.id)}>{tb.l}</a>{/each}</nav>
 
   {#if T.status === 'error' && !T.me}
-    <div class="card"><p class="muted">{tt('error')}</p><button class="btn" style="margin-top:12px" onclick={() => { T.status = 'idle'; loadMe(true); }}>{tt('retry')}</button></div>
+    <div class="card"><p class="muted">{tt('error')}</p><button class="btn u-56f4356" onclick={() => { T.status = 'idle'; loadMe(true); }}>{tt('retry')}</button></div>
   {:else if !T.me}
     <div class="tr-center"><span class="spin"></span></div>
   {:else if sec === 'lesson'}{#key parts[1]}<Lesson id={Number(parts[1])} />{/key}

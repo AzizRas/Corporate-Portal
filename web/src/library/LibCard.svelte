@@ -13,7 +13,7 @@
 <article class="card l-card" class:off={!it.active}>
   <div class="l-top">
     <div class="l-ic" aria-hidden="true">{ICONS[it.kind] ?? '📄'}</div>
-    <div style="min-width:0">
+    <div class="u-3922d32">
       <h3>{it.title}</h3>
       {#if it.author}<div class="au">{it.author}</div>{/if}
     </div>
