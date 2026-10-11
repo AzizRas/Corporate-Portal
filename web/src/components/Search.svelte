@@ -47,6 +47,7 @@
       for (const a of res.kb) out.push({ key: `k${a.id}`, group: wt('sr_kb'), label: tr(a, 'title'), sub: (lang === 'uz' && a.snippet_uz ? a.snippet_uz : a.snippet_ru)?.slice(0, 90), href: `/kb/${a.id}` });
       for (const x of res.tests) out.push({ key: `t${x.slug}`, group: wt('sr_tests'), label: tr(x, 'title'), href: `/tests/${x.slug}` });
       for (const b of res.library) out.push({ key: `l${b.id}`, group: wt('sr_library'), label: b.title, sub: b.author, href: '/library' });
+      for (const c of res.candidates ?? []) out.push({ key: `a${c.id}`, group: wt('sr_cands'), label: `${c.last_name ?? ''} ${c.first_name}`.trim(), sub: c.position, href: `/hire/a/${c.id}` });
       for (const p of res.people) out.push({ key: `p${p.id}`, group: wt('sr_people'), label: p.name, sub: p.position, person: p });
       for (const c of res.chats.channels) out.push({ key: `c${c.id}`, group: wt('sr_chats'), label: tr(c, 'name'), href: `/chat/${encodeURIComponent(c.id)}` });
       for (const m of res.chats.messages) out.push({ key: `m${m.id}`, group: wt('sr_chats'), label: m.snippet, sub: `${m.author} · ${wt('sr_msg_in')} ${m.channel === 'general' ? st('c_channels') : m.channel.replace('dept:', '')}`, href: `/chat/${encodeURIComponent(m.channel)}` });

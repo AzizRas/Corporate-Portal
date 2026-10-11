@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   // Админка обучения: курсы и уроки по дням, редактор тестов, сценарии тренажёра, запись сотрудников и наставники.
   import { api, ApiError } from '../lib/api';
   import Modal from '../components/Modal.svelte';
@@ -49,12 +50,12 @@
   async function setDefault() { try { await api.patch(`/api/admin/training/courses/${courseId}`, { is_default: true }); await loadOv(); flash('Курс стал основным: на него записываются новички'); } catch (e) { fail(e); } }
   async function toggleCourse() { try { await api.patch(`/api/admin/training/courses/${courseId}`, { active: !course.active }); await loadOv(); } catch (e) { fail(e); } }
   async function delCourse() {
-    if (!confirm(`Удалить курс «${course.title_ru}» вместе с уроками и записями сотрудников?`)) return;
+    if (!await confirmBox(`Удалить курс «${course.title_ru}» вместе с уроками и записями сотрудников?`)) return;
     try { await api.del(`/api/admin/training/courses/${courseId}`); courseId = null; await loadOv(); flash('Курс удалён'); }
     catch (e) { err = e instanceof ApiError && e.code === 'default' ? 'Основной курс удалить нельзя: сначала назначьте основным другой.' : 'Не удалось удалить'; }
   }
   async function restore() {
-    if (!confirm('Добавить недостающие стандартные уроки и сценарии? Ваши уроки и правки не удаляются и не меняются.')) return;
+    if (!await confirmBox('Добавить недостающие стандартные уроки и сценарии? Ваши уроки и правки не удаляются и не меняются.')) return;
     busy = true;
     try { const r = await api.post(`/api/admin/training/courses/${courseId}/restore-defaults`); await loadOv(); scenarios = []; flash(`Добавлено уроков: ${r.lessons}, сценариев: ${r.scenarios}`); }
     catch (e) { err = e instanceof ApiError && e.code === 'not_default' ? 'Возврат плана доступен только для основного курса.' : 'Не удалось выполнить'; } finally { busy = false; }
@@ -96,7 +97,7 @@
     } finally { busy = false; }
   }
   async function delLesson(l: any) {
-    if (!confirm(`Удалить урок «${l.title_ru}»? Прогресс сотрудников по нему тоже удалится.`)) return;
+    if (!await confirmBox(`Удалить урок «${l.title_ru}»? Прогресс сотрудников по нему тоже удалится.`)) return;
     try { await api.del(`/api/admin/training/lessons/${l.id}`); await loadOv(); } catch (e) { fail(e); }
   }
   async function move(l: any, dir: 'up' | 'down') { try { await api.post(`/api/admin/training/lessons/${l.id}/move`, { dir }); await loadLessons(); } catch (e) { fail(e); } }
@@ -123,7 +124,7 @@
     } catch { err = 'Проверьте: название, реплика клиента, минимум 2 варианта (один «лучший»), образцовый ответ и обоснование.'; } finally { busy = false; }
   }
   async function delScenario(s: any) {
-    if (!confirm(`Удалить сценарий «${s.title_ru}»?`)) return;
+    if (!await confirmBox(`Удалить сценарий «${s.title_ru}»?`)) return;
     try { await api.del(`/api/admin/training/scenarios/${s.id}`); await loadScen(); } catch (e) { fail(e); }
   }
   async function toggleScenario(s: any) { try { await api.patch(`/api/admin/training/scenarios/${s.id}`, { active: !s.active }); await loadScen(); } catch (e) { fail(e); } }
@@ -138,7 +139,7 @@
   }
   async function setMentor(e: any, v: string) { try { await api.patch(`/api/admin/training/enrollments/${e.id}`, { mentor_id: v ? Number(v) : null }); await loadEnr(); flash('Наставник назначен'); } catch (x) { fail(x); } }
   async function unenroll(e: any) {
-    if (!confirm(`Отписать ${e.name} от курса? Прогресс по курсу будет потерян.`)) return;
+    if (!await confirmBox(`Отписать ${e.name} от курса? Прогресс по курсу будет потерян.`)) return;
     try { await api.del(`/api/admin/training/enrollments/${e.id}`); await loadEnr(); } catch (x) { fail(x); }
   }
   const courseName = (id: number) => ov?.courses.find((c: any) => c.id === id)?.title_ru ?? id;

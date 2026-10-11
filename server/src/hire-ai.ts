@@ -9,6 +9,26 @@ const MODEL = () => process.env.HIRE_MODEL || process.env.ANALYSIS_MODEL || 'cla
 const S = (v: unknown, n: number) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 const L = (v: unknown, n: number, each: number) => (Array.isArray(v) ? v : []).map((x) => S(x, each)).filter(Boolean).slice(0, n);
 
+
+const TRANSLIT: Record<string, string> = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'u', қ: 'q', ғ: 'g', ҳ: 'h' };
+const translit = (w: string) => [...w].map((c) => TRANSLIT[c] ?? c).join('');
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Имя в резюме пишут по-разному: «Сатторов» / «Сатторова» / «Сатторову» / «Sattorov». Скрываем основу слова (без последних 1–2 букв) вместе с окончанием, кириллицей и латиницей. */
+export function nameRegexps(names: string[]): RegExp[] {
+  const out: RegExp[] = [], seen = new Set<string>();
+  for (const part of names.flatMap((n) => String(n ?? '').split(/[\s-]+/))) {
+    const w = part.toLowerCase().replace(/[^\p{L}]/gu, '');
+    if (w.length < 3) continue;
+    const stem = (x: string) => x.slice(0, Math.max(3, x.length - (x.length > 5 ? 2 : 1)));
+    for (const v of [stem(w), stem(translit(w))]) {
+      if (v.length < 3 || seen.has(v)) continue;
+      seen.add(v);
+      out.push(new RegExp('(?<![\\p{L}])' + esc(v) + '[\\p{L}]*', 'giu'));
+    }
+  }
+  return out;
+}
+
 /** Убирает из текста резюме то, что модели знать не нужно: почту, телефоны, ссылки на соцсети, имя, пол, возраст, гражданство. */
 export function scrubText(text: string, names: string[] = []): string {
   let t = text
@@ -16,7 +36,7 @@ export function scrubText(text: string, names: string[] = []): string {
     .replace(/(?:\+?\d[\d\s().-]{7,18}\d)/g, (m) => (m.replace(/\D/g, '').length >= 9 ? '[контакт скрыт]' : m))
     .replace(/(?:https?:\/\/)?(?:www\.)?(?:t\.me|instagram\.com|linkedin\.com|facebook\.com|vk\.com)\/\S+/gi, '[ссылка скрыта]')
     .replace(/(^|\s)@[A-Za-z0-9_]{4,32}(?![A-Za-z0-9_])/g, '$1[ник скрыт]');
-  for (const n of names.filter((x) => x && x.length > 1)) t = t.split(n).join('Кандидат');
+  for (const re of nameRegexps(names)) t = t.replace(re, 'Кандидат');
   t = t.split('\n').filter((l) => !/^(мужчина|женщина)(?![а-яё])/i.test(l.trim()) && !/(гражданство|семейное положение|дата рождения|родился|родилась)/i.test(l)).join('\n');
   return t.slice(0, 12000);
 }

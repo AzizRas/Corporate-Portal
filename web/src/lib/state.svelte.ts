@@ -1,4 +1,5 @@
 import { api } from './api';
+import { applyDensity } from './density';
 
 export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'recruiter' | 'accountant' | 'editor' | 'admin';
 export interface User {
@@ -52,6 +53,7 @@ export async function loadMe() {
   try {
     const r = await api.get('/api/me');
     app.user = r.user; app.consents = r.consents;
+    applyDensity(r.user.roles);                 // плотность: выбор человека, а без него — по роли
     // язык и тема из профиля действуют после входа
     if (r.user.lang !== app.lang) { app.lang = r.user.lang; document.documentElement.lang = app.lang; try { localStorage.setItem('lang', app.lang); } catch { /* */ } }
     if (r.user.theme !== app.theme) { app.theme = r.user.theme; try { localStorage.setItem('theme', app.theme); } catch { /* */ } applyTheme(); }

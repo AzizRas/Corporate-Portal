@@ -1,0 +1,56 @@
+/* ============ Дизайн-токены Qadam: роли цветов, шкалы шрифта, отступов и скруглений, состояния компонентов, плотность ============
+   Цвета берутся из тем в app.css (обе темы проверены на контраст AA скриптом web/scripts/contrast.mjs и тестом). Новый код использует только эти токены. */
+:root {
+  /* роли цветов (ТЗ §9): bg, surface, surface-2, text, text-muted, border, accent, success, warning, danger, info */
+  --surface: var(--card);
+  --surface-2: var(--card-2);
+  --text-muted: var(--muted);
+  --success: var(--good);
+  --warning: var(--warn);
+  --danger: var(--bad);
+  --info: #a9a7f5;
+  /* шрифт: 12 / 14 / 16 / 20 / 24 / 32, межстрочный 1.5 для текста и 1.25 для заголовков */
+  --fs-1: 12px; --fs-2: 14px; --fs-3: 16px; --fs-4: 20px; --fs-5: 24px; --fs-6: 32px;
+  --lh-body: 1.5; --lh-tight: 1.25;
+  /* отступы: сетка 4 px */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  /* скругления: 6 / 10 / 16 */
+  --r-1: 6px; --r-2: 10px; --r-3: 16px;
+  --tap: 44px;                      /* минимальная область нажатия на телефоне */
+}
+:root[data-theme='light'] { --info: #5754c4; }
+
+/* ---- служебные классы вместо встроенных стилей ---- */
+.mt-2 { margin-top: var(--sp-2); } .mt-4 { margin-top: var(--sp-4); } .mb-4 { margin-bottom: var(--sp-4); } .gap-2 { gap: var(--sp-2); } .gap-3 { gap: var(--sp-3); }
+.w-220 { display: block; max-width: 220px; } .hint-tight { margin: -8px 0 8px; }
+.flash-bar { margin-bottom: 14px; gap: 10px; align-items: center; }
+
+/* ---- состояния кнопок и полей: обычное, наведение, фокус, отключено, загрузка, ошибка ---- */
+.btn:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled, .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn.loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn.loading::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--track); border-top-color: var(--accent); animation: sp .8s linear infinite; }
+input[aria-invalid='true'], select[aria-invalid='true'], textarea[aria-invalid='true'], .f.err :is(input, select, textarea) { border-color: var(--danger); }
+.field-error { color: var(--danger); font-size: var(--fs-1); margin-top: var(--sp-1); }
+input:disabled, select:disabled, textarea:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ---- плотность: «компактная» (операторы, рекрутёры: таблицы и графики) и «обычная» ---- */
+:root[data-density='compact'] .table td { padding: 6px 8px; }
+:root[data-density='compact'] .table th { padding: 6px 8px; }
+:root[data-density='compact'] .btn { padding: 7px 14px; }
+:root[data-density='compact'] .btn.sm { padding: 5px 10px; }
+:root[data-density='compact'] .card { padding: 14px 16px; }
+:root[data-density='compact'] .list > div { padding-top: 6px; padding-bottom: 6px; }
+
+/* ---- доступность: уменьшенная анимация ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* ---- телефон: область нажатия не меньше 44 px, нижняя панель на 5 пунктов ---- */
+@media (max-width: 880px) {
+  .btn, .tabs a, .tabs button, .nv, select, input:not([type='checkbox']):not([type='radio']), .more-i { min-height: var(--tap); }
+  .tabbar { grid-template-columns: repeat(5, 1fr); }
+  .tabbar a { min-height: var(--tap); justify-content: center; }
+  input[type='checkbox'], input[type='radio'] { width: 22px; height: 22px; }
+}

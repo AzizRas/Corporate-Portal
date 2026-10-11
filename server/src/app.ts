@@ -110,13 +110,14 @@ export async function buildApp() {
 
   // собранный интерфейс (если есть) + SPA-фолбэк
   if (fs.existsSync(path.join(config.webDir, 'index.html'))) {
+    const indexHtml = fs.readFileSync(path.join(config.webDir, 'index.html'));      // читаем один раз при старте, а не на каждый переход по ссылке
     await app.register(fstatic, { root: config.webDir, cacheControl: false, setHeaders: (res, file) => res.setHeader('cache-control', staticCache(file)) });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'not_found' });
       // старый хэшированный файл после выкладки: честный 404, а не страница вместо скрипта
       if (req.url.startsWith('/assets/')) return reply.code(404).header('cache-control', 'no-store').type('text/plain').send('not found');
       // переход по ссылке на любой адрес SPA: это тоже index.html, поэтому кэшировать его нельзя
-      return reply.type('text/html').header('cache-control', INDEX_CACHE).send(fs.readFileSync(path.join(config.webDir, 'index.html')));
+      return reply.type('text/html').header('cache-control', INDEX_CACHE).send(indexHtml);
     });
   }
   return app;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   // Админка напоминаний (hr, admin): советы с RU/UZ, типом и необязательным упражнением с таймером.
   import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
@@ -29,7 +30,7 @@
     try { await api.put('/api/admin/wellness/tips', t); } catch { t.active = prev; }
   }
   async function remove(t: Tip) {
-    if (!confirm(wt('a_del_q'))) return;
+    if (!await confirmBox(wt('a_del_q'))) return;
     await api.del(`/api/admin/wellness/tips/${t.id}`).catch(() => {});
     await load();
   }

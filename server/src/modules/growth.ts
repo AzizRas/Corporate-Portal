@@ -6,7 +6,7 @@ import { audit, hasRole, requireAuth, requireRole, type AuthUser } from '../auth
 import { getSetting, setSetting, tzDate, tzMonth } from '../settings.js';
 import { POSITIONS, type Comp } from '../model.js';
 import { pathFor } from './path.js';
-import { AiUnavailable, aiCall, aiEnabled, aiStatus } from '../ai.js';
+import { AiUnavailable, aiCall, aiEnabled, aiStatus, aiStream } from '../ai.js';
 import { workStats } from '../ai-context.js';
 
 /* ---------- беседы 1:1: вопросы шаблонов ---------- */
@@ -58,7 +58,7 @@ async function rounds() {
 async function tasksFor(r: AuthUser, period: string) {
   const all = (await q(`SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.manager_id,
                                EXISTS(SELECT 1 FROM user_roles x WHERE x.user_id=u.id AND x.role='admin') AS is_admin
-                          FROM users u WHERE u.active`)).rows;
+                          FROM users u WHERE u.active ORDER BY u.id`)).rows;      // порядок фиксирован: иначе набор коллег для оценки менялся от запуска к запуску
   const tasks: { target: any; type: 'self' | 'manager' | 'sub' | 'peer' }[] = [{ target: all.find((u) => u.id === r.id), type: 'self' }];
   for (const t of all) if (t.manager_id === r.id) tasks.push({ target: t, type: 'manager' });
   if (r.manager_id) { const m = all.find((u) => u.id === r.manager_id); if (m) tasks.push({ target: m, type: 'sub' }); }
@@ -83,6 +83,16 @@ async function aiContext(t: Row) {
   return `Сотрудник: ${t.name}. Должность: ${p.current.ru}. Цель: ${p.target.ru}.\n${work}` +
     `Готовность к цели: ${p.readiness}%. Зоны роста: ${p.gaps.map((g: any) => `${p.competencies.find((c: any) => c.id === g.comp)?.name_ru} ${g.cur.toFixed(1)}→${g.req}`).join('; ') || 'нет'}.\n` +
     `Рекомендации руководителя:\n${recs.join('\n') || '- нет'}\nЦели ИПР:\n${goals.join('\n') || '- нет'}`;
+}
+
+/** Системная подсказка ИИ-наставника: правила, стиль руководителя и данные сотрудника. Общая для обычного и потокового ответов. */
+async function mentorSystem(u: AuthUser): Promise<string> {
+    const style = await getSetting('growth_style', '');
+    const me = (await getUser(u.id))!;
+    const system = 'Ты — ИИ-наставник корпоративного портала Qadam в компании Darian (колл-центр, сервис-центр, склад). Помогаешь сотруднику расти до целевой должности: коротко, тепло, по делу, с конкретным следующим шагом. ' +
+      `Отвечай на ${u.lang === 'uz' ? 'узбекском (латиница)' : 'русском'}. Не обсуждай зарплаты других людей и не давай оценок коллегам. Если вопрос не про работу и развитие — вежливо верни к теме. Ты не заменяешь руководителя: важные решения — на беседе 1:1.\n` +
+      (style ? `Стиль общения руководителя (подстройся под него):\n${style}\n` : '') + `\nДанные сотрудника:\n${await aiContext(me)}`;
+  return system;
 }
 
 export async function growthRoutes(app: FastifyInstance) {
@@ -405,11 +415,7 @@ export async function growthRoutes(app: FastifyInstance) {
     await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'user',$2)`, [req.user!.id, body]);
     const hist = (await q('SELECT role,body FROM mentor_messages WHERE user_id=$1 ORDER BY id DESC LIMIT 12', [req.user!.id])).rows.reverse()
       .map((m) => ({ role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.body }));
-    const style = await getSetting('growth_style', '');
-    const me = (await getUser(req.user!.id))!;
-    const system = 'Ты — ИИ-наставник корпоративного портала Qadam в компании Darian (колл-центр, сервис-центр, склад). Помогаешь сотруднику расти до целевой должности: коротко, тепло, по делу, с конкретным следующим шагом. ' +
-      `Отвечай на ${req.user!.lang === 'uz' ? 'узбекском (латиница)' : 'русском'}. Не обсуждай зарплаты других людей и не давай оценок коллегам. Если вопрос не про работу и развитие — вежливо верни к теме. Ты не заменяешь руководителя: важные решения — на беседе 1:1.\n` +
-      (style ? `Стиль общения руководителя (подстройся под него):\n${style}\n` : '') + `\nДанные сотрудника:\n${await aiContext(me)}`;
+    const system = await mentorSystem(req.user!);
     let text: string;
     try { text = await aiCall({ role: 'mentor', user: req.user, model: process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, messages: hist, ref: 'mentor' }); }
     catch (e: any) {
@@ -418,6 +424,31 @@ export async function growthRoutes(app: FastifyInstance) {
     }
     const mid = (await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'ai',$2) RETURNING id`, [req.user!.id, text])).rows[0].id;
     return { reply: text, ref: `mentor:${mid}` };
+  });
+  // тот же наставник, но ответ идёт потоком (SSE): текст появляется по мере написания, а не после долгой тишины
+  app.post('/api/growth/mentor/stream', auth, async (req, reply) => {
+    const body = String((req.body as any)?.message ?? '').trim().slice(0, 1500);
+    if (!body) return reply.code(400).send({ error: 'empty' });
+    if (!(await aiStatus('mentor')).available) return reply.code(503).send({ error: 'ai_off' });
+    const today = (await q(`SELECT count(*)::int AS n FROM mentor_messages WHERE user_id=$1 AND role='user' AND created_at > now() - interval '24 hours'`, [req.user!.id])).rows[0].n;
+    if (today >= 40) return reply.code(429).send({ error: 'ai_limit' });
+    await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'user',$2)`, [req.user!.id, body]);
+    const hist = (await q('SELECT role,body FROM mentor_messages WHERE user_id=$1 ORDER BY id DESC LIMIT 12', [req.user!.id])).rows.reverse()
+      .map((m) => ({ role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.body }));
+    const system = await mentorSystem(req.user!);
+    reply.hijack();                                    // дальше пишем в сокет сами: сжатие и буферизация потоку мешают
+    const res = reply.raw;
+    res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY' });
+    const send = (event: string, data: unknown) => { if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
+    try {
+      const text = await aiStream({ role: 'mentor', user: req.user, model: process.env.MENTOR_MODEL || 'claude-sonnet-5-5', system, messages: hist, ref: 'mentor' }, (t) => send('delta', { t }));
+      const mid = (await q(`INSERT INTO mentor_messages(user_id,role,body) VALUES($1,'ai',$2) RETURNING id`, [req.user!.id, text])).rows[0].id;
+      send('done', { ref: `mentor:${mid}`, reply: text });
+    } catch (e: any) {
+      if (e instanceof AiUnavailable) send('error', { code: 'ai_off' });
+      else { req.log.error(e); send('error', { code: 'ai_error', detail: hasRole(req.user!, 'admin') ? String(e?.message ?? e).slice(0, 300) : undefined }); }
+    }
+    res.end();
   });
   // черновики рекомендаций руководителю — всегда с пометкой «ИИ», пока их не отредактирует человек
   app.post('/api/growth/analysis/:id', auth, async (req, reply) => {

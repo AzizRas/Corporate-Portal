@@ -50,6 +50,10 @@
   let units: any[] = $state([]);
   if (app.user?.roles.some((r) => r === 'hr' || r === 'admin')) api.get('/api/panel/units').then((r) => (units = r.units ?? [])).catch(() => {});
 
+  async function talked(p: Item) {
+    try { await api.post(`/api/panel/signal/${p.id}/dismiss`, { talked: true }); dismissed[p.id] = true; flash(pt('p_talked_ok')); }
+    catch (e) { flash(e instanceof ApiError && e.status === 403 ? pt('p_forbidden') : pt('q_err')); }
+  }
   async function dismiss(p: Item) {
     try { await api.post(`/api/panel/signal/${p.id}/dismiss`, { days: 14 }); dismissed[p.id] = true; }
     catch (e) { flash(e instanceof ApiError && e.status === 403 ? pt('p_forbidden') : pt('q_err')); }
@@ -159,7 +163,7 @@
               <p class="xs muted">{pt('p_talk_sub')}</p>
               <ul>{#each p.signal.reasons as r}<li>{pt(`r_${r}`)}</li>{/each}</ul>
               {#if h?.talk}<p class="small ai-t">{h.talk}</p>{/if}
-              <button class="btn sm" onclick={() => dismiss(p)}>{pt('p_dismiss')}</button>
+              <div class="row wrap gap-2"><button class="btn sm grad" onclick={() => talked(p)}>{pt('p_talked')}</button><button class="btn sm" onclick={() => dismiss(p)}>{pt('p_dismiss')}</button></div>
             </div>
           {:else if dismissed[p.id]}<p class="xs muted">{pt('p_dismissed')}</p>{/if}
 

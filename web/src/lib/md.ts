@@ -2,10 +2,23 @@
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const safeUrl = (u: string) => (/^(https?:|\/|#|mailto:|tel:)/i.test(u) ? u : '#');
 
+/** Картинка допускается только со своего сайта (путь «/...» или тот же адрес); внешняя картинка позволила бы узнать, кто открыл статью, — вместо неё ссылка. */
+export const ownImage = (u: string, origin: string) => {
+  if (/^\/(?!\/)/.test(u)) return true;
+  try { return !!origin && new URL(u).origin === origin; } catch { return false; }
+};
+
+let ORIGIN = typeof location !== 'undefined' ? location.origin : '';
+/** Для тестов и серверного рендера: какой адрес считать «своим». */
+export const setMdOrigin = (o: string) => { ORIGIN = o; };
+
 function inline(s: string) {
   return esc(s)
-    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, a, u) => `<img alt="${a}" src="${safeUrl(u.replace(/&amp;/g, '&'))}" loading="lazy">`)
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, t, u) => `<a href="${safeUrl(u.replace(/&amp;/g, '&'))}" target="_blank" rel="noopener">${t}</a>`)
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, a, u) => {
+      const url = u.replace(/&amp;/g, '&');
+      return ownImage(url, ORIGIN) ? `<img alt="${a}" src="${safeUrl(url)}" loading="lazy">` : `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer">🖼 ${a || 'изображение'}</a>`;
+    })
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, t, u) => `<a href="${safeUrl(u.replace(/&amp;/g, '&'))}" target="_blank" rel="noopener noreferrer">${t}</a>`)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<i>$2</i>');

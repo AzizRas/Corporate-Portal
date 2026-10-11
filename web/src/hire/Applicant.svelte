@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
   import Extras from './Extras.svelte';
@@ -60,8 +61,8 @@
     e.preventDefault();
     try { await api.post(`/api/hire/pipeline/${fbFor}/feedback`, fb); fbFor = null; toast(ht('hSaved')); } catch (x) { fberr = errText(x); }
   }
-  async function anonymize() { if (confirm(ht('hAnonAsk'))) { await run(() => api.post(`/api/hire/applicants/${id}/anonymize`)); toast(ht('hAnonDone')); } }
-  async function remove() { if (confirm(ht('hDelAsk'))) { try { await api.del(`/api/hire/applicants/${id}`); location.hash = '#/hire/people'; } catch (e) { toast(errText(e), true); } } }
+  async function anonymize() { if (await confirmBox(ht('hAnonAsk'))) { await run(() => api.post(`/api/hire/applicants/${id}/anonymize`)); toast(ht('hAnonDone')); } }
+  async function remove() { if (await confirmBox(ht('hDelAsk'))) { try { await api.del(`/api/hire/applicants/${id}`); location.hash = '#/hire/people'; } catch (e) { toast(errText(e), true); } } }
   const kindLabel = (k: string) => (k === 'email' ? ht('xMsg') : k === 'interview' ? ht('hInterview') : ht('hNote'));
 </script>
 

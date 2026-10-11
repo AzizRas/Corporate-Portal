@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   // Универсальный редактор любого JSON-значения: строки, числа, списки, таблицы, вложенные объекты.
   import FormNode from './FormNode.svelte';
 
@@ -81,7 +82,7 @@
     {:else}
       {#each value as item, i}
         <details class="fn-card" open={value.length === 1}><summary><span>{nameOf(item, i)}</span>
-          <span class="row" style="gap:4px"><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, -1); }}>↑</button><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, 1); }}>↓</button><button class="btn sm danger" onclick={(e) => { e.preventDefault(); if (confirm('Удалить элемент?')) rm(i); }}>×</button></span></summary>
+          <span class="row" style="gap:4px"><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, -1); }}>↑</button><button class="btn sm" onclick={(e) => { e.preventDefault(); move(i, 1); }}>↓</button><button class="btn sm danger" onclick={async (e) => { e.preventDefault(); if (await confirmBox('Удалить элемент?')) rm(i); }}>×</button></span></summary>
           <div style="padding:12px 4px 4px"><FormNode bind:value={value[i]} depth={depth + 1} /></div></details>
       {/each}
       <button class="btn sm" onclick={addRow}>+ элемент</button>

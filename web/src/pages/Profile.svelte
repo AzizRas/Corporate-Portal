@@ -6,6 +6,7 @@
   import { st } from '../lib/s18n';
   import Avatar from '../components/Avatar.svelte';
   import { wt } from '../lib/w18n';
+  import { setDensity, pickDensity, type Density } from '../lib/density';
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
   import Payroll from './Payroll.svelte';
   import NotifyPrefs from '../components/NotifyPrefs.svelte';
@@ -20,6 +21,8 @@
     try { await api.patch('/api/me', { password: newPw, old_password: oldPw }); msg = t('pw_ok'); ok = true; oldPw = newPw = ''; }
     catch (x) { msg = x instanceof ApiError && x.code === 'bad_old' ? t('login_bad') : t('error'); ok = false; }
   }
+  let dens: Density = $state(pickDensity((() => { try { return localStorage.getItem('density'); } catch { return null; } })(), app.user?.roles ?? []));
+  const chooseDens = (d: Density) => { dens = d; setDensity(d, app.user?.roles ?? []); };
   let loMsg = $state('');
   async function logoutOthers() { loMsg = ''; try { const r = await api.post('/api/me/logout-others'); loMsg = wt('lo_done', { n: r.closed }); } catch { loMsg = t('error'); } }
   let status = $state(app.user?.status ?? ''), birthday = $state(app.user?.birthday ?? ''), pmsg = $state(''), perr = $state(''), busy = $state(false);
@@ -61,6 +64,7 @@
         {#each [['system', 'theme_system'], ['light', 'theme_light'], ['dark', 'theme_dark']] as [v, k]}
           <button class:on={app.theme === v} onclick={() => setTheme(v as any)}>{t(k as any)}</button>
         {/each}</div></div>
+    <div><div class="muted small">{wt('dn_title')}</div><div class="tabs" style="margin:8px 0 0">{#each ['normal', 'compact'] as d}<button class:on={dens === d} onclick={() => chooseDens(d as Density)}>{wt(d === 'normal' ? 'dn_normal' : 'dn_compact')}</button>{/each}</div><p class="muted xs" style="margin-top:6px">{wt('dn_hint')}</p></div>
     <div><div class="muted small">{t('role')}</div><div class="row wrap" style="margin-top:8px">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
     <div class="row wrap" style="gap:8px"><button class="btn danger" onclick={logout}>{t('nav_logout')}</button><button class="btn" onclick={logoutOthers}>{wt('lo_others')}</button></div>
     <p class="muted xs">{loMsg || wt('lo_others_hint')}</p>

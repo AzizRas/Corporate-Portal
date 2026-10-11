@@ -1,7 +1,7 @@
 // ИИ: статус по ролям, настройки (стиль, лимит стоимости, включение ролей), учёт использования, журнал и оценки «полезно / не помогло».
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { AI_ROLES, AI_VOICE, DEFAULT_AI_CONFIG, aiConfig, aiStatus, type AiRole } from '../ai.js';
+import { AI_ROLES, AI_VOICE, DEFAULT_AI_CONFIG, aiConfig, aiStatus, dropSpentCache, type AiRole } from '../ai.js';
 import { audit, hasRole, requireAuth, requireRole } from '../auth.js';
 import { setSetting } from '../settings.js';
 
@@ -33,15 +33,18 @@ export async function aiAdminRoutes(app: FastifyInstance) {
     const b = (req.body ?? {}) as any, cur = await aiConfig();
     const budget = b.budget_month === null || b.budget_month === '' ? null : Number(b.budget_month);
     if (budget !== null && (!Number.isFinite(budget) || budget < 0)) return reply.code(400).send({ error: 'invalid' });
+    const daily = b.user_daily === null || b.user_daily === '' || b.user_daily === undefined ? (b.user_daily === undefined ? cur.user_daily ?? null : null) : Math.floor(Number(b.user_daily));
+    if (daily !== null && (!Number.isFinite(daily) || daily < 1 || daily > 10000)) return reply.code(400).send({ error: 'invalid' });
     const roles: Record<string, boolean> = {};
     for (const r of AI_ROLES) roles[r] = b.roles?.[r] !== false;
     const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : d);
     const next = {
-      budget_month: budget, roles, style: String(b.style ?? cur.style).slice(0, 4000),
+      budget_month: budget, user_daily: daily, roles, style: String(b.style ?? cur.style).slice(0, 4000),
       prices: { in: num(b.prices?.in, cur.prices.in ?? DEFAULT_AI_CONFIG.prices.in), out: num(b.prices?.out, cur.prices.out ?? DEFAULT_AI_CONFIG.prices.out) },
     };
     await setSetting('ai_config', next);
-    await audit(req, 'ai_config', null as any, { budget_month: budget, roles_off: AI_ROLES.filter((r) => !roles[r]), style_changed: next.style !== cur.style });
+    dropSpentCache();                      // сумма в памяти пересчитается из журнала
+    await audit(req, 'ai_config', null as any, { budget_month: budget, user_daily: daily, roles_off: AI_ROLES.filter((r) => !roles[r]), style_changed: next.style !== cur.style });
     return { ok: true, config: next };
   });
 

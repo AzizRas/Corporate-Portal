@@ -200,11 +200,23 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     if (!scope || !scope.includes(id)) return reply.code(404).send({ error: 'not_found' });
     const t = (await q('SELECT manager_id FROM users WHERE id=$1', [id])).rows[0];
     if (!t || !mayHearSignal(u, t)) return reply.code(403).send({ error: 'forbidden' });
-    const days = Math.min(90, Math.max(1, Number((req.body as any)?.days) || 14));
+    // «поговорили» — то же скрытие, но с отметкой в журнале: по таким отметкам видно, как часто сигнал приводит к беседе
+    const talked = (req.body as any)?.talked === true;
+    const days = Math.min(90, Math.max(1, Number((req.body as any)?.days) || (talked ? 28 : 14)));
     await q(`INSERT INTO signal_dismissals(user_id,by_user,until) VALUES($1,$2,$3::date + $4::int) ON CONFLICT (user_id,by_user) DO UPDATE SET until=$3::date + $4::int`, [id, u.id, tzDate(), days]);
     dropPanelCache(u.id);
-    await audit(req, 'signal_dismiss', String(id), { days });
+    await audit(req, talked ? 'signal_talked' : 'signal_dismiss', String(id), { days });
     return { ok: true };
+  });
+
+  // свои показатели нагрузки: сотрудник видит то же, что мог бы увидеть руководитель, и советы, как снизить нагрузку (сигнал для руководителя не должен быть сюрпризом)
+  app.get('/api/me/load', auth, async (req) => {
+    const u = req.user!;
+    const s = (await workStats([u.id])).get(u.id)!;
+    const idx = (await computeIndices([u.id], new Map([[u.id, s]]))).get(u.id)!;
+    if (idx.skipped) return { skipped: idx.skipped };
+    const TIPS: Record<string, string> = { overtime: 'finish_on_time', no_days_off: 'take_day_off', no_vacation: 'plan_vacation', skipped_breaks: 'take_breaks', night: 'stop_night', questions_up: 'ask_mentor' };
+    return { load: idx.load, engagement: idx.engagement, tips: [...new Set(idx.load.reasons.map((r) => TIPS[r.code]))], weeks: idx.weeks };
   });
 
   // подробности по одному сотруднику своей зоны

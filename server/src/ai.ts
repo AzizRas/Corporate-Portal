@@ -2,7 +2,7 @@
 // Без ключей ИИ-функции работают во встроенном режиме (без живой модели).
 import crypto from 'node:crypto';
 import { q } from './db.js';
-import { getSetting, tzMonth } from './settings.js';
+import { getSetting, tzDate, tzMonth } from './settings.js';
 
 export const aiEnabled = () => !!(process.env.OPENROUTER_API_KEY || process.env.ANTHROPIC_API_KEY);
 
@@ -138,22 +138,38 @@ export async function claude(model: string, system: string, messages: Msg[], max
 export type AiRole = 'mentor' | 'analyst' | 'editor' | 'supervisor' | 'trainer' | 'search' | 'recruiter';
 export const AI_ROLES: AiRole[] = ['mentor', 'analyst', 'editor', 'supervisor', 'trainer', 'search', 'recruiter'];
 export class AiUnavailable extends Error {
-  constructor(public reason: 'no_key' | 'budget' | 'role_off') { super(`ai_${reason}`); }
+  constructor(public reason: 'no_key' | 'budget' | 'role_off' | 'user_limit') { super(`ai_${reason}`); }
 }
-export interface AiConfig { budget_month: number | null; roles: Record<string, boolean>; style: string; prices: { in: number; out: number } }
+export interface AiConfig { budget_month: number | null; roles: Record<string, boolean>; style: string; prices: { in: number; out: number }; /** запросов к ИИ на одного человека в сутки (null — без лимита) */ user_daily?: number | null }
 export const DEFAULT_AI_CONFIG: AiConfig = { budget_month: null, roles: {}, style: '', prices: { in: 3, out: 15 } };   // цена, $ за 1 млн токенов, если провайдер не прислал стоимость
 export const aiConfig = async (): Promise<AiConfig> => ({ ...DEFAULT_AI_CONFIG, ...(await getSetting<Partial<AiConfig>>('ai_config', {})) });
 export const aiStyle = async () => process.env.AI_STYLE || (await aiConfig()).style.trim() || AI_VOICE;
 
 const monthStart = () => `${tzMonth()}-01`;
+/* Расход за месяц держим в памяти: раньше каждая проверка заново суммировала ai_usage. Сумма читается из БД один раз за месяц и растёт после каждой записи.
+   Пока запрос идёт, его ориентировочная цена «резервируется»: так параллельные запросы не проскакивают лимит все вместе. */
+let spentCache: { month: string; value: number } | null = null;
+let reserved = 0;
+export const dropSpentCache = () => { spentCache = null; reserved = 0; };
+async function addSpent(cost: number) { if (spentCache && spentCache.month === tzMonth()) spentCache.value += cost; }
 export async function aiSpent(): Promise<number> {
-  return Number((await q(`SELECT COALESCE(sum(cost),0) AS s FROM ai_usage WHERE at >= $1::date`, [monthStart()])).rows[0].s);
+  const month = tzMonth();
+  if (!spentCache || spentCache.month !== month) spentCache = { month, value: Number((await q(`SELECT COALESCE(sum(cost),0) AS s FROM ai_usage WHERE at >= $1::date`, [monthStart()])).rows[0].s) };
+  return spentCache.value;
+}
+/** Ориентировочная цена запроса: вход по длине текста (≈4 знака на токен) и весь допустимый ответ. */
+export const estimateCost = (chars: number, maxTokens: number, p: { in: number; out: number }) => ((chars / 4) * p.in + maxTokens * p.out) / 1e6;
+const todayStart = () => tzDate();
+/** Сколько запросов к ИИ человек уже сделал сегодня (по часовому поясу компании). */
+export async function aiUserToday(userId: number): Promise<number> {
+  return (await q(`SELECT count(*)::int AS n FROM ai_usage WHERE user_id=$1 AND ok AND NOT cached AND at >= $2::date`, [userId, todayStart()])).rows[0].n;
 }
 /** Доступен ли ИИ сейчас для роли: ключ задан, роль включена, месячный лимит не исчерпан. */
-export async function aiStatus(role?: AiRole): Promise<{ available: boolean; reason: null | 'no_key' | 'budget' | 'role_off'; spent: number; budget: number | null }> {
+export async function aiStatus(role?: AiRole, userId?: number | null): Promise<{ available: boolean; reason: null | 'no_key' | 'budget' | 'role_off' | 'user_limit'; spent: number; budget: number | null }> {
   const c = await aiConfig();
   const spent = await aiSpent();
-  const reason = !aiEnabled() ? 'no_key' : role && c.roles[role] === false ? 'role_off' : c.budget_month != null && spent >= c.budget_month ? 'budget' : null;
+  let reason: null | 'no_key' | 'budget' | 'role_off' | 'user_limit' = !aiEnabled() ? 'no_key' : role && c.roles[role] === false ? 'role_off' : c.budget_month != null && spent + reserved >= c.budget_month ? 'budget' : null;
+  if (!reason && userId != null && c.user_daily != null && (await aiUserToday(userId)) >= c.user_daily) reason = 'user_limit';
   return { available: !reason, reason, spent, budget: c.budget_month };
 }
 
@@ -174,7 +190,7 @@ export interface AiCallOpts {
   cache?: boolean | number; ref?: string;
 }
 export async function aiCall(o: AiCallOpts): Promise<string> {
-  const st = await aiStatus(o.role);
+  const st = await aiStatus(o.role, o.user?.id);
   if (!st.available) throw new AiUnavailable(st.reason!);
   const parts: SysParts = { shared: await aiStyle(), specific: o.system };
   const system = joinSys(parts);
@@ -190,6 +206,8 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
     }
   }
   const cfg = await aiConfig();
+  const hold = estimateCost(system.length + o.messages.reduce((n, m) => n + m.content.length, 0), o.maxTokens ?? 700, cfg.prices);
+  reserved += hold;
   try {
     const r = await provider(o.model, parts, o.messages, o.maxTokens ?? 700, {
       think: o.think ?? thinksByDefault(o.role), prices: cfg.prices,
@@ -199,6 +217,7 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
     const cost = r.cost ?? (tin * cfg.prices.in + tout * cfg.prices.out) / 1e6;
     if (o.used) o.used.model = r.model || o.model;
     await q(`INSERT INTO ai_usage(user_id,role,model,tokens_in,tokens_out,cost) VALUES($1,$2,$3,$4,$5,$6)`, [o.user?.id ?? null, o.role, r.model || o.model, tin, tout, cost]);
+    await addSpent(cost);
     await q(`INSERT INTO audit_log(user_id,action,target,meta) VALUES($1,$2,$3,$4)`, [o.user?.id ?? null, `ai_${o.role}`, o.ref ?? null, JSON.stringify({ tokens: tin + tout, cost: Number(cost.toFixed(5)) })]);
     if (key) await q(`INSERT INTO ai_cache(key,role,response) VALUES($1,$2,$3) ON CONFLICT (key) DO UPDATE SET response=$3, created_at=now()`, [key, o.role, r.text]);
     return r.text;
@@ -206,7 +225,114 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
     if (e instanceof AiUnavailable) throw e;
     await q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, o.model, String(e?.message ?? e).slice(0, 300)]);
     throw e;
+  } finally { reserved = Math.max(0, reserved - hold); }
+}
+
+/* =================== потоковый ответ (наставник): текст появляется по мере написания =================== */
+/** Разбор потока серверных событий (SSE): из накопленного текста достаёт готовые события `data: {...}` и возвращает остаток. Чистая функция: проверяется тестами. */
+export function parseSse(buffer: string): { events: any[]; rest: string } {
+  const events: any[] = [];
+  const parts = buffer.split(/\r?\n\r?\n/);
+  const rest = parts.pop() ?? '';
+  for (const block of parts) {
+    const data = block.split(/\r?\n/).filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).join('\n');
+    if (!data || data === '[DONE]') continue;
+    try { events.push(JSON.parse(data)); } catch { /* служебная строка */ }
   }
+  return { events, rest };
+}
+
+const IDLE_MS = () => envMs('AI_STREAM_IDLE_MS', 20_000);          // тишина дольше этого — поток считается оборвавшимся
+async function readStream(res: Response, ctrl: AbortController, onEvent: (e: any) => void) {
+  const reader = res.body!.getReader(), dec = new TextDecoder();
+  let buf = '', timer = setTimeout(() => ctrl.abort(), IDLE_MS());
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), IDLE_MS());
+      buf += dec.decode(value, { stream: true });
+      const p = parseSse(buf); buf = p.rest;
+      for (const e of p.events) onEvent(e);
+    }
+    if (buf.trim()) for (const e of parseSse(buf + '\n\n').events) onEvent(e);
+  } finally { clearTimeout(timer); }
+}
+
+interface StreamResult { text: string; tokens_in: number; tokens_out: number; cost: number | null; model: string }
+async function streamOne(model: string, parts: SysParts, messages: Msg[], maxTokens: number, think: boolean, viaOpenrouter: boolean, prices: { in: number; out: number }, onText: (t: string) => void, connectMs: number): Promise<StreamResult> {
+  const ctrl = new AbortController();
+  const connect = setTimeout(() => ctrl.abort(), connectMs);        // ждём начала ответа не дольше лимита одной модели
+  let r: Response;
+  try {
+    r = viaOpenrouter
+      ? await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', signal: ctrl.signal, headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'x-title': 'Qadam Portal' }, body: JSON.stringify({ ...openrouterBody(model, parts, messages, maxTokens, think), stream: true }) })
+      : await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctrl.signal, headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ ...anthropicBody(model, parts, messages, maxTokens), stream: true }) });
+  } finally { clearTimeout(connect); }
+  if (!r.ok) { const j: any = await r.json().catch(() => ({})); throw new Error(j?.error?.message || 'ai_error'); }
+  let text = '', tin = 0, tout = 0, cost: number | null = null, cacheRead = 0, cacheWrite = 0;
+  // оборвался поток после первых слов — отдаём то, что успело прийти; если слов не было, это сбой модели
+  await readStream(r, ctrl, (e) => {
+    if (viaOpenrouter) {
+      const t = e.choices?.[0]?.delta?.content;
+      if (typeof t === 'string' && t) { text += t; onText(t); }
+      if (e.usage) { tin = e.usage.prompt_tokens ?? tin; tout = e.usage.completion_tokens ?? tout; if (typeof e.usage.cost === 'number') cost = e.usage.cost; }
+      if (e.error) throw new Error(String(e.error.message ?? 'ai_error'));
+    } else {
+      if (e.type === 'content_block_delta' && typeof e.delta?.text === 'string') { text += e.delta.text; onText(e.delta.text); }
+      if (e.type === 'message_start') { const u = e.message?.usage ?? {}; tin = u.input_tokens ?? 0; cacheRead = u.cache_read_input_tokens ?? 0; cacheWrite = u.cache_creation_input_tokens ?? 0; }
+      if (e.type === 'message_delta') tout = e.usage?.output_tokens ?? tout;
+      if (e.type === 'error') throw new Error(String(e.error?.message ?? 'ai_error'));
+    }
+  }).catch((e) => { if (!text.trim()) throw e; });
+  if (!viaOpenrouter) {
+    cost = cacheRead || cacheWrite ? (tin * prices.in + cacheWrite * prices.in * 1.25 + cacheRead * prices.in * 0.1 + tout * prices.out) / 1e6 : null;
+    tin += cacheRead + cacheWrite;
+  }
+  if (!text.trim()) throw new Error('Пустой ответ модели');
+  return { text: text.trim(), tokens_in: tin, tokens_out: tout, cost, model };
+}
+
+/** Как aiCall, но текст отдаётся кусками через onText по мере написания. Если модель не ответила до первого куска, пробуем запасную; оборванный на середине ответ возвращается как есть. */
+export async function aiStream(o: AiCallOpts, onText: (t: string) => void): Promise<string> {
+  const st = await aiStatus(o.role, o.user?.id);
+  if (!st.available) throw new AiUnavailable(st.reason!);
+  const parts: SysParts = { shared: await aiStyle(), specific: o.system };
+  guardPrompt(joinSys(parts) + o.messages.map((m) => m.content).join('\n'));
+  const cfg = await aiConfig();
+  const maxTokens = o.maxTokens ?? 700, think = o.think ?? thinksByDefault(o.role);
+  const hold = estimateCost(joinSys(parts).length + o.messages.reduce((n, m) => n + m.content.length, 0), maxTokens, cfg.prices);
+  reserved += hold;
+  try { return await streamWithChain(o, parts, cfg, maxTokens, think, onText); } finally { reserved = Math.max(0, reserved - hold); }
+}
+
+async function streamWithChain(o: AiCallOpts, parts: SysParts, cfg: AiConfig, maxTokens: number, think: boolean, onText: (t: string) => void): Promise<string> {
+  const viaOr = !!process.env.OPENROUTER_API_KEY;
+  if (!viaOr && !process.env.ANTHROPIC_API_KEY) throw new AiUnavailable('no_key');
+  const list = viaOr ? openrouterChain(o.model) : [o.model];
+  const total = chainDeadlineMs(), deadline = Date.now() + total, per = attemptTimeoutMs(maxTokens);
+  let started = false, last = 'ai_error', res: StreamResult | null = null;
+  for (const [i, m] of list.entries()) {
+    const left = deadline - Date.now();
+    if (i > 0 && left < Math.min(2_000, total / 4)) { last = `общий лимит ожидания ${Math.round(total / 1000)} с исчерпан`; break; }
+    try { res = await streamOne(m, parts, o.messages, maxTokens, think, viaOr, cfg.prices, (t) => { started = true; onText(t); }, Math.max(1_000, Math.min(per, left))); break; }
+    catch (e: any) {
+      last = String(e?.name === 'AbortError' ? 'таймаут' : e?.message ?? e).slice(0, 300);
+      if (started) break;               // часть ответа уже у пользователя: другую модель не подмешиваем
+      if (i < list.length - 1) await q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, m, `${last} → пробуем следующую модель`]);
+    }
+  }
+  if (!res) {
+    await q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, o.model, last.slice(0, 300)]);
+    throw new Error(list.length > 1 ? `Не ответила ни одна модель из списка (${list.join(', ')}). Последняя ошибка: ${last}` : last);
+  }
+  const tin = res.tokens_in || Math.round((joinSys(parts).length + o.messages.reduce((n, m) => n + m.content.length, 0)) / 4), tout = res.tokens_out || Math.round(res.text.length / 4);
+  const cost = res.cost ?? (tin * cfg.prices.in + tout * cfg.prices.out) / 1e6;
+  if (o.used) o.used.model = res.model;
+  await q(`INSERT INTO ai_usage(user_id,role,model,tokens_in,tokens_out,cost) VALUES($1,$2,$3,$4,$5,$6)`, [o.user?.id ?? null, o.role, res.model, tin, tout, cost]);
+  await addSpent(cost);
+  await q(`INSERT INTO audit_log(user_id,action,target,meta) VALUES($1,$2,$3,$4)`, [o.user?.id ?? null, `ai_${o.role}`, o.ref ?? null, JSON.stringify({ tokens: tin + tout, cost: Number(cost.toFixed(5)), stream: true })]);
+  return res.text;
 }
 
 /** Достаёт JSON (объект или массив) из ответа модели. */

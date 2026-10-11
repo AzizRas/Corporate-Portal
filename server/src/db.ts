@@ -5,7 +5,7 @@ const local = /localhost|127\.0\.0\.1|railway\.internal/.test(config.databaseUrl
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
   ssl: local ? false : { rejectUnauthorized: false },
-  max: 10,
+  max: Number(process.env.DB_POOL_MAX) || 20,       // кэш пользователя (P3) снял основную нагрузку, 20 соединений хватает с запасом
 });
 
 // numeric → number (суммы и уровни не превышают безопасных значений)

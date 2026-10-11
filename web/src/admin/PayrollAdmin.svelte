@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { api, ApiError, download } from '../lib/api';
   import { fmtMoney, monthLong, nowMonth } from '../lib/format';
   import Modal from '../components/Modal.svelte';
@@ -18,11 +19,11 @@
   async function publish(p: any, force = false) {
     try { await api.post(`/api/admin/payroll/${p.id}/publish`, { force }); await load(); result = null; }
     catch (x) {
-      if (x instanceof ApiError && x.code === 'has_errors' && confirm(`В файле ${x.body.errors.length} ошибок — эти строки не попадут к сотрудникам. Опубликовать остальное?`)) await publish(p, true);
+      if (x instanceof ApiError && x.code === 'has_errors' && await confirmBox(`В файле ${x.body.errors.length} ошибок — эти строки не попадут к сотрудникам. Опубликовать остальное?`)) await publish(p, true);
     }
   }
-  const unpublish = async (p: any) => { if (confirm('Скрыть месяц от сотрудников?')) { await api.post(`/api/admin/payroll/${p.id}/unpublish`); await load(); } };
-  const remove = async (p: any) => { if (confirm('Удалить черновик?')) { await api.del(`/api/admin/payroll/${p.id}`); await load(); } };
+  const unpublish = async (p: any) => { if (await confirmBox('Скрыть месяц от сотрудников?')) { await api.post(`/api/admin/payroll/${p.id}/unpublish`); await load(); } };
+  const remove = async (p: any) => { if (await confirmBox('Удалить черновик?')) { await api.del(`/api/admin/payroll/${p.id}`); await load(); } };
   const preview = async (p: any) => (rows = (await api.get(`/api/admin/payroll/${p.id}/rows`)).rows);
   async function saveFormula() { await api.put('/api/admin/settings/payroll_formula', { value: formula }); fmsg = 'Сохранено'; }
 </script>

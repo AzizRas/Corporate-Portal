@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
@@ -9,12 +10,15 @@
   import { monthLong } from '../lib/format';
   import Modal from '../components/Modal.svelte';
   import Avatar from '../components/Avatar.svelte';
+  import Skeleton from '../components/Skeleton.svelte';
+  import ErrorState from '../components/ErrorState.svelte';
+  import { friendlyError } from '../lib/errors';
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
   const tab = $derived(parts[1] === 'team' ? 'team' : 'my');
   const tz = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   let ym = $state(tz().slice(0, 7));
-  let my: any = $state(null), team: any = $state(null), err = $state(''), msg = $state('');
+  let my: any = $state(null), team: any = $state(null), err = $state(''), msg = $state(''), loadErr: unknown = $state(null);
   let reqDay: any = $state(null), note = $state(''), editPat: any = $state(null);
   let pat = $state({ days_off: [] as number[], shift_start: '09:00', shift_end: '19:00' });
 
@@ -28,11 +32,15 @@
   const dayWord = (d: string) => st('d' + dow(d));
 
   const shift = (d: number) => { const [y, m] = ym.split('-').map(Number); const x = new Date(Date.UTC(y, m - 1 + d, 1)); ym = `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, '0')}`; sel.clear(); };
-  const loadMy = () => api.get(`/api/schedule/me?month=${ym}`).then((r) => (my = r));
-  const loadTeam = () => api.get(`/api/schedule/team?month=${ym}`).then((r) => (team = r)).catch(() => (team = { rows: [], pending: [], days: [], policy: { start: '09:00', end: '19:00' }, today: tz() }));
+  const loadMy = () => { loadErr = null; return api.get(`/api/schedule/me?month=${ym}`).then((r) => (my = r)).catch((e) => (loadErr = e)); };
+  // раньше при сбое здесь молча показывался пустой график команды; теперь — понятная ошибка и «Повторить»
+  const loadTeam = () => { loadErr = null; return api.get(`/api/schedule/team?month=${ym}`).then((r) => (team = r)).catch((e) => (loadErr = e)); };
   $effect(() => { ym; tab; if (tab === 'my') loadMy(); else loadTeam(); });
   $effect(() => { if (!my) api.get(`/api/schedule/me?month=${ym}`).then((r) => (my = r)); });
-  const flash = (m: string) => { msg = m; setTimeout(() => { if (msg === m) msg = ''; }, 4500); };
+  // сообщение внизу; undo — действие «Отменить» (даётся 12 секунд)
+  let undoFn: (() => Promise<void>) | null = $state(null);
+  const flash = (m: string, undo: (() => Promise<void>) | null = null) => { msg = m; undoFn = undo; setTimeout(() => { if (msg === m) { msg = ''; undoFn = null; } }, undo ? 12000 : 4500); };
+  async function doUndo() { const f = undoFn; if (!f) return; undoFn = null; msg = ''; try { await f(); await loadTeam(); } catch { flash(sc('errGeneric')); } }
 
   /* ======================= мой график ======================= */
   const lead = $derived(my ? dow(`${ym}-01`) - 1 : 0);
@@ -52,7 +60,7 @@
   async function sendReq() {
     err = '';
     try { await api.post('/api/schedule/off', { day: reqDay.day, note }); reqDay = null; note = ''; await loadMy(); }
-    catch (e) { err = e instanceof ApiError ? (({ past: st('s_past'), exists: st('s_exists'), already_off: st('s_already') } as any)[e.code] ?? e.code) : 'error'; }
+    catch (e) { err = e instanceof ApiError ? (({ past: st('s_past'), exists: st('s_exists'), already_off: st('s_already') } as any)[e.code] ?? friendlyError(e, app.lang)) : friendlyError(e, app.lang); }
   }
   async function cancel(day: string) { await api.del(`/api/schedule/off/${day}`); await loadMy(); }
   const statusText = (s: string) => ({ pending: st('s_pending'), rejected: st('s_rejected'), approved: st('s_approved') } as any)[s] ?? s;
@@ -125,16 +133,29 @@
     busy = true;
     try {
       const r = await api.post('/api/schedule/bulk', { action, items: items() });
-      flash(sc('done', { n: r.changed }) + (r.skipped ? ` · ${sc('skippedN', { n: r.skipped })}` : '') + (r.kept ? ` · ${sc('keptN', { n: r.kept })}` : ''));
+      flash(sc('done', { n: r.changed }) + (r.skipped ? ` · ${sc('skippedN', { n: r.skipped })}` : '') + (r.past ? ` · ${sc('pastN', { n: r.past })}` : '') + (r.kept ? ` · ${sc('keptN', { n: r.kept })}` : ''),
+        r.undo?.length ? async () => { const u = await api.post('/api/schedule/bulk-restore', { items: r.undo }); flash(sc('undone', { n: u.restored })); } : null);
       sel.clear(); await loadTeam();
     } catch { flash(sc('errGeneric')); } finally { busy = false; }
   }
   async function applyStd() {
-    if (!confirm(sc('stdAsk', { n: selIds.length, a: cur.start, b: cur.end }))) return;
     busy = true;
-    try { const r = await api.post('/api/schedule/bulk-pattern', { user_ids: selIds, preset: 'standard' }); flash(sc('stdDone', { n: r.changed })); sel.clear(); await loadTeam(); }
+    try {
+      // предпросмотр: у скольких сбросятся закреплённые выходные и поменяются часы
+      const pre = await api.post('/api/schedule/bulk-pattern', { user_ids: selIds, preset: 'standard', dry_run: true });
+      const text = [sc('stdGo', { n: pre.people, a: cur.start, b: cur.end }), pre.would_reset ? sc('stdReset', { n: pre.would_reset }) : '', pre.hours_change ? sc('stdHours', { n: pre.hours_change }) : ''].filter(Boolean).join('\n');
+      if (!await confirmBox(text)) { busy = false; return; }
+      const r = await api.post('/api/schedule/bulk-pattern', { user_ids: selIds, preset: 'standard' });
+      flash(sc('stdDone', { n: r.changed }), r.undo?.length ? async () => { const u = await api.post('/api/schedule/pattern-restore', { items: r.undo }); flash(sc('undone', { n: u.restored })); } : null);
+      sel.clear(); await loadTeam();
+    }
     catch { flash(sc('errGeneric')); } finally { busy = false; }
   }
+
+  // праздники (HR и админ)
+  let hol: any = $state(null);
+  async function openHol() { const r = await api.get('/api/schedule/holidays'); hol = { fixed: r.fixed, custom: r.custom as string[], add: '', busy: false }; }
+  async function saveHol() { hol.busy = true; try { await api.put('/api/schedule/holidays', { custom: hol.custom }); hol = null; flash(sc('holSaved')); } catch { flash(sc('errGeneric')); if (hol) hol.busy = false; } }
 
   // авто-выходные
   let auto: any = $state(null);
@@ -144,7 +165,7 @@
   }
   async function previewAuto(dry: boolean) {
     auto.busy = true; auto.err = '';
-    try { const r = await api.post('/api/schedule/auto-off', { user_ids: selIds, from: auto.from, to: auto.to, dry_run: dry }); if (dry) auto.preview = r; else { flash(sc('done', { n: r.planned })); auto = null; sel.clear(); await loadTeam(); } }
+    try { const r = await api.post('/api/schedule/auto-off', { user_ids: selIds, from: auto.from, to: auto.to, dry_run: dry }); if (dry) auto.preview = r; else { flash(sc('done', { n: r.planned }), r.undo?.length ? async () => { const u = await api.post('/api/schedule/bulk-restore', { items: r.undo }); flash(sc('undone', { n: u.restored })); } : null); auto = null; sel.clear(); await loadTeam(); } }
     catch (e) { auto.err = e instanceof ApiError && e.code === 'too_long' ? sc('tooLong') : sc('errGeneric'); } finally { if (auto) auto.busy = false; }
   }
   const perDayList = (p: any) => Object.entries(p.per_day as Record<string, number>).sort(([a], [b]) => a.localeCompare(b));
@@ -190,7 +211,7 @@
   <a href="#/schedule" class:on={tab === 'my'}>{st('s_my')}</a>
   {#if my?.can_team}<a href="#/schedule/team" class:on={tab === 'team'}>{st('s_team')}</a>{/if}
 </nav>
-{#if msg}<div class="alert ok" role="status" style="margin-bottom:14px">{msg}</div>{/if}
+{#if msg}<div class="alert ok row wrap flash-bar" role="status"><span style="flex:1">{msg}</span>{#if undoFn}<button type="button" class="btn sm" onclick={doUndo}>{sc('undo')}</button>{/if}</div>{/if}
 
 {#if tab === 'my' && my}
   <div class="my-grid">
@@ -250,6 +271,7 @@
     <div class="kpi" class:warn={team.pending.length}><span class="muted xs">{sc('kpiPending')}</span><b>{team.pending.length}</b></div>
     <div class="kpi" class:bad={noOffN}><span class="muted xs">{sc('kpiNoOff')}</span><b>{noOffN}</b></div>
     <div class="kpi"><span class="muted xs">{sc('kpiMin')}</span><b>{minCover ?? '—'}</b></div>
+    {#if team.can_policy}<button type="button" class="kpi pol" onclick={openHol}><span class="muted xs">{sc('holidays')}</span><b>★</b></button>{/if}
     <button type="button" class="kpi pol" onclick={() => team.can_policy && (pol = { ...cur })} disabled={!team.can_policy} title={team.can_policy ? sc('policy') : ''}>
       <span class="muted xs">{sc('std')}</span><b>{cur.start}–{cur.end}</b><span class="muted xs">{sc('oneOff')}</span>
     </button>
@@ -341,7 +363,8 @@
       </div>
     </div>
   {/if}
-{:else}<span class="spin"></span>{/if}
+{:else if loadErr}<ErrorState error={loadErr} retry={() => (tab === 'my' ? loadMy() : loadTeam())} />
+{:else}<Skeleton card rows={6} />{/if}
 
 {#if reqDay}
   <Modal onclose={() => (reqDay = null)}>
@@ -399,6 +422,19 @@
         <div class="stack" style="gap:6px;margin-top:6px">{#each weeks.filter((w) => w.start !== copy.src && addDays(w.start, 6) >= today) as w}
           <label class="chk"><input type="checkbox" checked={copy.dst.has(w.start)} onchange={() => (copy.dst.has(w.start) ? copy.dst.delete(w.start) : copy.dst.add(w.start))} /> {sc('wk')} {w.n} · {shortDate(w.start)}</label>{/each}</div></div>
       <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" onclick={() => (copy = null)}>{sc('cancel')}</button><button class="btn grad" disabled={copy.busy || !copy.dst.size} onclick={doCopy}>{sc('apply')}</button></div>
+    </div>
+  </Modal>
+{/if}
+
+{#if hol}
+  <Modal onclose={() => (hol = null)}>
+    <div class="stack">
+      <h3 style="font-size:20px;color:var(--text);font-weight:700">{sc('holidays')}</h3>
+      <p class="muted small">{sc('holidaysHint')}</p>
+      <p class="muted xs">{sc('holidaysFixed')}{hol.fixed.map((d: string) => d.split('-').reverse().join('.')).join(', ')}</p>
+      {#each hol.custom as d}<div class="row" style="gap:8px"><span style="flex:1">{d.split('-').reverse().join('.')}</span><button type="button" class="btn sm" aria-label="×" onclick={() => (hol.custom = hol.custom.filter((x: string) => x !== d))}>×</button></div>{:else}<p class="muted small">{sc('holidaysNone')}</p>{/each}
+      <div class="row" style="gap:8px"><input type="date" bind:value={hol.add} /><button type="button" class="btn" disabled={!hol.add} onclick={() => { if (hol.add && !hol.custom.includes(hol.add)) hol.custom = [...hol.custom, hol.add].sort(); hol.add = ''; }}>{sc('holidaysAdd')}</button></div>
+      <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn" onclick={() => (hol = null)}>{sc('cancel')}</button><button class="btn grad" disabled={hol.busy} onclick={saveHol}>{sc('save')}</button></div>
     </div>
   </Modal>
 {/if}

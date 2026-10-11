@@ -1,6 +1,7 @@
 // Тур по порталу: 5–7 шагов, свой набор для каждой роли; подсветка нужного пункта меню или кнопки. Тот же движок показывает «Показать на экране» из справки и ответов ИИ.
 import { api } from './api';
-import { app } from './state.svelte';
+import { app, can } from './state.svelte';
+import { stepAllowed } from './tour-core';
 
 export interface TourStep { id: string; targets: string[]; group?: string; roles?: string[]; title: { ru: string; uz: string }; text: { ru: string; uz: string } }
 const S = (id: string, targets: string[], group: string | undefined, ru: [string, string], uz: [string, string], roles?: string[]): TourStep =>
@@ -15,6 +16,7 @@ export const TOURS: Record<string, TourStep[]> = {
     S('news', ['nav-news', 'tab-news', 'tab-more'], 'main', ['Новости', 'Объявления компании, благодарности и победы. Комментируйте и поздравляйте коллег с днём рождения.'], ['Yangiliklar', 'Kompaniya e’lonlari, minnatdorchiliklar va g‘alabalar. Izoh yozing va hamkasblarni tug‘ilgan kun bilan tabriklang.']),
     S('training', ['nav-plan', 'tab-training'], 'learn', ['Обучение', 'План по дням, тренажёр диалогов, тесты (в том числе PAEI) и библиотека. Здесь же интервью «готов ли к линии».'], ['O‘qitish', 'Kunlar bo‘yicha reja, dialog trenajyori, testlar (jumladan PAEI) va kutubxona. Shu yerda «liniyaga tayyormisiz» suhbati ham.']),
     S('path', ['nav-path', 'tab-path', 'tab-more'], 'main', ['Мой путь', 'Колесо компетенций, сильные стороны, зоны роста и личная цель — чтобы видеть, как вы развиваетесь.'], ['Mening yo‘lim', 'Kompetensiyalar g‘ildiragi, kuchli tomonlar, o‘sish zonalari va shaxsiy maqsad — qanday rivojlanayotganingizni ko‘rish uchun.']),
+    S('kb', ['nav-kb', 'tab-more'], 'know', ['ЧАВО и помощник оператора', 'Ответы на частые вопросы и готовые фразы для клиента. Помощник оператора подскажет, как вести разговор на линии.'], ['Savol-javob va operator yordamchisi', 'Tez-tez beriladigan savollarga javoblar va mijoz uchun tayyor iboralar. Operator yordamchisi liniyada suhbatni yuritishga yordam beradi.']),
     S('schedule', ['nav-schedule', 'tab-schedule', 'tab-more'], 'people', ['График и выходные', 'Ваши смены. Нажмите на рабочий день, чтобы попросить выходной — подтвердит старший оператор или супервайзер.'], ['Jadval va dam olish', 'Smenalaringiz. Dam olish so‘rash uchun ish kunini bosing — katta operator yoki supervayzer tasdiqlaydi.']),
     search, bell,
   ],
@@ -27,6 +29,7 @@ export const TOURS: Record<string, TourStep[]> = {
     search, bell,
   ],
   staff: [
+    S('hire', ['nav-hire', 'tab-more'], 'people', ['Найм', 'Вакансии, кандидаты по этапам, календарь встреч и отчёты по подбору. Резюме из файла разбирается само, ИИ-оценка только подсказывает.'], ['Yollash', 'Vakansiyalar, bosqichlar bo‘yicha nomzodlar, uchrashuvlar kalendari va tanlov hisobotlari. Fayldagi rezyume o‘zi o‘qiladi, AI bahosi faqat maslahat beradi.'], ['hr', 'recruiter', 'admin']),
     S('structure', ['nav-structure', 'tab-more'], 'people', ['Структура', 'Дерево компании: перенос узлов, переводы, штат, отпуск, увольнение, архив и журнал изменений.'], ['Tuzilma', 'Kompaniya daraxti: bo‘linmalarni ko‘chirish, ko‘chirishlar, shtat, ta’til, bo‘shatish, arxiv va o‘zgarishlar jurnali.']),
     S('admin', ['nav-admin', 'tab-more'], 'manage', ['Админка', 'Сотрудники, зарплата и KPI, база знаний, обучение, приход, ИИ и журнал действий.'], ['Boshqaruv', 'Xodimlar, maosh va KPI, bilimlar bazasi, o‘qitish, kelish, AI va harakatlar jurnali.']),
     S('queue', ['nav-queue', 'tab-more'], 'know', ['Очередь вопросов', 'Нерешённые вопросы сотрудников; ответ можно превратить в статью базы знаний.'], ['Savollar navbati', 'Xodimlarning hal qilinmagan savollari; javobni bilimlar bazasi maqolasiga aylantirish mumkin.'], ['hr', 'admin']),
@@ -54,7 +57,7 @@ const roleOk = (s: TourStep) => !s.roles || s.roles.some((r) => app.user?.roles.
 function show(i: number) { tour.i = i; tour.group = tour.steps[i]?.group ?? ''; track('view', i); }
 
 export function startTour(kind: string, manual = false) {
-  const steps = (TOURS[kind] ?? TOURS.operator).filter(roleOk);
+  const steps = (TOURS[kind] ?? TOURS.operator).filter(roleOk).filter((s) => stepAllowed(s.id, can));      // шаги про закрытые для подразделения разделы пропускаем
   tour.kind = kind; tour.steps = steps; tour.manual = manual; tour.point = null; tour.active = true;
   track('start', 0); show(0);
 }

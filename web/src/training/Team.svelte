@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
   import { fmtDate, fmtDateTime } from '../lib/format';
   import Avatar from '../components/Avatar.svelte';
@@ -22,9 +23,9 @@
     const r = det.row;
     if (kind === 'clear') {
       const warn = r.last_ready?.verdict !== 'ready' ? `\n\n${tt('tm_confirm_warn')}` : '';
-      if (!confirm(tt('tm_confirm_clear', { name: r.user.name }) + warn)) return;
+      if (!await confirmBox(tt('tm_confirm_clear', { name: r.user.name }) + warn)) return;
     }
-    if (kind === 'revoke' && !confirm(tt('tm_confirm_revoke', { name: r.user.name }))) return;
+    if (kind === 'revoke' && !await confirmBox(tt('tm_confirm_revoke', { name: r.user.name }))) return;
     busy = true;
     try { await api.post(`/api/training/team/${r.user.id}/${kind}`); await load(); det = await api.get(`/api/training/team/${r.user.id}`); }
     catch { err = tt('error'); } finally { busy = false; }

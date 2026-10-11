@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { api } from '../lib/api';
 
   // Какие разделы видит каждое подразделение. Помощник оператора, тренажёр и готовность к линии закрываются и на сервере; остальные скрываются в меню.
@@ -15,7 +16,7 @@
     busy = true; msg = '';
     try { await api.put('/api/admin/access', { matrix }); msg = 'Сохранено. Меню обновится при следующем открытии портала.'; bad = false; await load(); } catch { msg = 'Не удалось сохранить'; bad = true; } finally { busy = false; }
   }
-  async function reset() { if (!confirm('Вернуть набор разделов по умолчанию для всех подразделений?')) return; await api.del('/api/admin/access'); msg = 'Возвращено по умолчанию'; bad = false; await load(); }
+  async function reset() { if (!await confirmBox('Вернуть набор разделов по умолчанию для всех подразделений?')) return; await api.del('/api/admin/access'); msg = 'Возвращено по умолчанию'; bad = false; await load(); }
 </script>
 
 {#if !d}<p class="muted"><span class="spin"></span></p>
