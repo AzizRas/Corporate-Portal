@@ -6,7 +6,7 @@
 
   let stf = $state('open'), items: any[] = $state([]), loading = $state(true), failed = $state(false);
   let creating = $state(false), busy = $state(false), err = $state('');
-  let f = $state({ title: '', dept_id: '', position_code: '', quota: 1, description: '' });
+  let f = $state({ title: '', dept_id: '', node_id: '', position_code: '', quota: 1, description: '' });
 
   async function load() {
     loading = true;
@@ -16,7 +16,7 @@
   async function create(e: Event) {
     e.preventDefault(); busy = true; err = '';
     try {
-      const r = await api.post('/api/hire/vacancies', { ...f, dept_id: f.dept_id || null, position_code: f.position_code || null });
+      const r = await api.post('/api/hire/vacancies', { ...f, dept_id: f.dept_id || null, node_id: f.node_id || null, position_code: f.position_code || null });
       location.hash = `#/hire/v/${r.vacancy.id}`;
     } catch (x) { err = errText(x); } finally { busy = false; }
   }
@@ -58,6 +58,7 @@
       <h2>{ht('hNewVac')}</h2>
       <label class="f">{ht('hTitle')} *<input bind:value={f.title} required maxlength="120" /></label>
       <label class="f">{ht('hDept')}<select bind:value={f.dept_id}><option value="">{ht('hNone')}</option>{#each hs.meta?.departments ?? [] as d}<option value={d.id}>{app.lang === 'uz' ? d.name_uz : d.name_ru}</option>{/each}</select></label>
+      <label class="f">{app.lang === 'uz' ? 'Tuzilmadagi bo‘linma' : 'Подразделение в структуре'}<select bind:value={f.node_id}><option value="">{ht('hNone')}</option>{#each hs.meta?.nodes ?? [] as n}<option value={n.id}>{n.name}</option>{/each}</select></label>
       <label class="f">{ht('hPosition2')}<select bind:value={f.position_code}><option value="">{ht('hNone')}</option>{#each hs.meta?.positions ?? [] as p}<option value={p.code}>{app.lang === 'uz' ? p.uz : p.ru}</option>{/each}</select></label>
       <label class="f">{ht('hQuota')}<input type="number" min="1" bind:value={f.quota} /></label>
       <label class="f">{ht('hDesc')}<textarea bind:value={f.description} maxlength="5000"></textarea></label>

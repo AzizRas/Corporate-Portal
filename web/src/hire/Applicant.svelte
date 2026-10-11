@@ -9,13 +9,15 @@
   import { hs, isRec, isAdm, toast, errText, ht, hg, fullName, fmtDT } from './store.svelte';
   import { hn } from './h18n';
   import Offer from './Offer.svelte';
+  import Onboard from './Onboard.svelte';
+  import { app, has } from '../lib/state.svelte';
 
   let { id }: { id: number } = $props();
   let d: any = $state(null), failed = $state(false), openVacs: any[] = $state([]);
   let note = $state(''), editing = $state(false), ef: any = $state({}), eerr = $state('');
   let sched: null | number = $state(null), sf = $state({ starts_local: '', duration_min: 60, place: '', link: '', people: [] as number[] }), serr = $state('');
   let fbFor: null | number = $state(null), fbList: any[] = $state([]), fb = $state({ rating: 3, recommendation: 'yes', comment: '' }), fberr = $state('');
-  let offerFor: null | number = $state(null);
+  let offerFor: null | number = $state(null), onboardFor: null | number = $state(null);
   let ai = $state<{ available: boolean; reason: string | null }>({ available: false, reason: null });
   const rec = $derived(isRec());
 
@@ -96,6 +98,7 @@
             <div class="row wrap u-7e81fa2">
               {#if rec && p.vacancy_state !== 'closed'}<button class="btn sm" onclick={() => { sched = p.id; sf = { starts_local: '', duration_min: 60, place: '', link: '', people: [] }; serr = ''; }}>{ht('hSched')}</button>{/if}
               {#if rec && ['offer', 'hired'].includes(p.status_type)}<button class="btn sm" onclick={() => (offerFor = p.id)}>{ht('hOffer')}</button>{/if}
+              {#if has('hr') && ['offer', 'hired'].includes(p.status_type)}{#if p.user_id}<a class="btn sm" href="#/team/{p.user_id}">{app.lang === 'uz' ? 'Xodim kartochkasi' : 'Карточка сотрудника'}</a>{:else}<button class="btn sm grad" onclick={() => (onboardFor = p.id)}>{app.lang === 'uz' ? 'Xodimni rasmiylashtirish' : 'Оформить сотрудника'}</button>{/if}{/if}
               <button class="btn sm" onclick={() => openFb(p.id)}>{ht('hFeedback')}</button>
             </div>
           </div>
@@ -183,6 +186,7 @@
   </Modal>
 {/if}
 
+{#if onboardFor}<Onboard pipelineId={onboardFor} onclose={() => (onboardFor = null)} ondone={load} />{/if}
 {#if offerFor}<Offer pipelineId={offerFor} name={d ? fullName(d.applicant) : ''} onclose={() => (offerFor = null)} />{/if}
 
 <style>

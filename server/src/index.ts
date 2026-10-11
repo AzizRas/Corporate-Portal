@@ -7,6 +7,7 @@ import { seedHireTemplates } from './hire-templates.js';
 import { cleanupPhotos } from './modules/attendance.js';
 import { applyDueTransfers, syncAllManagers } from './org-core.js';
 import { hireDigest } from './modules/hire.js';
+import { probationReminders } from './modules/hire-onboard.js';
 import { recordUsageSnapshot, refreshWeeklyAi } from './modules/usage.js';
 
 async function main() {
@@ -32,7 +33,8 @@ async function main() {
   setInterval(clean, 3600_000).unref();
 
   // сводка по просроченным этапам найма: раз в сутки (повторный запуск в тот же день ничего не делает)
-  const digest = () => hireDigest().then((n) => n && console.log(`[portal] найм: просрочено карточек ${n}`)).catch((e) => console.error('[hire]', e));
+  const digest = () => hireDigest().then((n) => n && console.log(`[portal] найм: просрочено карточек ${n}`))
+    .then(() => probationReminders()).then((n) => n && console.log(`[portal] напоминаний об испытательном сроке: ${n}`)).catch((e) => console.error('[hire]', e));
   setTimeout(digest, 20_000);
   setInterval(digest, 3600_000).unref();
 
