@@ -23,8 +23,26 @@ type Msg = { role: 'user' | 'assistant'; content: string };
 
 interface Reply { text: string; tokens_in: number; tokens_out: number; cost: number | null; model: string }
 
-/** Список моделей OpenRouter по порядку: «модель1, модель2, …». Если первая не ответила или вернула ошибку, пробуем следующую. */
+/** Запасные модели OpenRouter по порядку: «модель1, модель2, …» (OPENROUTER_MODEL). К ним переходим, только если модель самой функции не ответила. */
 export const openrouterModels = () => (process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5').split(',').map((m) => m.trim()).filter(Boolean);
+/** Имя модели в OpenRouter: у моделей функций имена Anthropic (claude-sonnet-5-5), а в OpenRouter они anthropic/claude-sonnet-5.5. */
+export function openrouterSlug(model: string): string {
+  const m = model.trim();
+  if (m.includes('/')) return m;
+  const a = /^claude-(opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?$/.exec(m);      // claude-sonnet-5-5, claude-sonnet-4-5-20250929
+  if (a) return `anthropic/claude-${a[1]}-${a[2]}${a[3] ? `.${a[3]}` : ''}`;
+  const b = /^claude-(\d+)-(\d+)-(opus|sonnet|haiku)(?:-\d{8})?$/.exec(m);                // claude-3-5-sonnet-20241022
+  if (b) return `anthropic/claude-${b[1]}.${b[2]}-${b[3]}`;
+  return `anthropic/${m}`;
+}
+/** Цепочка для OpenRouter: сначала модель функции, потом запасные из OPENROUTER_MODEL (без повторов).
+ *  Суффикс первой модели из OPENROUTER_MODEL (например «:online» — поиск в интернете) переносится на модель функции: так он работал и раньше. */
+export function openrouterChain(model: string): string[] {
+  const env = openrouterModels();
+  const suffix = /:[a-z]+$/.exec(env[0] ?? '')?.[0] ?? '';
+  const own = openrouterSlug(model);
+  return [...new Set([own.includes(':') ? own : own + suffix, ...env])];
+}
 const TIMEOUT_MS = 45_000;
 
 async function openrouter(model: string, system: string, messages: Msg[], maxTokens: number): Promise<Reply> {
@@ -52,7 +70,7 @@ async function openrouter(model: string, system: string, messages: Msg[], maxTok
 /** Низкий уровень: один запрос к провайдеру (OpenRouter с запасными моделями или Anthropic). aiCall следит за стоимостью, кэшем и журналом. */
 async function provider(model: string, system: string, messages: Msg[], maxTokens: number, onFail?: (model: string, err: string) => Promise<void>): Promise<Reply> {
   if (process.env.OPENROUTER_API_KEY) {
-    const list = openrouterModels();
+    const list = openrouterChain(model);
     let last = 'ai_error';
     for (const [i, m] of list.entries()) {
       try { return await openrouter(m, system, messages, maxTokens); }
@@ -114,6 +132,8 @@ const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
 export interface AiCallOpts {
   role: AiRole; user?: { id: number } | null; model: string; system: string; messages: Msg[]; maxTokens?: number;
+  /** Сюда записывается модель, которая реально ответила (при сбое первой это запасная). */
+  used?: { model?: string };
   /** Кэшировать одинаковые запросы: число часов хранения (true = 24 ч). */
   cache?: boolean | number; ref?: string;
 }
@@ -128,6 +148,7 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
     const hit = (await q(`SELECT response FROM ai_cache WHERE key=$1 AND created_at > now() - make_interval(hours => $2)`, [key, ttl])).rows[0];
     if (hit) {
       await q(`INSERT INTO ai_usage(user_id,role,model,cached) VALUES($1,$2,$3,true)`, [o.user?.id ?? null, o.role, o.model]);
+      if (o.used) o.used.model = o.model;
       return hit.response as string;
     }
   }
@@ -136,6 +157,7 @@ export async function aiCall(o: AiCallOpts): Promise<string> {
     const r = await provider(o.model, system, o.messages, o.maxTokens ?? 700, (m, err) => q(`INSERT INTO ai_usage(user_id,role,model,ok,error) VALUES($1,$2,$3,false,$4)`, [o.user?.id ?? null, o.role, m, `${err} → пробуем следующую модель`]).then(() => undefined));
     const tin = r.tokens_in || Math.round((system.length + o.messages.reduce((n, m) => n + m.content.length, 0)) / 4), tout = r.tokens_out || Math.round(r.text.length / 4);
     const cost = r.cost ?? (tin * cfg.prices.in + tout * cfg.prices.out) / 1e6;
+    if (o.used) o.used.model = r.model || o.model;
     await q(`INSERT INTO ai_usage(user_id,role,model,tokens_in,tokens_out,cost) VALUES($1,$2,$3,$4,$5,$6)`, [o.user?.id ?? null, o.role, r.model || o.model, tin, tout, cost]);
     await q(`INSERT INTO audit_log(user_id,action,target,meta) VALUES($1,$2,$3,$4)`, [o.user?.id ?? null, `ai_${o.role}`, o.ref ?? null, JSON.stringify({ tokens: tin + tout, cost: Number(cost.toFixed(5)) })]);
     if (key) await q(`INSERT INTO ai_cache(key,role,response) VALUES($1,$2,$3) ON CONFLICT (key) DO UPDATE SET response=$3, created_at=now()`, [key, o.role, r.text]);
