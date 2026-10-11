@@ -37,6 +37,17 @@ import { wellnessRoutes } from './modules/wellness.js';
 import { hireRoutes } from './modules/hire.js';
 import { accessAdminRoutes } from './modules/access-admin.js';
 
+// index.html ссылается на файлы с хэшем в имени: после выкладки он должен подтягиваться заново, иначе вместо новых файлов будут ссылки на удалённые (белый экран).
+// Файлы в /assets/ неизменны (хэш меняется вместе с содержимым), их можно держать в кэше год.
+export const INDEX_CACHE = 'no-cache';
+export const ASSET_CACHE = 'public, max-age=31536000, immutable';
+export function staticCache(file: string): string {
+  const rel = path.relative(config.webDir, file).split(path.sep);
+  if (rel[0] === 'assets') return ASSET_CACHE;
+  if (/\.html?$/i.test(file)) return INDEX_CACHE;
+  return 'public, max-age=3600';       // иконка, manifest: имена без хэша, час не страшен
+}
+
 export async function buildApp() {
   const app = Fastify({ logger: config.isProd ? { level: 'info' } : false, trustProxy: true, genReqId: () => Math.random().toString(36).slice(2, 10) });
 
@@ -95,10 +106,13 @@ export async function buildApp() {
 
   // собранный интерфейс (если есть) + SPA-фолбэк
   if (fs.existsSync(path.join(config.webDir, 'index.html'))) {
-    await app.register(fstatic, { root: config.webDir, maxAge: '1h' });
+    await app.register(fstatic, { root: config.webDir, cacheControl: false, setHeaders: (res, file) => res.setHeader('cache-control', staticCache(file)) });
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'not_found' });
-      return reply.type('text/html').send(fs.readFileSync(path.join(config.webDir, 'index.html')));
+      // старый хэшированный файл после выкладки: честный 404, а не страница вместо скрипта
+      if (req.url.startsWith('/assets/')) return reply.code(404).header('cache-control', 'no-store').type('text/plain').send('not found');
+      // переход по ссылке на любой адрес SPA: это тоже index.html, поэтому кэшировать его нельзя
+      return reply.type('text/html').header('cache-control', INDEX_CACHE).send(fs.readFileSync(path.join(config.webDir, 'index.html')));
     });
   }
   return app;
