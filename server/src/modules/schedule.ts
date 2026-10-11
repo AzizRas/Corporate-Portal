@@ -2,7 +2,7 @@
 // Сотрудник просит выходной → подтверждает старший оператор (для операторов своего отдела), супервайзер, руководитель отдела, HR, админ.
 import type { FastifyInstance } from 'fastify';
 import { q } from '../db.js';
-import { branchNodes, isOnLeave } from '../org-core.js';
+import { SYSTEM_USER_SQL, branchNodes, isOnLeave } from '../org-core.js';
 import { audit, hasRole, requireAuth, type AuthUser } from '../auth.js';
 import { notify } from '../notify.js';
 import { getSetting, setSetting, tzDate, tzMinutes } from '../settings.js';
@@ -13,7 +13,7 @@ interface P { id: number; name: string; position: string; position_code: string;
 const PEOPLE = `SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.node_id,u.manager_id,u.days_off,u.avatar_v,
     to_char(u.shift_start,'HH24:MI') AS shift_start, to_char(u.shift_end,'HH24:MI') AS shift_end,
     COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
-  FROM users u WHERE u.active`;
+  FROM users u WHERE u.active AND NOT ${SYSTEM_USER_SQL}`;
 const getP = async (id: number): Promise<P | undefined> => (await q(`${PEOPLE} AND u.id=$1`, [id])).rows[0];
 
 const isoDow = (day: string) => { const d = new Date(`${day}T00:00:00Z`).getUTCDay(); return d === 0 ? 7 : d; };

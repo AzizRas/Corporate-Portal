@@ -5,7 +5,7 @@ import { requireAuth } from '../auth.js';
 import { bdaySql } from '../notify.js';
 import { tzDate } from '../settings.js';
 import { channelsFor } from '../chat-core.js';
-import { externalRootOf, orgNodes, subtreeIds } from '../org-core.js';
+import { SYSTEM_USER_SQL, externalRootOf, orgNodes, subtreeIds } from '../org-core.js';
 
 export { channelsFor } from '../chat-core.js';
 
@@ -103,7 +103,7 @@ export async function socialRoutes(app: FastifyInstance) {
       people: (await q(
         `SELECT u.id,u.name,u.position,u.dept_id,u.phone,u.manager_id,u.status,u.avatar_v,${bdaySql('u')} AS bday,
                 COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
-           FROM users u WHERE u.active AND ($1::int[] IS NULL OR u.node_id = ANY($1)) ORDER BY u.name`, [only])).rows,
+           FROM users u WHERE u.active AND NOT ${SYSTEM_USER_SQL} AND ($1::int[] IS NULL OR u.node_id = ANY($1)) ORDER BY u.name`, [only])).rows,
     };
   });
 }

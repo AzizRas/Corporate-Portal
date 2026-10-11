@@ -119,7 +119,13 @@ export async function applyDueTransfers() {
 }
 
 /** Первичное построение дерева из справочника отделов и разметка тех, кто ещё не размещён. Безопасно вызывать повторно. */
+/** Системный пользователь: у него есть роль admin и нет роли сотрудника. Это служебная учётная запись, а не человек в штате: в структуре, списках людей и графике его нет. */
+export const SYSTEM_USER_SQL = `(EXISTS(SELECT 1 FROM user_roles sr WHERE sr.user_id=u.id AND sr.role='admin') AND NOT EXISTS(SELECT 1 FROM user_roles se WHERE se.user_id=u.id AND se.role='employee'))`;
+
 export async function ensureOrg() {
+  // системных пользователей из структуры убираем (раньше админ попадал в узел как сотрудник)
+  await q(`UPDATE org_nodes SET head_user_id=NULL WHERE head_user_id IN (SELECT u.id FROM users u WHERE ${SYSTEM_USER_SQL})`);
+  await q(`UPDATE users u SET node_id=NULL WHERE node_id IS NOT NULL AND ${SYSTEM_USER_SQL}`);
   let root = (await q(`SELECT id FROM org_nodes WHERE kind='root' LIMIT 1`)).rows[0]?.id as number | undefined;
   if (!root) root = (await q(`INSERT INTO org_nodes(kind,name_ru,name_uz) VALUES('root','Компания','Kompaniya') RETURNING id`)).rows[0].id;
   const depts = (await q('SELECT id,name_ru,name_uz FROM departments ORDER BY id')).rows;
@@ -133,7 +139,7 @@ export async function ensureOrg() {
         EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='manager') AS is_mgr,
         EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='head') AS is_head,
         EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='admin') AS is_admin
-      FROM users u WHERE u.active AND u.node_id IS NULL ORDER BY u.id`)).rows;
+      FROM users u WHERE u.active AND u.node_id IS NULL AND NOT ${SYSTEM_USER_SQL} ORDER BY u.id`)).rows;
   const home = (dept: number | null) => (dept != null ? deptNode.get(dept) : undefined) ?? root!;
   // руководитель отдела — глава узла-отдела
   for (const u of unplaced) if (u.is_head && u.dept_id != null) {
@@ -157,7 +163,7 @@ export async function ensureOrg() {
 
 /** Размещает одного нового сотрудника в узел отдела (если узел не указан). */
 export async function placeUser(userId: number) {
-  const u = (await q('SELECT node_id,dept_id FROM users WHERE id=$1', [userId])).rows[0];
+  const u = (await q(`SELECT node_id,dept_id FROM users u WHERE id=$1 AND NOT ${SYSTEM_USER_SQL}`, [userId])).rows[0];
   if (!u) return;
   if (!u.node_id) {
     const all = await orgNodes();
