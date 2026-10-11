@@ -21,7 +21,7 @@
 
 <Modal {onclose}>
   <div class="stack">
-    <h2>{chan.kind === 'dm' ? chan.name_ru : chan.name_ru}</h2>
+    <h2>{chan.kind === 'dm' ? chan.name_ru : (app.lang === 'uz' && chan.name_uz ? chan.name_uz : chan.name_ru)}</h2>
     {#if !data}<span class="spin"></span>
     {:else if data.virtual}<p class="muted">{wt('ch_members_n', { n: data.count })}</p><p class="muted small">{wt('ch_virtual')}</p>
     {:else}

@@ -66,7 +66,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const more = !after && rows.length > limit;
     if (more) rows = rows.slice(1);
     const msgs = rows.map(shape);
-    if (msgs.length && !before) await markRead(u.id, ch, msgs[msgs.length - 1].id);
+    if (msgs.length && !before && msgs[msgs.length - 1].id > after) await markRead(u.id, ch, msgs[msgs.length - 1].id);
     // «прочитано»: в личных чатах и группах видно, до какого сообщения дочитал каждый участник
     let readers: { user_id: number; last_id: number }[] = [];
     if (c.kind === 'dm' || c.kind === 'group')
