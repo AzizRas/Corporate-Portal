@@ -57,7 +57,7 @@ test('Правка: только автор, помечается «изм.», �
 test('Реакции: включение/выключение, счёт, «моя», только разрешённые', async () => {
   assert.equal((await send(op2, 'PUT', `/api/chat/message/${msgId}/react`, { emoji: '👍' })).json().on, true);
   assert.equal((await send(op1, 'PUT', `/api/chat/message/${msgId}/react`, { emoji: '👍' })).json().on, true);
-  assert.equal((await send(op1, 'PUT', `/api/chat/message/${msgId}/react`, { emoji: '💩' })).statusCode, 400, 'эмодзи из набора');
+  assert.equal((await send(op1, 'PUT', `/api/chat/message/${msgId}/react`, { emoji: '👎' })).statusCode, 400, 'эмодзи из набора');
   const m1 = (await get(op1, `/api/chat/${ch}`)).json().messages.find((m: any) => m.id === msgId);
   assert.deepEqual(m1.reactions, [{ emoji: '👍', n: 2, mine: true }]);
   await send(op1, 'PUT', `/api/chat/message/${msgId}/react`, { emoji: '👍' });   // снять свою
@@ -97,4 +97,42 @@ test('«Печатает…» и «в сети» для собеседника',
   const own = (await get(op1, `/api/chat/${ch}`)).json();
   assert.equal(own.typing.length, 0, 'себя не показываем');
   assert.equal((await send(await login('dilnoza'), 'POST', `/api/chat/${ch}/typing`)).statusCode, 403);
+});
+
+test('Правка: через сутки нельзя; ТЗ-маршруты /messages/:id работают и принимают text', async () => {
+  const id = (await send(op1, 'POST', `/api/chat/${ch}`, { body: 'старое' })).json().id;
+  assert.equal((await send(op1, 'PATCH', `/api/chat/messages/${id}`, { text: 'новое' })).statusCode, 200);
+  assert.equal((await send(op2, 'POST', `/api/chat/messages/${id}/react`, { emoji: '👏' })).json().on, true);
+  await pool.query(`UPDATE chat_messages SET created_at = now() - interval '25 hours' WHERE id=$1`, [id]);
+  assert.equal((await send(op1, 'PATCH', `/api/chat/messages/${id}`, { text: 'поздно' })).statusCode, 409);
+  const m = (await get(op1, `/api/chat/${ch}`)).json().messages.find((x: any) => x.id === id);
+  assert.equal(m.body, 'новое');
+});
+
+test('SSE: подписчик получает событие о новом сообщении, посторонний — нет', async () => {
+  await app.listen({ port: 0, host: '127.0.0.1' });
+  const port = (app.server.address() as any).port;
+  const cookie = (who: any) => Object.entries(who.cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+  const open = async (who: any) => {
+    const ctl = new AbortController();
+    const res = await fetch(`http://127.0.0.1:${port}/api/chat/stream`, { headers: { cookie: cookie(who) }, signal: ctl.signal });
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
+    const reader = res.body!.getReader(), dec = new TextDecoder();
+    let buf = '';
+    const next = async (ms: number) => {
+      const t = setTimeout(() => ctl.abort(), ms);
+      try { for (;;) { const { value, done } = await reader.read(); if (done) return buf; buf += dec.decode(value); if (/"channel"/.test(buf)) return buf; } }
+      catch { return buf; } finally { clearTimeout(t); }
+    };
+    return { next, close: () => ctl.abort() };
+  };
+  const mine = await open(op2), stranger = await open(await login('dilnoza'));
+  await new Promise((r) => setTimeout(r, 150));
+  await send(op1, 'POST', `/api/chat/${ch}`, { body: 'по SSE' });
+  const got = await mine.next(2000);
+  assert.ok(got.includes(JSON.stringify({ channel: ch })), 'участник получил событие');
+  const other = await stranger.next(600);
+  assert.ok(!other.includes('"channel"'), 'чужой личный чат не светится');
+  mine.close(); stranger.close();
 });
