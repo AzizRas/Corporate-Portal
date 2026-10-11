@@ -45,6 +45,11 @@ async function parseEmployees(buf: Buffer) {
   return out;
 }
 
+/** Роли, которые выдаёт и снимает только администратор: иначе HR мог бы сделать себя админом. */
+export const PRIVILEGED = ['admin', 'hr', 'accountant'];
+const rolesNow = async (id: number) => (await q('SELECT role FROM user_roles WHERE user_id=$1', [id])).rows.map((r) => r.role as string);
+const isAdmin = (u: any) => (u?.roles ?? []).includes('admin');
+
 const rolesOf = (b: any): string[] =>
   Array.isArray(b.roles) ? b.roles.filter((r: string) => (ALL_ROLES as string[]).includes(r)) : ['employee'];
 
@@ -53,7 +58,7 @@ export async function usersRoutes(app: FastifyInstance) {
 
   app.get('/api/admin/users', pre, async () => {
     const r = await q(
-      `SELECT u.id,u.tab_number,u.login,u.name,u.position,u.position_code,u.dept_id,u.manager_id,u.node_id,u.employment,u.lang,u.active,
+      `SELECT u.id,u.tab_number,u.login,u.name,u.position,u.position_code,u.dept_id,u.manager_id,u.node_id,u.employment,u.is_system,u.lang,u.active,
               u.hired_at,u.shift_start,u.shift_end,u.phone,u.locked_until,
               COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
          FROM users u ORDER BY u.name`,
@@ -66,6 +71,7 @@ export async function usersRoutes(app: FastifyInstance) {
     const login = String(b.login || b.tab_number || '').trim().toLowerCase();
     if (!/^[a-z0-9_.-]{3,32}$/.test(login) || !b.name) return reply.code(400).send({ error: 'invalid' });
     const password = b.password ? String(b.password) : simplePassword();
+    if (!isAdmin(req.user) && (rolesOf(b).some((r) => PRIVILEGED.includes(r)) || b.is_system)) { await audit(req, 'access_denied', 'user_create_privileged'); return reply.code(403).send({ error: 'forbidden_role' }); }
     try {
       const pol = await schedulePolicy();   // новый сотрудник: стандартные часы компании и плавающий выходной
       const id = await tx(async (c) => {
@@ -95,7 +101,15 @@ export async function usersRoutes(app: FastifyInstance) {
     const b = (req.body ?? {}) as any;
     if (id === req.user!.id && (b.active === false || (b.roles && !b.roles.includes('admin'))))
       return reply.code(400).send({ error: 'self_lock' });
-    const fields = ['name', 'position', 'position_code', 'dept_id', 'manager_id', 'node_id', 'lang', 'phone', 'tab_number',
+    const before = await rolesNow(id);
+    if (!isAdmin(req.user)) {
+      // HR не трогает привилегированных людей и не выдаёт/не снимает привилегированные роли
+      const after = b.roles ? rolesOf(b) : before;
+      const changed = PRIVILEGED.filter((r) => before.includes(r) !== after.includes(r));
+      if (before.some((r) => PRIVILEGED.includes(r) && r !== 'hr') || changed.length || 'is_system' in b) { await audit(req, 'access_denied', `user_update:${id}`); return reply.code(403).send({ error: 'forbidden_role' }); }
+    }
+    if ('manager_id' in b) delete b.manager_id;   // прямой руководитель вычисляется из структуры (syncManager), вручную не задаётся
+    const fields = ['name', 'position', 'position_code', 'dept_id', 'node_id', 'is_system', 'lang', 'phone', 'tab_number',
       'active', 'hired_at', 'shift_start', 'shift_end'];
     const sets: string[] = []; const vals: unknown[] = [id];
     for (const f of fields) if (f in b) { vals.push(b[f] === '' ? null : b[f]); sets.push(`${f}=$${vals.length}`); }
@@ -118,7 +132,8 @@ export async function usersRoutes(app: FastifyInstance) {
       await dismissCleanup(id);
     }
     if (b.active === true) await q(`UPDATE users SET employment=CASE WHEN EXISTS(SELECT 1 FROM user_roles WHERE user_id=$1 AND role='newbie') THEN 'intern' ELSE 'staff' END, dismissed_at=NULL, dismiss_reason=NULL WHERE id=$1`, [id]);
-    await audit(req, 'user_update', String(id), Object.keys(b));
+    if ('is_system' in b) { const { ensureOrg } = await import('../org-core.js'); await ensureOrg(); }
+    await audit(req, 'user_update', String(id), { fields: Object.keys(b), ...(b.roles ? { roles_before: before, roles_after: rolesOf(b) } : {}) });
     return { ok: true };
   });
 
@@ -166,12 +181,13 @@ export async function usersRoutes(app: FastifyInstance) {
     return { committed: commit, rows };
   });
 
-  app.post('/api/admin/users/:id/reset-password', pre, async (req) => {
+  app.post('/api/admin/users/:id/reset-password', pre, async (req, reply) => {
     const id = Number((req.params as any).id);
+    if (id === req.user!.id) return reply.code(400).send({ error: 'self' });               // свой пароль меняют в профиле
+    if (!isAdmin(req.user) && (await rolesNow(id)).some((r) => PRIVILEGED.includes(r))) { await audit(req, 'access_denied', `reset_password:${id}`); return reply.code(403).send({ error: 'forbidden_role' }); }
     const password = simplePassword();
     await q('UPDATE users SET pass_hash=$2, must_change_password=true, failed_attempts=0, locked_until=NULL WHERE id=$1', [id, await hashPasswordAsync(password)]);
     await q('DELETE FROM sessions WHERE user_id=$1', [id]);       // S4: сброс пароля администратором выкидывает человека со всех устройств
-    await q('DELETE FROM sessions WHERE user_id=$1', [id]);
     await audit(req, 'password_reset', String(id));
     return { password };
   });

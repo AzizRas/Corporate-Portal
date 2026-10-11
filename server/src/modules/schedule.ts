@@ -10,11 +10,14 @@ import { settingsFor } from './attendance.js';
 
 interface P { id: number; name: string; position: string; position_code: string; dept_id: number | null; node_id: number | null; manager_id: number | null; days_off: number[]; shift_start: string; shift_end: string; avatar_v: number; roles: string[] }
 
-const PEOPLE = `SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.node_id,u.manager_id,u.days_off,u.avatar_v,
+const PEOPLE_ALL = `SELECT u.id,u.name,u.position,u.position_code,u.dept_id,u.node_id,u.manager_id,u.days_off,u.avatar_v,
     to_char(u.shift_start,'HH24:MI') AS shift_start, to_char(u.shift_end,'HH24:MI') AS shift_end,
     COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles
-  FROM users u WHERE u.active AND NOT ${SYSTEM_USER_SQL}`;
-const getP = async (id: number): Promise<P | undefined> => (await q(`${PEOPLE} AND u.id=$1`, [id])).rows[0];
+  FROM users u WHERE u.active`;
+/** Люди в графике команды: без служебных учётных записей. */
+const PEOPLE = `${PEOPLE_ALL} AND NOT ${SYSTEM_USER_SQL}`;
+/** Свой график читается всегда (и у служебной учётки): раньше фильтр давал undefined и 500. */
+const getP = async (id: number): Promise<P | undefined> => (await q(`${PEOPLE_ALL} AND u.id=$1`, [id])).rows[0];
 
 const isoDow = (day: string) => { const d = new Date(`${day}T00:00:00Z`).getUTCDay(); return d === 0 ? 7 : d; };
 const monthDays = (ym: string) => {
@@ -89,9 +92,10 @@ export async function scheduleRoutes(app: FastifyInstance) {
   const auth = { preHandler: requireAuth };
 
   // мой график на месяц
-  app.get('/api/schedule/me', auth, async (req) => {
+  app.get('/api/schedule/me', auth, async (req, reply) => {
     const u = req.user!, ym = validMonth((req.query as any).month);
-    const p = (await getP(u.id))!;
+    const p = await getP(u.id);
+    if (!p) return reply.code(404).send({ error: 'not_found' });
     const ovs = (await q(`SELECT ${OV_COLS} FROM schedule_days WHERE user_id=$1 AND to_char(day,'YYYY-MM')=$2`, [u.id, ym])).rows;
     const byDay = Object.fromEntries(ovs.map((o) => [o.day, o]));
     const lv = await leavesFor([u.id], ym);
@@ -107,7 +111,8 @@ export async function scheduleRoutes(app: FastifyInstance) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.day))) return reply.code(400).send({ error: 'invalid' });
     const day = String(b.day);
     if (day < tzDate()) return reply.code(400).send({ error: 'past' });
-    const p = (await getP(u.id))!;
+    const p = await getP(u.id);
+    if (!p) return reply.code(404).send({ error: 'not_found' });
     if (p.days_off.includes(isoDow(day))) return reply.code(409).send({ error: 'already_off' });
     const ex = (await q('SELECT status,kind FROM schedule_days WHERE user_id=$1 AND day=$2', [u.id, day])).rows[0];
     if (ex && ex.status !== 'rejected' && ex.kind === 'off') return reply.code(409).send({ error: 'exists' });
@@ -428,9 +433,10 @@ export async function scheduleRoutes(app: FastifyInstance) {
   });
 
   // напоминание «не забудь отметиться»: показывать, если сегодня рабочий день, прихода ещё нет и смена скоро/уже идёт
-  app.get('/api/checkin/status', auth, async (req) => {
+  app.get('/api/checkin/status', auth, async (req, reply) => {
     const u = req.user!, today = tzDate();
-    const p = (await getP(u.id))!;
+    const p = await getP(u.id);
+    if (!p) return reply.code(404).send({ error: 'not_found' });
     const ov = (await q(`SELECT ${OV_COLS} FROM schedule_days WHERE user_id=$1 AND day=$2`, [u.id, today])).rows[0];
     const di = dayInfo(p, today, ov);
     const marked = (await q(`SELECT 1 FROM attendance_marks WHERE user_id=$1 AND work_date=$2 AND kind='in' LIMIT 1`, [u.id, today])).rows.length > 0;

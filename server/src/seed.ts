@@ -10,7 +10,7 @@ import { ensureOrg, invalidateOrg, placeUser, syncManager } from './org-core.js'
 
 let autoPlace = true;   // при первичной загрузке демо дерево строит ensureOrg (группы супервайзеров); позже созданные сотрудники размещаются сразу
 import { prevPeriod } from './model.js';
-import { tzMonth } from './settings.js';
+import { getSetting, setSetting, tzMonth } from './settings.js';
 import crypto from 'node:crypto';
 
 const DEPTS = [
@@ -86,6 +86,11 @@ export async function ensureBase() {
     const pw = randomPassword();
     await createUser({ login, name: 'Администратор', roles: ['admin'], password: pw, must_change: true });
     console.log(`[portal] Создан администратор: ${login} / ${pw}  (смените пароль при входе)`);
+  }
+  // служебная учётная запись — встроенный администратор, если он не сотрудник; ставится один раз, дальше флаг меняют в админке
+  if (!(await getSetting('system_user_init', false))) {
+    await q(`UPDATE users u SET is_system=true WHERE lower(u.login)=$1 AND NOT EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='employee')`, [login]);
+    await setSetting('system_user_init', true);
   }
   if (await seedAssist()) console.log('[portal] контент помощника оператора загружен в базу');
   await ensureTraining();

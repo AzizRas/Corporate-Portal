@@ -2,8 +2,10 @@
   import { api, ApiError } from '../lib/api';
   import Modal from '../components/Modal.svelte';
   import { fmtDate } from '../lib/format';
+  import { app } from '../lib/state.svelte';
+  const amAdmin = $derived(!!app.user?.roles.includes('admin'));
 
-  const ROLES = [['employee', 'Сотрудник'], ['newbie', 'Новичок'], ['mentor', 'Наставник'], ['senior', 'Старший оператор'], ['manager', 'Супервайзер'], ['head', 'Руководитель отдела'], ['hr', 'HR'], ['recruiter', 'Рекрутер'], ['accountant', 'Бухгалтерия'], ['editor', 'Редактор базы'], ['admin', 'Админ']];
+  const ROLES = [['employee', 'Сотрудник'], ['newbie', 'Новичок'], ['mentor', 'Наставник'], ['senior', 'Старший оператор'], ['manager', 'Руководитель группы (супервайзер)'], ['head', 'Руководитель отдела'], ['hr', 'HR'], ['recruiter', 'Рекрутер'], ['accountant', 'Бухгалтерия'], ['editor', 'Редактор базы'], ['admin', 'Админ']];
   let users: any[] = $state([]), depts: any[] = $state([]), edit: any = $state(null), isNew = $state(false), msg = $state(''), tempPw = $state(''), q = $state('');
   let imp: any = $state(null);
   async function runImport(commit: boolean) {
@@ -26,20 +28,27 @@
   const shown = $derived(users.filter((u) => !q || (u.name + u.login + (u.tab_number ?? '')).toLowerCase().includes(q.toLowerCase())));
   const deptName = (id: number) => depts.find((d) => d.id === id)?.name_ru ?? '';
 
-  const blank = () => ({ name: '', login: '', tab_number: '', position: '', position_code: 'op', dept_id: '', node_id: '', manager_id: '', lang: 'ru', roles: ['employee'], active: true, shift_start: '09:00', shift_end: '18:00' });
+  const blank = () => ({ name: '', login: '', tab_number: '', position: '', position_code: 'op', dept_id: '', node_id: '', lang: 'ru', is_system: false, roles: ['employee'], active: true, shift_start: '09:00', shift_end: '18:00' });
   function open(u: any | null) { isNew = !u; edit = u ? { ...u, roles: [...u.roles], shift_start: u.shift_start?.slice(0, 5), shift_end: u.shift_end?.slice(0, 5) } : blank(); msg = ''; tempPw = ''; }
   const toggleRole = (r: string) => (edit.roles = edit.roles.includes(r) ? edit.roles.filter((x: string) => x !== r) : [...edit.roles, r]);
 
   async function save() {
     msg = '';
     try {
-      const body = { ...edit, dept_id: edit.node_id ? undefined : edit.dept_id || null, node_id: edit.node_id || null, manager_id: edit.manager_id || null };
+      const { manager_id, ...rest } = edit;   // прямой руководитель вычисляется из структуры
+      const body: any = { ...rest, dept_id: edit.node_id ? undefined : edit.dept_id || null, node_id: edit.node_id || null };
+      if (!amAdmin) delete body.is_system;
       if (isNew) { const r = await api.post('/api/admin/users', body); tempPw = r.password; isNew = false; edit.id = r.id; }
       else { await api.patch(`/api/admin/users/${edit.id}`, body); edit = null; }
       await load();
-    } catch (e) { msg = e instanceof ApiError ? ({ exists: 'Такой логин или табельный уже есть', invalid: 'Заполните имя и логин (латиница)', self_lock: 'Нельзя заблокировать себя' } as any)[e.code] ?? e.code : 'Ошибка'; }
+    } catch (e) { msg = e instanceof ApiError ? ({ exists: 'Такой логин или табельный уже есть', invalid: 'Заполните имя и логин (латиница)', self_lock: 'Нельзя заблокировать себя', forbidden_role: 'Роли администратора, HR и бухгалтерии и их учётные записи меняет только администратор', self: 'Свой пароль меняйте в профиле' } as any)[e.code] ?? e.code : 'Ошибка'; }
   }
-  async function reset() { tempPw = (await api.post(`/api/admin/users/${edit.id}/reset-password`)).password; }
+  async function reset() {
+    msg = '';
+    try { tempPw = (await api.post(`/api/admin/users/${edit.id}/reset-password`)).password; }
+    catch (e) { msg = e instanceof ApiError && e.code === 'forbidden_role' ? 'Пароль администратору, HR и бухгалтерии сбрасывает только администратор' : e instanceof ApiError && e.code === 'self' ? 'Свой пароль меняйте в профиле' : 'Ошибка'; }
+  }
+  const mgrName = (id: number | null) => users.find((x) => x.id === id)?.name ?? '—';
 </script>
 
 <div class="row u-87c136d"><input class="u-3521b3d" type="search" placeholder="Поиск" bind:value={q} /><span class="sp"></span><button class="btn" onclick={() => (imp = { dept: '', file: null, res: null, busy: false })}>Импорт из Excel</button><button class="btn grad" onclick={() => open(null)}>+ Сотрудник</button></div>
@@ -66,7 +75,7 @@
       <label class="f">Код должности<select bind:value={edit.position_code}>{#each ['op', 'sr', 'sv', 'hd', 'wh', 'ex'] as c}<option>{c}</option>{/each}</select></label>
       <label class="f">Узел структуры<select bind:value={edit.node_id}><option value="">— (по отделу)</option>{#each orgNodes.filter((n) => n.kind !== 'root') as n}<option value={n.id}>{nodePath(n.id)}</option>{/each}</select></label>
       {#if !edit.node_id}<label class="f">Отдел<select bind:value={edit.dept_id}><option value="">—</option>{#each depts as d}<option value={d.id}>{d.name_ru}</option>{/each}</select></label>{/if}
-      <label class="f">Руководитель<select bind:value={edit.manager_id}><option value="">—</option>{#each users as m}<option value={m.id}>{m.name}</option>{/each}</select></label>
+      {#if !isNew}<label class="f">Руководитель (по структуре)<input value={mgrName(edit.manager_id)} disabled /></label>{/if}
       <label class="f">Язык<select bind:value={edit.lang}><option value="ru">RU</option><option value="uz">UZ</option></select></label>
       <label class="f">Смена с<input type="time" bind:value={edit.shift_start} /></label>
       <label class="f">Смена до<input type="time" bind:value={edit.shift_end} /></label>
@@ -74,6 +83,7 @@
     <div class="muted small u-fdf33f2">Роли (можно несколько)</div>
     <div class="row wrap u-2b583d7">{#each ROLES as [r, l]}<label class="chk chip" class:on={edit.roles.includes(r)}><input type="checkbox" class="sr" checked={edit.roles.includes(r)} onchange={() => toggleRole(r)} />{l}</label>{/each}</div>
     {#if !isNew}<label class="chk u-2b583d7"><input type="checkbox" bind:checked={edit.active} /> Активен (при снятии фото прихода удаляются)</label>{/if}
+    {#if amAdmin}<label class="chk u-2b583d7"><input type="checkbox" bind:checked={edit.is_system} /> Служебная учётная запись (не сотрудник: нет в структуре, графике и списках людей)</label>{/if}
     {#if tempPw}<div class="alert ok">Временный пароль (показывается один раз): <b class="u-28fa523">{tempPw}</b></div>{/if}
     {#if msg}<div class="alert">{msg}</div>{/if}
     <div class="row u-ee23b8e">

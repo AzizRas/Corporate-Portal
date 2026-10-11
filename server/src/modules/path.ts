@@ -10,7 +10,7 @@ export async function pathFor(userId: number, viewerIsSelf: boolean, opts: { bad
   const target = u.target_position_code || LADDER[Math.min(LADDER.indexOf(u.position_code) + 1, LADDER.length - 1)] || u.position_code;
   const comps: Comp[] = (await q('SELECT * FROM competencies WHERE active ORDER BY sort')).rows;
   const reqs = Object.fromEntries((await q('SELECT comp,level FROM role_reqs WHERE position_code=$1', [target])).rows.map((r) => [r.comp, r.level]));
-  const ratings = (await q('SELECT period,comp,rater_type,level FROM ratings WHERE target_id=$1', [userId])).rows;
+  const ratings = (await q('SELECT period,comp,rater_type,level FROM ratings WHERE target_id=$1 AND NOT excluded', [userId])).rows;
   const threshold = await getSetting('path_threshold', 90);
   const softW = await getSetting('path_soft_weight', 70);
   const now = tzMonth();
@@ -113,7 +113,9 @@ export async function pathRoutes(app: FastifyInstance) {
     const tid = Number(b.target_id ?? me.id);
     const target = (await q('SELECT manager_id FROM users WHERE id=$1 AND active', [tid])).rows[0];
     if (!target || !b.ratings) return reply.code(400).send({ error: 'invalid' });
-    const type = tid === me.id ? 'self' : target.manager_id === me.id ? 'manager' : 'peer';
+    // раньше любой мог оценить любого как «коллега» (вес 40%): теперь — только себя или человека из своей команды; коллеги — через опрос 360°
+    const type = tid === me.id ? 'self' : (hasRole(me, 'hr') || (await teamIds(me)).includes(tid)) ? 'manager' : null;
+    if (!type) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
     const comps = new Set((await q('SELECT id FROM competencies')).rows.map((c) => c.id));
     const period = tzMonth();
     for (const [comp, level] of Object.entries(b.ratings)) {
@@ -131,8 +133,11 @@ export async function pathRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.post('/api/path/badges/award', { preHandler: requireRole('manager', 'head', 'hr') }, async (req) => {
+  app.post('/api/path/badges/award', { preHandler: requireAuth }, async (req, reply) => {
     const { user_id, badge } = (req.body ?? {}) as { user_id: number; badge: string };
+    // значок — только своей команде (HR и админ — любому) и только существующий
+    if (!hasRole(req.user, 'hr') && !(await teamIds(req.user!)).includes(Number(user_id))) { await audit(req, 'access_denied', req.url); return reply.code(403).send({ error: 'forbidden' }); }
+    if (!(await q('SELECT 1 FROM badges WHERE id=$1', [String(badge)])).rows.length) return reply.code(400).send({ error: 'bad_badge' });
     await q('INSERT INTO user_badges(user_id,badge) VALUES($1,$2) ON CONFLICT DO NOTHING', [user_id, badge]);
     await audit(req, 'badge_award', String(user_id), { badge });
     return { ok: true };
