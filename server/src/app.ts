@@ -1,3 +1,4 @@
+import { storageKind } from './storage.js';
 import { hrRequestRoutes } from './modules/hr-requests.js';
 import { pushRoutes } from './push.js';
 import Fastify from 'fastify';
@@ -70,7 +71,9 @@ export async function buildApp() {
   registerAuth(app);
 
   app.get('/healthz', async (_req, reply) => {
-    try { await q('SELECT 1'); return { ok: true }; } catch { return reply.code(503).send({ ok: false }); }
+    // ok оставлен для прежних проверок, остальное — для мониторинга (Railway, UptimeRobot)
+    try { await q('SELECT 1'); return { ok: true, status: 'ok', db: 'connected', storage: storageKind(), uptime: Math.round(process.uptime()), time: new Date().toISOString() }; }
+    catch { return reply.code(503).send({ ok: false, status: 'unhealthy', db: 'down', time: new Date().toISOString() }); }
   });
 
   await app.register(pushRoutes);
