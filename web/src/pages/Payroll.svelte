@@ -75,7 +75,7 @@
               {#if p.month === sel && visible}<text x={i * 64 + 32} y={142 - h} text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">{fmtMln(rev!.data.total)}</text>{/if}
             </g>
           {/each}
-          <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5fc8" /><stop offset="1" stop-color="#8b5cf6" /></linearGradient></defs>
+          <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#25CFE8" /><stop offset="1" stop-color="#6865D4" /></linearGradient></defs>
         </svg>
       </div>
     </section>

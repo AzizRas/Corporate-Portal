@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { app, has, go } from './lib/state.svelte';
+  import { app, has, go, can } from './lib/state.svelte';
+  import { routeSection } from './lib/nav';
   import { t } from './lib/i18n';
   import Home from './pages/Home.svelte';
   import Path from './pages/Path.svelte';
@@ -24,13 +25,16 @@
 
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
   const head = $derived(parts[0] ?? '');
+  const closed = $derived((() => { const s = routeSection(parts); return !!s && !can(s); })());
   const adminLoader = () => import('./admin/Admin.svelte');
   const assistLoader = () => import('./assist/Assist.svelte');
   const growthLoader = () => import('./growth/Growth.svelte');
+  const hireLoader = () => import('./hire/Hire.svelte');
 </script>
 
 {#key head}
-  {#if head === '' || head === 'chat'}<Chat channel={head === 'chat' ? decodeURIComponent(parts[1] ?? 'general') : 'general'} />
+  {#if closed}<div class="card"><p class="muted">{app.lang === 'uz' ? 'Bu bo‘lim sizga ochiq emas' : 'Раздел недоступен для вашего подразделения'}</p><a href="#/">{t('nav_home')}</a></div>
+  {:else if head === '' || head === 'chat'}<Chat channel={head === 'chat' ? decodeURIComponent(parts[1] ?? 'general') : 'general'} />
   {:else if head === 'home'}<Home />
   {:else if head === 'news'}<News />
   {:else if head === 'schedule'}<Schedule />
@@ -53,6 +57,12 @@
       <span class="spin"></span>
     {:then m}
       <m.default />
+    {/await}
+  {:else if head === 'hire' && has('hr', 'recruiter', 'manager', 'head')}
+    {#await hireLoader()}
+      <span class="spin"></span>
+    {:then m}
+      <m.default parts={parts.slice(1)} />
     {/await}
   {:else if head === 'assist'}
     {#await assistLoader()}

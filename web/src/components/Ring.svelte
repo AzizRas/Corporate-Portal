@@ -6,7 +6,7 @@
 </script>
 <div class="ring-wrap">
   <svg viewBox="0 0 120 120" aria-hidden="true">
-    <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" /><stop offset="1" stop-color="#ff5fc8" /></linearGradient></defs>
+    <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6865D4" /><stop offset="1" stop-color="#25CFE8" /></linearGradient></defs>
     <circle cx="60" cy="60" r={R} fill="none" stroke="var(--track)" stroke-width="7" />
     <circle cx="60" cy="60" r={R} fill="none" stroke="url(#{id})" stroke-width="7" stroke-linecap="round" stroke-dasharray={C} stroke-dashoffset={off} style="transition: stroke-dashoffset .8s ease" />
   </svg>

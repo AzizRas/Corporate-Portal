@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
-  import { app, has, logout, go } from '../lib/state.svelte';
+  import { app, has, logout, go, can } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
   import { notif, startNotify } from '../lib/notify.svelte';
   import { navGroups, activeItem } from '../lib/nav';
@@ -45,7 +45,7 @@
     { id: 'kb', l: st('n_kb'), i: 'kb', h: '#/kb' },
     { id: 'path', l: st('n_path'), i: 'path', h: '#/path' },
     { id: 'more', l: st('n_more'), i: 'more', h: '#/more' },
-  ] as { id: string; l: string; i: string; h: string; badge?: number }[]);
+  ].filter((tb) => tb.id === 'more' || can(tb.id === 'training' ? 'plan' : tb.id)) as { id: string; l: string; i: string; h: string; badge?: number }[]);
   const tabIds = ['chat', 'news', 'training', 'kb', 'path'];
 </script>
 
@@ -114,6 +114,6 @@
     {/each}
   </div>
   <Wellness />
-  <AssistChat />
+  {#if can('assist')}<AssistChat />{/if}
   <Tour />
 </div>
