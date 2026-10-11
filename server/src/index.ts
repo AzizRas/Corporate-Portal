@@ -1,3 +1,4 @@
+import { startChatListener } from './modules/chat.js';
 import { buildApp } from './app.js';
 import { config } from './config.js';
 import { migrate } from './migrate.js';
@@ -28,6 +29,7 @@ async function main() {
 
   // фоновые задачи (ТЗ №3, I3): периодические — под advisory-lock (при нескольких экземплярах работает один), очередь jobs — FOR UPDATE SKIP LOCKED
   registerJobHandlers();
+  await startChatListener().catch((e) => console.error('[chat-listen]', e));
   startWorker();
   const log = (what: string) => (n: unknown) => { if (n) console.log(`[portal] ${what}: ${n}`); };
   every('cleanup', 3600_000, () => cleanupPhotos().then(log('удалено фото')), 10_000);

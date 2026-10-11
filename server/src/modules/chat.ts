@@ -16,7 +16,21 @@ import { decide, decideAvailable } from '../ai-decide.js';
 /** Шина событий чата: «в канале что-то изменилось». Содержимого в событии нет — клиент после него сам спрашивает свежие данные. Один экземпляр сервера. */
 export const chatBus = new EventEmitter();
 chatBus.setMaxListeners(0);
-export const chatChanged = (channel: string) => chatBus.emit('change', channel);
+const ORIGIN = Math.random().toString(36).slice(2);
+/** Событие в своём процессе + NOTIFY для других экземпляров сервера (их слушатель — startChatListener). */
+export const chatChanged = (channel: string) => {
+  chatBus.emit('change', channel);
+  if (listening) void q(`SELECT pg_notify('chat_changed', $1)`, [JSON.stringify({ c: channel, o: ORIGIN })]).catch(() => {});
+};
+let listening = false;
+/** Слушать события чата от других экземпляров (вызывается при старте сервера). */
+export async function startChatListener() {
+  const { pool } = await import('../db.js');
+  const c = await pool.connect();
+  await c.query('LISTEN chat_changed');
+  c.on('notification', (n) => { try { const d = JSON.parse(n.payload ?? '{}'); if (d.o !== ORIGIN && d.c) chatBus.emit('change', d.c); } catch { /* мусор */ } });
+  listening = true;
+}
 
 const ALLOWED_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'zip', 'mp3', 'ogg', 'wav', 'mp4']);
 const IMAGE = /^image\/(jpeg|png|gif|webp)$/;
@@ -113,7 +127,9 @@ export async function chatRoutes(app: FastifyInstance) {
     if (c.archived) return err(reply, 409, 'archived');
     if (c.kind === 'dm' && c.peer && !c.peer.active) return err(reply, 409, 'peer_gone');
     const body = fields.body.trim().slice(0, 1000);
-    const sticker = fields.sticker && (STICKERS as readonly string[]).includes(fields.sticker) ? fields.sticker : null;
+    let sticker = fields.sticker && (STICKERS as readonly string[]).includes(fields.sticker) ? fields.sticker : null;
+    // стикер из пака (импорт из Telegram): «p:<id>», пак должен быть включён
+    if (!sticker && /^p:\d+$/.test(String(fields.sticker ?? '')) && (await q(`SELECT 1 FROM pack_stickers s JOIN sticker_packs p ON p.id=s.pack_id WHERE s.id=$1 AND p.active AND p.status='ready'`, [Number(String(fields.sticker).slice(2))])).rows.length) sticker = String(fields.sticker);
     if (!body && !file && !sticker) return err(reply, 400, 'empty');
     // мягкая модерация общих каналов и групп (Jev): предупреждаем автора, решение отправить — за ним
     let flagged: string | null = null;

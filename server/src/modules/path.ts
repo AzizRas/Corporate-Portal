@@ -144,9 +144,12 @@ export async function pathRoutes(app: FastifyInstance) {
   });
 
   app.get('/api/path/team', { preHandler: requireLead('hr') }, async (req) => {
-    const ids = hasRole(req.user, 'hr') ? (await q('SELECT id FROM users WHERE active')).rows.map((x) => x.id) : await teamIds(req.user!);
+    // постранично: для HR раньше считалась готовность всей компании за один запрос (N тяжёлых расчётов)
+    const qs = req.query as any, limit = Math.min(100, Math.max(1, Number(qs.limit) || 50)), offset = Math.max(0, Number(qs.offset) || 0);
+    const all = hasRole(req.user, 'hr') ? (await q('SELECT id FROM users WHERE active AND NOT is_system ORDER BY name')).rows.map((x) => x.id) : await teamIds(req.user!);
+    const ids = all.slice(offset, offset + limit);
     const out = [];
     for (const id of ids) { const p = await pathFor(id, false, { badges: false }); if (p) out.push({ id, name: p.user.name, readiness: p.readiness, target: p.target.ru, delta: p.delta_month }); }
-    return { items: out };
+    return { items: out, total: all.length, offset, limit };
   });
 }

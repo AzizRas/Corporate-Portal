@@ -101,7 +101,7 @@ async function marks(user: number, kind: 'in' | 'out', days: number[], time: str
   for (const d of days) await pool.query(`INSERT INTO attendance_marks(user_id,kind,work_date,at) VALUES($1,$2,${dayAgo(d)}, ((${dayAgo(d)})::timestamp + $3::time) AT TIME ZONE 'Asia/Tashkent')`, [user, kind, time]);
 }
 async function logins(user: number, daysAgo: number, n: number) {
-  for (let i = 0; i < n; i++) await pool.query(`INSERT INTO audit_log(user_id,action,at) VALUES($1,'login', now() - make_interval(days => $2))`, [user, daysAgo]);
+  for (let i = 0; i < n; i++) await pool.query(`INSERT INTO audit_log(user_id,action,at) VALUES($1,'login', ((CURRENT_DATE - $2::int)::timestamp + time '12:00') AT TIME ZONE 'Asia/Tashkent')`, [user, daysAgo]);
 }
 /** События по неделям (от текущей к старым): 2, 6, 10, 10, 10, 10, 10, 10 — обычная активность 10 в неделю, потом спад */
 async function fallingActivity(user: number) { for (const [d, n] of [[1, 2], [8, 6], [15, 10], [22, 10], [29, 10], [36, 10], [43, 10], [50, 10]]) await logins(user, d, n); }
