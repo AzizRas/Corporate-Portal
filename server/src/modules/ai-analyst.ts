@@ -10,6 +10,7 @@ import { LOAD_HIGH, computeIndices, type Indices } from '../indices.js';
 import { chainOf, orgNodes, pathName } from '../org-core.js';
 import { tzDate } from '../settings.js';
 import { queueScopeSql } from './questions.js';
+import { closeSignal, signalStats, syncSignals } from '../signal-log.js';
 import { dropPanelCache, panelCacheGet, panelCacheSet, type PanelCache } from '../panel-cache.js';
 
 const REASON_RU: Record<SignalReason, string> = { activity_drop: 'активность в портале заметно упала', late: 'частые опоздания', quality_drop: 'результаты в обучении снизились', tasks_overdue: 'просрочены задачи', mood_low: 'настроение ниже обычного', load_high: 'высокая нагрузка (переработки, работа без выходных, давно не было отпуска)', engagement_falling: 'вовлечённость снижается две недели подряд' };
@@ -102,6 +103,8 @@ async function panelData(u: AuthUser, scope: number[]): Promise<PanelCache> {
       indices: hear && idx ? (idx.skipped ? { skipped: idx.skipped } : { load: idx.load, engagement: idx.engagement }) : null,
     };
   });
+  // журнал сигналов (один на человека, не зависит от того, кто смотрит): когда появился и чем закончился
+  await syncSignals(people.map((p) => { const sg = signalWith(stats.get(p.id)!, idxs.get(p.id)); return { user_id: p.id, active: sg.level === 'talk', reasons: sg.reasons }; })).catch(() => {});
   // сначала те, у кого сигнал, потом по числу признаков, остальные по алфавиту (раньше брались первые 300 по алфавиту, и важные случаи могли не попасть в список)
   items.sort((a, b) => (b.signal ? 1 : 0) - (a.signal ? 1 : 0) || b.flags.length - a.flags.length || a.name.localeCompare(b.name));
   const queue = hasRole(u, 'manager', 'head', 'hr') ? queueScopeSql(u) : null;
@@ -154,7 +157,7 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     const scope = await panelScope(u);
     if (!scope) return reply.code(403).send({ error: 'forbidden' });
     const c = await panelData(u, scope);
-    return { computed_at: c.at, units: c.units };
+    return { computed_at: c.at, units: c.units, signals: await signalStats() };
   });
 
   // подсказки по карточкам: один запрос на всю команду, одинаковые данные берутся из кэша
@@ -204,6 +207,7 @@ export async function aiAnalystRoutes(app: FastifyInstance) {
     const talked = (req.body as any)?.talked === true;
     const days = Math.min(90, Math.max(1, Number((req.body as any)?.days) || (talked ? 28 : 14)));
     await q(`INSERT INTO signal_dismissals(user_id,by_user,until) VALUES($1,$2,$3::date + $4::int) ON CONFLICT (user_id,by_user) DO UPDATE SET until=$3::date + $4::int`, [id, u.id, tzDate(), days]);
+    await closeSignal(id, talked ? 'talked' : 'dismissed');
     dropPanelCache(u.id);
     await audit(req, talked ? 'signal_talked' : 'signal_dismiss', String(id), { days });
     return { ok: true };

@@ -267,3 +267,32 @@ test('«Поговорили»: сигнал скрывается на 4 нед�
   assert.ok((await find(await login('hr'))).signal, 'у HR сигнал остаётся');
   await pool.query('DELETE FROM signal_dismissals');
 });
+
+/* ---------------- журнал сигналов: через сколько дней сигнал снимается ---------------- */
+test('Журнал сигналов: появился → «поговорили» → не открывается заново 4 недели → снова → ушёл сам; медианы в сводке HR', async () => {
+  const [o2, sv, hr] = [await uid('op2'), await login('rustam'), await login('hr')];
+  const rows = async () => (await pool.query(`SELECT how, closed_at IS NULL AS open, extract(epoch FROM coalesce(closed_at, now()) - first_seen)/86400 AS days FROM signal_log WHERE user_id=$1 ORDER BY id`, [o2])).rows;
+  await pool.query('DELETE FROM signal_log'); await pool.query('DELETE FROM signal_dismissals'); await pool.query('DELETE FROM user_leaves');
+  await get(hr, '/api/panel?limit=5');
+  assert.deepEqual((await rows()).map((r: any) => r.open), [true], 'сигнал открыт при первом расчёте');
+  await get(hr, '/api/panel?limit=5');
+  assert.equal((await rows()).length, 1, 'повторный расчёт второй строки не создаёт');
+  await pool.query(`UPDATE signal_log SET first_seen = now() - interval '5 days' WHERE user_id=$1`, [o2]);
+  assert.equal((await send(sv, 'POST', `/api/panel/signal/${o2}/dismiss`, { talked: true })).statusCode, 200);
+  let r = await rows(); assert.deepEqual([r[0].how, r[0].open], ['talked', false]); assert.ok(Math.abs(r[0].days - 5) < 0.1, `5 дней до разговора: ${r[0].days}`);
+  await get(hr, '/api/panel?limit=5');
+  assert.equal((await rows()).length, 1, 'после «поговорили» тот же сигнал заново не открывается');
+  await pool.query(`UPDATE signal_log SET closed_at = now() - interval '40 days' WHERE user_id=$1`, [o2]);
+  await get(hr, '/api/panel?limit=5');
+  r = await rows(); assert.deepEqual(r.map((x: any) => x.open), [false, true], 'через 4 недели, если сигнал держится, он открыт снова');
+  await pool.query(`UPDATE signal_log SET first_seen = now() - interval '3 days' WHERE user_id=$1 AND closed_at IS NULL`, [o2]);
+  await pool.query(`INSERT INTO user_leaves(user_id,kind,from_date,to_date) VALUES($1,'sick',CURRENT_DATE - 1,CURRENT_DATE + 3)`, [o2]);
+  await get(hr, '/api/panel?limit=5');
+  r = await rows(); assert.deepEqual([r[1].how, r[1].open], ['gone', false], 'сигнал пропал сам — закрыт как «ушёл сам»'); assert.ok(Math.abs(r[1].days - 3) < 0.1);
+  const s = (await get(hr, '/api/panel/units')).json().signals;
+  assert.equal(s.closed.talked.n, 1); assert.equal(typeof s.closed.talked.median_days, 'number', 'медиана срока посчитана');
+  assert.equal(s.closed.gone.n, 1); assert.equal(s.closed.gone.median_days, 3);
+  assert.equal(s.open, 0); assert.equal(s.days, 180);
+  assert.ok(!JSON.stringify(s).match(/op2|Ольга|name/), 'в сводке нет имён');
+  await pool.query('DELETE FROM user_leaves'); await pool.query('DELETE FROM signal_log');
+});
