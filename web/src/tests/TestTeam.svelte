@@ -31,6 +31,16 @@
 {#if err}<div class="alert">{tt('err')}</div>
 {:else if !d}<span class="spin"></span>
 {:else}
+  {#if d.aggregates && (d.aggregates.enps || d.aggregates.psysafe || d.aggregates.who5)}
+    <div class="card">
+      <div class="card-head"><h3>{tt('agg_title')}</h3></div>
+      <div class="row wrap t-agg">
+        {#each [['enps', d.aggregates.enps], ['psysafe', d.aggregates.psysafe], ['who5', d.aggregates.who5]] as [k, a]}
+          {#if a}<div class="t-agg-i"><span class="muted small">{tt('agg_' + k)}</span><b class="big-num">{a.hidden ? '—' : a.value}</b><span class="muted xs">{a.hidden ? `${tt('agg_few')} (${a.n})` : `n=${a.n}`}</span></div>{/if}
+        {/each}
+      </div>
+    </div>
+  {/if}
   <div class="card hl u-49f14f8">
     <div class="card-head"><h3>{tt('tm_paei')}</h3>{#if d.paei}<span class="aside">{tt('tm_paei_n', { n: d.paei.n, total: d.paei.total })}</span>{/if}</div>
     {#if d.paei}

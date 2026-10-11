@@ -19,7 +19,8 @@
 
   const total = $derived(test?.questions.length ?? 0);
   const q = $derived(test?.questions[i]);
-  const likert = $derived(test?.scoring === 'scale');
+  const likert = $derived(test?.scoring === 'scale' || test?.scoring === 'profile');
+  let startedAt = 0, soon = $state('');
   const labels = $derived(test?.scale?.labels ?? []);
   const scaleMin = $derived(test?.scale?.min ?? 1);
   const answered = $derived(answers[i] !== undefined && answers[i] >= (likert ? scaleMin : 0));
@@ -33,12 +34,13 @@
   async function leave() { if (await confirmBox(tt('leave_q'))) go('/tests'); }
   async function finish() {
     busy = true; sendErr = false;
-    try { const r = await api.post(`/api/tests/${slug}/submit`, { answers: $state.snapshot(answers), share }); go(`/tests/result/${r.id}`); }
-    catch { sendErr = true; busy = false; }
+    try { const r = await api.post(`/api/tests/${slug}/submit`, { answers: $state.snapshot(answers), share, duration_ms: startedAt ? Date.now() - startedAt : null }); go(`/tests/result/${r.id}`); }
+    catch (e: any) { if (e?.code === 'too_soon') { soon = e.body?.next_at ?? ''; busy = false; return; } sendErr = true; busy = false; }
   }
 </script>
 
 <div class="t-run">
+  {#if soon}<div class="alert">{tt('too_soon')}{soon ? ` ${new Date(soon).toLocaleDateString()}` : ''}</div>{/if}
   {#if err}<div class="alert">{tt('err')}</div><p class="u-d6f2af6"><a class="btn" href="#/tests">{tt('r_catalog')}</a></p>
   {:else if !test}<span class="spin"></span>
   {:else if !started}
@@ -49,7 +51,7 @@
       <div class="t-note u-1169661"><span aria-hidden="true"><Icon inline name="team" /></span><div><b>{tt('fair')}</b><small>{tt('who_sees')}</small></div></div>
       {#if test.disclaimer}<div class="t-warn">{tl(test.disclaimer)}</div>{/if}
       {#if test.kind === 'psych'}<ShareChoice bind:value={share} />{/if}
-      <div class="row wrap"><button class="btn grad" onclick={() => (started = true)}>{tt('intro_start')}</button><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>
+      <div class="row wrap"><button class="btn grad" onclick={() => { started = true; startedAt = Date.now(); }}>{tt('intro_start')}</button><a class="btn" href="#/tests">{tt('r_catalog')}</a></div>
     </div>
   {:else}
     <div class="t-top"><span>{tt('q_of', { n: i + 1, total })}</span><button class="btn sm" onclick={leave}>{tt('leave')}</button></div>

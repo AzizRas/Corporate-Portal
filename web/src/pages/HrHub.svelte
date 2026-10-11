@@ -7,13 +7,14 @@
   import EmptyState from '../components/EmptyState.svelte';
   import { promptBox } from '../lib/dialog.svelte';
   import './hr.css';
+  import ReviewAdmin from './ReviewAdmin.svelte';
 
   const uz = $derived(app.lang === 'uz');
   const L = $derived(uz
     ? { title: 'Kadrlar', prob: 'Sinov muddati', an: 'Tahlil', exit: 'Chiqish suhbati', left: 'kun qoldi', over: 'muddati o‘tgan', pass: 'O‘tdi', ext: 'Uzaytirish', fail: 'O‘tmadi', none: 'Sinov muddatidagi xodimlar yo‘q', active: 'jarayonda', passed: 'o‘tdi', failed: 'o‘tmadi', extended: 'uzaytirildi', newEnd: 'Yangi tugash sanasi (YYYY-MM-DD)', head: 'Xodimlar soni', turn: 'Kadrlar almashinuvi (12 oy)', tth: 'Vakansiyani yopish (o‘rtacha kun)', units: 'Bo‘linmalar', flow: 'Qabul / bo‘shatish', src: 'Nomzod manbalari', why: 'Ketish sabablari', probS: 'Sinov muddati', who: 'Xodim', reason: 'Asosiy sabab', q1: 'Ishda nima yoqardi?', q2: 'Nima ketishga sabab bo‘ldi?', q3: 'Nimani o‘zgartirish kerak?', q4: 'Qaytishni xohlaysizmi?', save: 'Saqlash', saved: 'Saqlandi' }
     : { title: 'Кадры', prob: 'Испытательный срок', an: 'Аналитика', exit: 'Выходное интервью', left: 'дн. осталось', over: 'срок прошёл', pass: 'Прошёл', ext: 'Продлить', fail: 'Не прошёл', none: 'Сотрудников на испытательном сроке нет', active: 'идёт', passed: 'пройден', failed: 'не пройден', extended: 'продлён', newEnd: 'Новая дата окончания (ГГГГ-ММ-ДД)', head: 'Численность', turn: 'Текучесть (12 мес.)', tth: 'Закрытие вакансии (в среднем, дн.)', units: 'Подразделения', flow: 'Приём / увольнения', src: 'Источники кандидатов', why: 'Причины ухода', probS: 'Испытательный срок', who: 'Сотрудник', reason: 'Главная причина', q1: 'Что нравилось в работе?', q2: 'Что стало причиной ухода?', q3: 'Что стоит изменить?', q4: 'Хотели бы вернуться?', save: 'Сохранить', saved: 'Сохранено' });
   const isHr = $derived(has('hr'));
-  let tab = $state<'prob' | 'an' | 'exit'>('prob');
+  let tab = $state<'prob' | 'an' | 'exit' | 'rev'>('prob');
   let probs: any[] | null = $state(null), an: any = $state(null), msg = $state('');
   const loadProbs = () => api.get('/api/hr/probations').then((r) => (probs = r.items)).catch(() => (probs = []));
   $effect(() => { if (tab === 'prob') loadProbs(); if (tab === 'an' && !an) api.get('/api/hr/analytics').then((r) => (an = r)).catch(() => {}); if (tab === 'exit' && !archive) api.get('/api/org/archive').then((r) => (archive = r.people ?? [])).catch(() => (archive = [])); });
@@ -34,11 +35,13 @@
 <header class="page-head"><div><h1>{L.title}</h1></div></header>
 <nav class="tabs">
   <button class:on={tab === 'prob'} onclick={() => (tab = 'prob')}>{L.prob}</button>
+  <button class:on={tab === 'rev'} onclick={() => (tab = 'rev')}>{uz ? '360° baholash' : 'Оценка 360°'}</button>
   {#if isHr}<button class:on={tab === 'an'} onclick={() => (tab = 'an')}>{L.an}</button><button class:on={tab === 'exit'} onclick={() => (tab = 'exit')}>{L.exit}</button>{/if}
 </nav>
 
 {#if msg}<div class="alert">{msg}</div>{/if}
-{#if tab === 'prob'}
+{#if tab === 'rev'}<ReviewAdmin />
+{:else if tab === 'prob'}
   <section class="card stack">
     {#if !probs}<Skeleton rows={4} />
     {:else if !probs.length}<EmptyState title={L.none} />

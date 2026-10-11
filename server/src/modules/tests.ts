@@ -6,11 +6,12 @@ import { q } from '../db.js';
 import { audit, hasRole, requireAuth, requireRole, teamIds, type AuthUser, isLead, requireLead } from '../auth.js';
 import { notify } from '../notify.js';
 import { SEED_TESTS } from '../tests-seed.js';
+import { SEED_TESTS2 } from '../tests-seed2.js';
 
 type T2 = { ru: string; uz: string };
 
 /* ---------- подсчёт ---------- */
-export interface TestRow { id?: number; slug?: string; scoring: 'categories' | 'scale' | 'quiz'; config: any }
+export interface TestRow { id?: number; slug?: string; scoring: 'categories' | 'scale' | 'quiz' | 'profile'; config: any }
 
 /** Проверяет и считает ответы. null — ответы некорректны. */
 export function scoreTest(t: TestRow, answers: unknown): Record<string, any> | null {
@@ -44,6 +45,8 @@ export function scoreTest(t: TestRow, answers: unknown): Record<string, any> | n
     return { kind: 'categories', scores, max, pct, lead, top, code, headline, tone: 'neutral' };
   }
 
+  if (t.scoring === 'profile') return scoreProfile(c, a);
+
   if (t.scoring === 'scale') {
     const { min, max } = c.scale as { min: number; max: number };
     if (!a.every((v) => v >= min && v <= max)) return null;
@@ -74,11 +77,101 @@ export function scoreTest(t: TestRow, answers: unknown): Record<string, any> | n
   return { kind: 'quiz', score, max, pct, right, band: band.min, headline, tone: band.tone, review };
 }
 
+/** Многошкальный профиль (Big Five, благополучие WHO-5, выгорание CBI, карьерные якоря…):
+ *  у вопроса своя шкала (s) и, возможно, обратный ключ (rev); points — перевод ответа в баллы (как в CBI: 100/75/50/25/0);
+ *  total — общий балл по сумме или среднему с уровнями (WHO-5: сумма × 4). */
+export function scoreProfile(c: any, a: number[]): Record<string, any> | null {
+  const qs: any[] = c.questions;
+  const { min, max } = c.scale as { min: number; max: number };
+  if (!a.every((v) => v >= min && v <= max)) return null;
+  const val = (v: number, rev?: boolean) => { const x = rev ? min + max - v : v; return Array.isArray(c.points) ? Number(c.points[x - min]) : x; };
+  const lo = Array.isArray(c.points) ? Math.min(...c.points) : min, hi = Array.isArray(c.points) ? Math.max(...c.points) : max;
+  const per: Record<string, number[]> = {};
+  qs.forEach((qq, i) => { const s = qq.s ?? 'total'; (per[s] ??= []).push(val(a[i], qq.rev)); });
+  const scales: Record<string, { mean: number; pct: number; band: 'low' | 'mid' | 'high' }> = {};
+  for (const sc of (c.scales ?? []) as any[]) {
+    const arr = per[sc.id] ?? [];
+    if (!arr.length) continue;
+    const mean = arr.reduce((x, y) => x + y, 0) / arr.length, pct = Math.round(((mean - lo) / (hi - lo || 1)) * 100);
+    scales[sc.id] = { mean: Math.round(mean * 100) / 100, pct, band: pct >= (sc.high_at ?? 65) ? 'high' : pct <= (sc.low_at ?? 35) ? 'low' : 'mid' };
+  }
+  let total: any = null, headline: T2 | null = null, tone = 'neutral';
+  if (c.total) {
+    const all = qs.map((qq, i) => val(a[i], qq.rev));
+    const raw = c.total.mode === 'mean' ? all.reduce((x, y) => x + y, 0) / all.length : all.reduce((x, y) => x + y, 0);
+    const value = Math.round(raw * (c.total.mult ?? 1) * 10) / 10;
+    const level = (c.total.levels as any[]).find((lv) => value <= lv.max) ?? c.total.levels[c.total.levels.length - 1];
+    total = { value, level: level.id }; headline = level.title; tone = level.tone ?? 'neutral';
+  }
+  if (!headline) {
+    const top = Object.entries(scales).sort((x, y) => y[1].pct - x[1].pct).slice(0, 2).map(([id]) => (c.scales as any[]).find((s) => s.id === id)?.name);
+    headline = { ru: top.map((n: any) => n?.ru).join(' + '), uz: top.map((n: any) => n?.uz).join(' + ') };
+  }
+  // уровень по шкалам с порогом (CBI: ≥ 50 — выгорание): тон «плохо», если хоть одна шкала за порогом
+  for (const sc of (c.scales ?? []) as any[]) if (sc.alarm_at != null && scales[sc.id] && scales[sc.id].mean >= sc.alarm_at) tone = 'bad';
+  return { kind: 'profile', scales, total, headline, tone };
+}
+
+/** α Кронбаха по шкалам профиля; null, если ответов меньше 30 или в шкале < 2 вопросов. */
+export function cronbach(c: any, rows: number[][]): Record<string, number | null> {
+  const { min, max } = c.scale;
+  const out: Record<string, number | null> = {};
+  for (const sc of (c.scales ?? []) as any[]) {
+    const idx = (c.questions as any[]).map((qq, i) => (qq.s === sc.id ? i : -1)).filter((i) => i >= 0);
+    if (rows.length < 30 || idx.length < 2) { out[sc.id] = null; continue; }
+    const items = idx.map((i) => rows.map((r) => (c.questions[i].rev ? min + max - r[i] : r[i])));
+    const variance = (a: number[]) => { const m = a.reduce((x, y) => x + y, 0) / a.length; return a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1); };
+    const totals = rows.map((_, k) => idx.reduce((s, _i, j) => s + items[j][k], 0));
+    const k = idx.length, vt = variance(totals);
+    out[sc.id] = vt ? Math.round((k / (k - 1)) * (1 - items.reduce((s, it) => s + variance(it), 0) / vt) * 100) / 100 : null;
+  }
+  return out;
+}
+
+/** Проверка теста из конструктора: строка с ошибкой или null. */
+export function validateTest(b: any): string | null {
+  if (!String(b.title_ru ?? '').trim()) return 'title';
+  if (!['psych', 'prof'].includes(b.kind)) return 'kind';
+  const c = b.config;
+  if (!c || !Array.isArray(c.questions) || c.questions.length < 2 || c.questions.length > 120) return 'questions';
+  if (b.scoring === 'profile') {
+    const sc = c.scale;
+    if (!sc || !Number.isInteger(sc.min) || !Number.isInteger(sc.max) || sc.max <= sc.min || sc.max - sc.min > 10) return 'scale';
+    if (!Array.isArray(sc.labels) || sc.labels.length !== sc.max - sc.min + 1 || !sc.labels.every((l: any) => String(l?.ru ?? '').trim())) return 'labels';
+    const ids = (c.scales ?? []).map((s: any) => String(s.id));
+    if (!ids.length || new Set(ids).size !== ids.length || !(c.scales as any[]).every((s) => String(s.name?.ru ?? '').trim())) return 'scales';
+    if (!c.questions.every((qq: any) => String(qq.q?.ru ?? '').trim() && ids.includes(String(qq.s)))) return 'question';
+    return null;
+  }
+  if (b.scoring === 'quiz') {
+    if (!c.questions.every((qq: any) => String(qq.q?.ru ?? '').trim() && Array.isArray(qq.opts) && qq.opts.length >= 2 && qq.opts.length <= 8
+      && qq.opts.every((o: any) => String(o.t?.ru ?? '').trim()) && Number.isInteger(qq.correct) && qq.correct >= 0 && qq.correct < qq.opts.length)) return 'question';
+    return null;
+  }
+  return 'scoring';
+}
+/** Достраивает необязательные части: шкалы итогов для теста знаний, тексты по умолчанию. */
+function normalizeConfig(b: any) {
+  const c = { ...b.config };
+  const T = (ru: string, uz: string) => ({ ru, uz });
+  c.intro ??= T('', '');
+  if (b.scoring === 'quiz') {
+    c.mode = 'correct';
+    c.bands ??= [
+      { min: 80, tone: 'good', title: T('Отлично', 'A’lo'), descr: T('Материал усвоен.', 'Material o‘zlashtirilgan.') },
+      { min: 50, tone: 'warn', title: T('Есть пробелы', 'Bo‘shliqlar bor'), descr: T('Повторите темы с ошибками.', 'Xato qilingan mavzularni takrorlang.') },
+      { min: 0, tone: 'bad', title: T('Нужно повторить', 'Takrorlash kerak'), descr: T('Пройдите материал ещё раз.', 'Materialni yana bir bor o‘ting.') },
+    ];
+    c.questions = c.questions.map((qq: any) => ({ ...qq, why: qq.why ?? T('', '') }));
+  } else c.questions = c.questions.map((qq: any) => ({ q: qq.q, s: String(qq.s), ...(qq.rev ? { rev: true } : {}) }));
+  return c;
+}
+
 /** Версия теста без ответов и «ключей» — то, что получает проходящий. */
 function publicTest(t: any) {
   const c = t.config;
   const out: any = { intro: c.intro, note: c.note, disclaimer: c.disclaimer };
-  if (t.scoring === 'scale') out.scale = c.scale;
+  if (t.scoring === 'scale' || t.scoring === 'profile') out.scale = c.scale;
   out.questions = c.questions.map((qq: any) => ({ q: qq.q, opts: qq.opts ? qq.opts.map((op: any) => ({ t: op.t })) : undefined }));
   return out;
 }
@@ -115,7 +208,7 @@ export async function teamScope(u: AuthUser): Promise<number[]> {
 }
 
 export async function ensureTests() {
-  for (const t of SEED_TESTS) {
+  for (const t of [...SEED_TESTS, ...SEED_TESTS2]) {
     await q(
       `INSERT INTO tests(slug,kind,title_ru,title_uz,descr_ru,descr_uz,minutes,scoring,config,ver,sort)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
@@ -192,7 +285,19 @@ export async function testsRoutes(app: FastifyInstance) {
       for (const ax of ['P', 'A', 'E', 'I']) avg[ax] = Math.round(full.reduce((s, x) => s + (x.result.pct?.[ax] ?? 0), 0) / full.length);
       paei = { n: full.length, total: members.length, avg, high: Object.keys(avg).filter((k) => avg[k] >= 35), low: Object.keys(avg).filter((k) => avg[k] <= 15) };
     }
-    return { members, tests: testsOut, paei };
+    // командные показатели — только агрегатом и только если ответили ≥ 3 (по отдельности не видны никому)
+    const latest = (slug: string) => raw.filter((x) => slugOf[x.test_id] === slug);
+    const agg = (slug: string, f: (r: any) => number | null) => {
+      const vals = latest(slug).map((x) => f(x.result)).filter((v): v is number => v != null && Number.isFinite(v));
+      return vals.length >= 3 ? { n: vals.length, value: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 } : vals.length ? { n: vals.length, hidden: true } : null;
+    };
+    const npsVals = latest('enps').map((x) => Number(x.result?.total?.value)).filter(Number.isFinite);
+    const aggregates = {
+      enps: npsVals.length >= 3 ? { n: npsVals.length, value: Math.round(((npsVals.filter((v) => v >= 9).length - npsVals.filter((v) => v <= 6).length) / npsVals.length) * 100) } : npsVals.length ? { n: npsVals.length, hidden: true } : null,
+      psysafe: agg('psysafe', (r) => Number(r?.total?.value)),
+      who5: agg('who5', (r) => Number(r?.total?.value)),
+    };
+    return { members, tests: testsOut, paei, aggregates };
   });
 
   /** Назначить тест сотрудникам: manager, head, hr, admin. */
@@ -256,6 +361,48 @@ export async function testsRoutes(app: FastifyInstance) {
     };
   });
 
+  /* ---------- конструктор тестов (HR и редактор) ---------- */
+  const ed = { preHandler: requireRole('hr', 'editor') };
+  app.get('/api/admin/tests', ed, async () => ({
+    tests: (await q(`SELECT id,slug,kind,title_ru,title_uz,descr_ru,descr_uz,minutes,scoring,config,active,custom,ver,(SELECT count(*)::int FROM test_results r WHERE r.test_id=t.id) AS results FROM tests t ORDER BY custom, sort, id`)).rows,
+  }));
+  app.post('/api/admin/tests', ed, async (req, reply) => {
+    const b = (req.body ?? {}) as any;
+    const e = validateTest(b);
+    if (e) return reply.code(400).send({ error: 'invalid', detail: e });
+    const slug = `c-${Math.random().toString(36).slice(2, 8)}`;
+    const r = await q(`INSERT INTO tests(slug,kind,title_ru,title_uz,descr_ru,descr_uz,minutes,scoring,config,ver,sort,custom) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,1,100,true) RETURNING id,slug`,
+      [slug, b.kind, String(b.title_ru).trim().slice(0, 160), String(b.title_uz ?? '').trim().slice(0, 160), String(b.descr_ru ?? '').slice(0, 1000), String(b.descr_uz ?? '').slice(0, 1000),
+       Math.max(1, Math.min(60, Number(b.minutes) || 5)), b.scoring, JSON.stringify(normalizeConfig(b))]);
+    await audit(req, 'test_create', r.rows[0].slug);
+    return r.rows[0];
+  });
+  app.patch('/api/admin/tests/:id', ed, async (req, reply) => {
+    const t = (await q('SELECT * FROM tests WHERE id=$1', [Number((req.params as any).id)])).rows[0];
+    if (!t) return reply.code(404).send({ error: 'not_found' });
+    const b = (req.body ?? {}) as any;
+    if (!t.custom) {   // встроенные тесты обновляются с кодом — здесь их можно только включить/выключить
+      if (typeof b.active !== 'boolean') return reply.code(400).send({ error: 'builtin' });
+      await q('UPDATE tests SET active=$2 WHERE id=$1', [t.id, b.active]);
+      return { ok: true };
+    }
+    const next = { ...t, ...b, kind: b.kind ?? t.kind, scoring: b.scoring ?? t.scoring, config: b.config ?? t.config, title_ru: b.title_ru ?? t.title_ru };
+    const e = validateTest(next);
+    if (e) return reply.code(400).send({ error: 'invalid', detail: e });
+    await q(`UPDATE tests SET kind=$2,title_ru=$3,title_uz=$4,descr_ru=$5,descr_uz=$6,minutes=$7,scoring=$8,config=$9,active=$10,ver=ver+1 WHERE id=$1`,
+      [t.id, next.kind, String(next.title_ru).slice(0, 160), String(next.title_uz ?? '').slice(0, 160), String(next.descr_ru ?? '').slice(0, 1000), String(next.descr_uz ?? '').slice(0, 1000),
+       Math.max(1, Math.min(60, Number(next.minutes) || 5)), next.scoring, JSON.stringify(normalizeConfig(next)), typeof b.active === 'boolean' ? b.active : t.active]);
+    await audit(req, 'test_update', t.slug);
+    return { ok: true };
+  });
+  /** Надёжность шкал (α Кронбаха) по накопленным ответам — для HR: шкала с α < 0,6 плохо измеряет то, что заявлено. */
+  app.get('/api/tests/:slug/reliability', ed, async (req, reply) => {
+    const t = (await q('SELECT id,scoring,config FROM tests WHERE slug=$1', [String((req.params as any).slug)])).rows[0];
+    if (!t || t.scoring !== 'profile') return reply.code(404).send({ error: 'not_found' });
+    const rows = (await q(`SELECT DISTINCT ON (user_id) answers FROM test_results WHERE test_id=$1 ORDER BY user_id, created_at DESC`, [t.id])).rows.map((r) => r.answers as number[]);
+    return { n: rows.length, scales: cronbach(t.config, rows) };
+  });
+
   /** Изменить, кому виден свой результат психологического теста. */
   app.patch('/api/tests/results/:id/share', auth, async (req, reply) => {
     const share = (req.body as any)?.share;
@@ -272,9 +419,19 @@ export async function testsRoutes(app: FastifyInstance) {
     const answers = (req.body as any)?.answers;
     const result = scoreTest(t, answers);
     if (!result) return reply.code(400).send({ error: 'invalid' });
+    // повторно — не раньше, чем через retest_days (если тест не назначен руководителем): частые повторы искажают картину
+    const days = Number(t.config?.retest_days) || 0;
+    if (days) {
+      const recent = (await q(`SELECT created_at FROM test_results WHERE user_id=$1 AND test_id=$2 AND created_at > now() - ($3 || ' days')::interval ORDER BY created_at DESC LIMIT 1`, [u.id, t.id, days])).rows[0];
+      const assigned = (await q('SELECT 1 FROM test_assignments WHERE user_id=$1 AND test_id=$2 AND done_at IS NULL', [u.id, t.id])).rows.length;
+      if (recent && !assigned) return reply.code(429).send({ error: 'too_soon', next_at: new Date(new Date(recent.created_at).getTime() + days * 86_400_000).toISOString() });
+    }
+    // слишком быстро (меньше 1,5 с на вопрос) — результат сохраняется, но помечается как ненадёжный
+    const dur = Number((req.body as any)?.duration_ms) || null;
+    if (dur && dur < t.config.questions.length * 1500) result.too_fast = true;
     const want = (req.body as any)?.share;
     const share: Share = t.kind === 'psych' && okShare(want) ? want : defaultShare(t);
-    const id = (await q('INSERT INTO test_results(user_id,test_id,answers,result,share) VALUES($1,$2,$3,$4,$5) RETURNING id', [u.id, t.id, JSON.stringify(answers), JSON.stringify(result), share])).rows[0].id;
+    const id = (await q('INSERT INTO test_results(user_id,test_id,answers,result,share,duration_ms) VALUES($1,$2,$3,$4,$5,$6) RETURNING id', [u.id, t.id, JSON.stringify(answers), JSON.stringify(result), share, dur])).rows[0].id;
     const done = (await q(`UPDATE test_assignments SET done_at=now() WHERE user_id=$1 AND test_id=$2 AND done_at IS NULL RETURNING assigned_by`, [u.id, t.id])).rows;
     const by = [...new Set(done.map((d) => d.assigned_by).filter((x) => x && x !== u.id))] as number[];
     if (by.length) await notify(by, 'test', `Тест пройден: ${u.name}`, `«${t.title_ru}»`, '#/tests/team');

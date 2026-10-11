@@ -6,6 +6,7 @@ import { ensureTraining } from './modules/training.js';
 import { ensureTests } from './modules/tests.js';
 import { ensureLibrary } from './modules/library.js';
 import { ensureWellness } from './modules/wellness.js';
+import { ensureReviewItems } from './modules/reviews.js';
 import { ensureOrg, invalidateOrg, placeUser, syncManager } from './org-core.js';
 
 let autoPlace = true;   // при первичной загрузке демо дерево строит ensureOrg (группы супервайзеров); позже созданные сотрудники размещаются сразу
@@ -95,6 +96,7 @@ export async function ensureBase() {
   if (await seedAssist()) console.log('[portal] контент помощника оператора загружен в базу');
   await ensureTraining();
   await ensureTests();
+  await ensureReviewItems();
   await ensureLibrary();
   await ensureWellness();
   await ensureOrg();

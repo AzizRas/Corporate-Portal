@@ -15,6 +15,7 @@
   import TourStats from './TourStats.svelte';
   import AccessAdmin from './AccessAdmin.svelte';
   import UsageAdmin from './UsageAdmin.svelte';
+  import TestsAdmin from './TestsAdmin.svelte';
 
   let { parts }: { parts: string[] } = $props();
   const tabs = $derived([
@@ -24,6 +25,7 @@
     has('editor', 'hr') && { id: 'kb', l: 'База знаний' },
     has('hr') && { id: 'growth', l: 'Модель роста' },
     has('hr', 'editor', 'head') && { id: 'training', l: 'Обучение' },
+    has('hr', 'editor') && { id: 'tests', l: 'Тесты' },
     has('hr') && { id: 'wellness', l: 'Напоминания' },
     has('editor') && { id: 'assist', l: 'Помощник оператора' },
     has('hr', 'accountant') && { id: 'requests', l: 'Заявки' },
@@ -45,6 +47,7 @@
 {:else if cur === 'kb'}<KbAdmin />
 {:else if cur === 'growth'}<GrowthAdmin />
 {:else if cur === 'training'}<TrainingAdmin />
+{:else if cur === 'tests'}<TestsAdmin />
 {:else if cur === 'wellness'}<WellnessAdmin />
 {:else if cur === 'assist'}<AssistAdmin collection={parts[1] ?? null} />
 {:else if cur === 'requests'}<Requests />
