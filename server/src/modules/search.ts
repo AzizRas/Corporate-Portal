@@ -9,6 +9,7 @@ import { channelsFor } from './social.js';
 import { takeAi } from './training.js';
 import { buildPlatform } from '../assist-data.js';
 import { urlAllowed } from '../access.js';
+import { SYSTEM_USER_SQL } from '../org-core.js';
 
 const like = (s: string) => `%${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 const normText = (s: string) => [...new Set(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2))].sort().join(' ');
@@ -45,7 +46,7 @@ export async function searchRoutes(app: FastifyInstance) {
     const kb = !urlAllowed('/api/kb', u.sections, u.roles) ? [] : (await searchArticles(query, u.dept_id)).slice(0, 5).map((a) => ({ id: a.id, title_ru: a.title_ru, title_uz: a.title_uz, snippet_ru: a.snippet_ru, snippet_uz: a.snippet_uz }));
     const tests = (await q(`SELECT slug,title_ru,title_uz FROM tests WHERE active AND (title_ru ILIKE $1 OR title_uz ILIKE $1 OR descr_ru ILIKE $1) ORDER BY sort LIMIT 5`, [pat])).rows;
     const library = (await q(`SELECT id,kind,title,author FROM library_items WHERE active AND (title ILIKE $1 OR author ILIKE $1 OR tags ILIKE $1) ORDER BY id DESC LIMIT 5`, [pat])).rows;
-    const people = (await q(`SELECT id,name,position,avatar_v FROM users WHERE active AND (name ILIKE $1 OR position ILIKE $1) ORDER BY name LIMIT 6`, [pat])).rows;
+    const people = (await q(`SELECT id,name,position,avatar_v FROM users u WHERE active AND NOT ${SYSTEM_USER_SQL} AND (name ILIKE $1 OR position ILIKE $1) ORDER BY name LIMIT 6`, [pat])).rows;
     // чаты: только каналы, доступные этому сотруднику
     const chans = await channelsFor(u);
     const ids = chans.map((c) => c.id);

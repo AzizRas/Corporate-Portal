@@ -68,7 +68,7 @@ test('Дерево: демо-структура построена, у супе�
   assert.equal(tOp.can_edit, false);
   assert.ok(!tOp.nodes.some((n: any) => n.kind === 'external'), 'оператор внешнее не видит');
   // отдел пользователей связан с узлом
-  assert.equal((await pool.query(`SELECT count(*)::int n FROM users WHERE node_id IS NULL AND active`)).rows[0].n, 0);
+  assert.equal((await pool.query(`SELECT count(*)::int n FROM users u WHERE node_id IS NULL AND active AND NOT (EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='admin') AND NOT EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role='employee'))`)).rows[0].n, 0, 'все, кроме системного админа, размещены в узлах');
 });
 
 test('Права по дереву: руководитель не открывает сотрудника вне своей ветки (сервер)', async () => {
