@@ -6,6 +6,9 @@
   import OrgCards from './OrgCards.svelte';
   import OrgMap from './OrgMap.svelte';
   import OrgGroups from './OrgGroups.svelte';
+  import OrgRefs from './OrgRefs.svelte';
+  import OrgRefDrawer from './OrgRefDrawer.svelte';
+  import Modal from '../components/Modal.svelte';
   import { ot } from './oc18n';
   import { buildModel, matches, type OcNode } from './oc-model';
 
@@ -13,7 +16,8 @@
   let { onmanage, canManage }: { onmanage: (id: number) => void; canManage: boolean } = $props();
   type View = 'cards' | 'map' | 'groups';
   const saved = (): View => { try { const v = localStorage.getItem('org_view'); if (v === 'cards' || v === 'map' || v === 'groups') return v; } catch { /* приватный режим */ } return matchMedia('(max-width: 880px)').matches ? 'groups' : 'cards'; };
-  let view = $state<View>(saved()), div = $state(0), q = $state(''), data: { nodes: OcNode[] } | null = $state(null), failed = $state(false), pick: OcNode | null = $state(null);
+  let view = $state<View>(saved()), div = $state(0), q = $state(''), data: { nodes: OcNode[]; refs: any[]; can_refs: boolean } | null = $state(null), failed = $state(false), pick: OcNode | null = $state(null);
+  let refId: number | null = $state(null), newRef = $state(false), nf = $state({ name_ru: '', name_uz: '', placement: 'above', note: '' }), nerr = $state(''), nbusy = $state(false);
   const setView = (v: View) => { view = v; try { localStorage.setItem('org_view', v); } catch { /* приватный режим */ } };
 
   async function load() { try { data = await api.get('/api/org/chart'); failed = false; } catch { failed = true; } }
@@ -36,6 +40,14 @@
   const children = $derived(pick ? m.kids.get(pick.id) ?? [] : []);
   const crumbs = $derived(pick ? m.pathOf(pick) : '');
   function openNode(n: OcNode) { pick = n; }
+  // справочные подразделения (вышестоящие и чужие): рисуются отдельно, без связей с деревом
+  const refsAbove = $derived((data?.refs ?? []).filter((r) => r.placement === 'above'));
+  const refsOther = $derived((data?.refs ?? []).filter((r) => r.placement !== 'above'));
+  const refUnit = $derived(refId != null ? (data?.refs ?? []).find((r) => r.id === refId) ?? null : null);
+  async function createRef(e: Event) {
+    e.preventDefault(); nbusy = true; nerr = '';
+    try { const r = await api.post('/api/org/refs', nf); newRef = false; await load(); refId = r.id; } catch { nerr = wt('o_err'); } finally { nbusy = false; }
+  }
 </script>
 
 {#if failed}<p class="alert">{wt('o_err')}</p>
@@ -47,6 +59,7 @@
       <button type="button" class:on={view === 'map'} onclick={() => setView('map')}>{ot('vMap')}</button>
       <button type="button" class:on={view === 'groups'} onclick={() => setView('groups')}>{ot('vGroups')}</button>
     </div>
+    {#if data.can_refs}<button type="button" class="btn sm" onclick={() => { nf = { name_ru: '', name_uz: '', placement: 'above', note: '' }; nerr = ''; newRef = true; }}>+ {ot('addRef')}</button>{/if}
     <div class="srch"><input type="search" bind:value={q} placeholder={ot('search')} aria-label={ot('search')} />
       {#if q.trim()}
         <div class="res">
@@ -67,10 +80,29 @@
   </div>
   <p class="muted xs" style="margin:0 0 10px">{ot('hint')}</p>
 
+  <OrgRefs refs={refsAbove} title={ot('refsAbove')} lang={app.lang} onpick={(r) => (refId = r.id)} />
   {#if !m.nodes.length}<p class="muted">{ot('empty')}</p>
   {:else if view === 'cards'}<OrgCards {m} {top} {q} picked={pick?.id ?? null} onpick={openNode} />
   {:else if view === 'map'}<OrgMap {m} {top} {q} picked={pick?.id ?? null} onpick={openNode} />
   {:else}<OrgGroups {m} {divs} {q} onpick={openNode} />{/if}
+  <div style="height:14px"></div>
+  <OrgRefs refs={refsOther} title={ot('refsOther')} lang={app.lang} onpick={(r) => (refId = r.id)} />
+{/if}
+
+{#if refUnit}<OrgRefDrawer unit={refUnit} canEdit={!!data?.can_refs} lang={app.lang} onclose={() => (refId = null)} onchanged={async (gone) => { if (gone) refId = null; await load(); }} />{/if}
+
+{#if newRef}
+  <Modal onclose={() => (newRef = false)}>
+    <form class="stack" onsubmit={createRef}>
+      <h2>{ot('addRef')}</h2>
+      <label class="f">{ot('refName')}<input bind:value={nf.name_ru} required maxlength="120" /></label>
+      <label class="f">{ot('refNameUz')}<input bind:value={nf.name_uz} maxlength="120" /></label>
+      <label class="f">{ot('refPlace')}<select bind:value={nf.placement}><option value="above">{ot('pAbove')}</option><option value="other">{ot('pOther')}</option></select></label>
+      <label class="f">{ot('refNote')}<input bind:value={nf.note} maxlength="500" /></label>
+      {#if nerr}<p class="alert">{nerr}</p>{/if}
+      <div class="row" style="justify-content:flex-end;gap:8px"><button type="button" class="btn" onclick={() => (newRef = false)}>{ot('cancel')}</button><button class="btn grad" disabled={nbusy}>{ot('save')}</button></div>
+    </form>
+  </Modal>
 {/if}
 
 {#if pick}

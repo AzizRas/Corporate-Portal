@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { api } from '../lib/api';
   import Modal from '../components/Modal.svelte';
-  import { hs, isRec, toast, errText, ht, hg, fullName, posName, fmtD, fmtDT } from './store.svelte';
+  import { hs, isRec, toast, errText, ht, hg, fullName, posName, fmtD, fmtDT, extraLabel, extraHref } from './store.svelte';
   import { hn } from './h18n';
   import AddCandidate from './AddCandidate.svelte';
 
@@ -150,6 +150,7 @@
             </div>
             <span class="ava big" style:background={tint(cur.applicant_id)}>{initials(cur)}</span>
           </div>
+          {#if det?.extras?.length}<div class="xtra">{#each det.extras.filter((x: any) => ['telegram', 'whatsapp', 'instagram', 'linkedin', 'website', 'phone2', 'email2', 'city'].includes(x.kind)) as x (x.id)}{@const href = extraHref(x.kind, x.value)}<span class="chip">{extraLabel(x.kind)}: {#if href}<a {href} target="_blank" rel="noopener noreferrer">{x.value}</a>{:else}{x.value}{/if}</span>{/each}</div>{/if}
           <div class="stage-card" style:--c={st?.color}>
             <div class="sc-top"><div><b class="sc-name">{st ? hn(st) : ''}</b><div class="muted small">{d.vacancy.title}{cur.late ? ` · ${ht('hLate', { n: cur.late })}` : ''}</div></div>
               {#if canMove}<button class="btn go" onclick={() => openPanel(cur)}>{ht('vChange')}</button>{/if}</div>
@@ -279,6 +280,7 @@
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 22px; margin: 0; font-size: 15px; }
   dt { color: var(--muted); }
   dd { margin: 0; overflow-wrap: anywhere; }
+  .xtra { display: flex; flex-wrap: wrap; gap: 6px; }
   .stage-card { border-left: 4px solid var(--c, var(--accent)); background: var(--stage-bg); border-radius: 4px 12px 12px 4px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
   .sc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
   .sc-name { font-size: 20px; color: color-mix(in srgb, var(--c, var(--accent)) 60%, var(--text)); }
