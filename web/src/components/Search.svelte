@@ -12,6 +12,7 @@
   import Avatar from './Avatar.svelte';
   import AiFeedback from './AiFeedback.svelte';
 
+  let { row = false }: { row?: boolean } = $props();
   let open = $state(false), q = $state(''), sel = $state(0), res: any = $state(null), busy = $state(false);
   let asking = $state(false), helpHit: any = $state(null), ans: any = $state(null), input: HTMLInputElement | undefined = $state();
   let seq = 0, timer: ReturnType<typeof setTimeout> | undefined;
@@ -93,7 +94,11 @@
 
 <svelte:window onkeydown={key} />
 
-<button class="srch-btn" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i></button>
+{#if row}
+  <button class="nv" title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i><span class="lbl">{wt('sr_open')}</span></button>
+{:else}
+  <button class="srch-btn" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i></button>
+{/if}
 
 {#snippet helpCard(h: any)}
   {@const t = h.topic}

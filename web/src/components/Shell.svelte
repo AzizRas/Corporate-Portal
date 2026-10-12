@@ -17,7 +17,6 @@
   import { tour, maybeAutoStart, visit, visitSearch } from '../lib/tour.svelte';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
-  import ThemeToggle from './ThemeToggle.svelte';
   import NotifyBell from './NotifyBell.svelte';
   import CheckIn from './CheckIn.svelte';
   import Wellness from '../wellness/Wellness.svelte';
@@ -67,7 +66,7 @@
         <svg viewBox="0 0 24 24" style:transform="rotate({collapsed ? 0 : 180}deg)"><path d="M9 6l6 6-6 6" /></svg>
       </button>
     </div>
-    <div class="side-tools"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search /></span><span class="tr-wrap" data-tour="bell"><NotifyBell /></span><ThemeToggle /></div>
+    <div class="side-tools"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search row /></span><span class="tr-wrap" data-tour="bell"><NotifyBell row /></span></div>
     <nav class="nvs" aria-label="menu">
       <!-- 7 разделов; внутри раздела — вкладки наверху страницы -->
       {#each hubs as h (h.id)}
@@ -91,7 +90,7 @@
   <main class="main">
     <div class="topbar">
       <div class="logo sm"><i></i>Qadam</div>
-      <div class="row"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search /></span><span class="tr-wrap" data-tour="bell"><NotifyBell /></span><ThemeToggle /><a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a></div>
+      <div class="row"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search /></span><span class="tr-wrap" data-tour="bell"><NotifyBell /></span><a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a></div>
     </div>
     <CheckIn />
     {#if curHub && curHub.items.length > 1}<HubTabs items={curHub.items} active={active?.item} title={hubLabel(curHub.id)} />{/if}

@@ -7,6 +7,7 @@
   import { portal } from '../lib/portal';
   import Icon from './Icon.svelte';
 
+  let { row = false }: { row?: boolean } = $props();
   let open = $state(false), btn: HTMLButtonElement | undefined = $state(), pos = $state('');
   const total = $derived(notif.unread + notif.chat_total);
   const kindIcon = (k: string) => ({ news: 'news', mention: 'chat', reply: 'chat', dayoff: 'schedule', training: 'training', test: 'tests', task: 'tests' } as Record<string, string>)[k] ?? 'bell';
@@ -37,10 +38,17 @@
 
 <svelte:window onresize={() => open && place()} onkeydown={(e) => open && e.key === 'Escape' && (open = false)} />
 
-<button class="bell" bind:this={btn} aria-label={st('nt_title')} aria-expanded={open} onclick={toggle}>
-  <i><Icon name="bell" /></i>
-  {#if total}<b>{total > 99 ? '99+' : total}</b>{/if}
-</button>
+{#if row}
+  <button class="nv bellrow" bind:this={btn} title={st('nt_title')} aria-expanded={open} onclick={toggle}>
+    <i><Icon name="bell" /></i><span class="lbl">{st('nt_title')}</span>
+    {#if total}<em>{total > 99 ? '99+' : total}</em>{/if}
+  </button>
+{:else}
+  <button class="bell" bind:this={btn} aria-label={st('nt_title')} aria-expanded={open} onclick={toggle}>
+    <i><Icon name="bell" /></i>
+    {#if total}<b>{total > 99 ? '99+' : total}</b>{/if}
+  </button>
+{/if}
 
 {#if open}
   <div use:portal class="np-layer">

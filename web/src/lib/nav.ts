@@ -40,7 +40,6 @@ export function navGroups(chatBadge = 0): NavGroup[] {
       ...(lead() || has('hr', 'senior') ? [it('team', st('n_team'), '/team', 'team', undefined, 'internal')] : []),
       it('structure', wt('i_structure'), '/structure', 'admin', undefined, 'internal'),
       ...(lead() || has('hr') ? [it('hr', app.lang === 'uz' ? 'Kadrlar' : 'Кадры', '/hr', 'team', undefined, 'internal')] : []),
-      ...(lead() || has('hr') ? [it('leaves', app.lang === 'uz' ? 'Ta’tillar' : 'Отпуска', '/leaves', 'schedule', undefined, 'internal')] : []),
       ...(lead() || has('hr', 'recruiter') ? [it('hire', app.lang === 'uz' ? 'Yollash' : 'Найм', '/hire', 'team', undefined, 'internal')] : []),
       it('schedule', st('n_schedule'), '/schedule', 'schedule', undefined, 'schedule'),
     ] },
