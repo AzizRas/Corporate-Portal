@@ -83,6 +83,35 @@
     const c = d.cards.find((x: any) => x.id === Number(pid));
     if (c && canMove) askMove(c, sid);
   }
+  // доска как в amoCRM: занимает всю высоту окна, колонки листаются сами по себе,
+  // доску можно тянуть мышью за пустое место, а при перетаскивании карточки к краю она прокручивается
+  let boardEl: HTMLDivElement | undefined = $state(), boardH = $state(0);
+  const pan = $state({ on: false, x: 0, left: 0, id: 0 });
+  function fit() {
+    if (!boardEl) return;
+    const top = boardEl.getBoundingClientRect().top + window.scrollY;
+    const main = boardEl.closest('.main');
+    const pad = main ? parseFloat(getComputedStyle(main).paddingBottom) || 0 : 0;
+    boardH = Math.max(360, window.innerHeight - top - pad);
+  }
+  $effect(() => {
+    if (view !== 'board' || !d || !boardEl) return;
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  });
+  function panStart(e: PointerEvent) {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || (e.target as HTMLElement).closest('.kc, button, a, select, input')) return;
+    Object.assign(pan, { on: true, x: e.clientX, left: boardEl!.scrollLeft, id: e.pointerId });
+    boardEl!.setPointerCapture(e.pointerId);
+  }
+  function panMove(e: PointerEvent) { if (pan.on) boardEl!.scrollLeft = pan.left - (e.clientX - pan.x); }
+  function panEnd() { if (pan.on) { pan.on = false; try { boardEl!.releasePointerCapture(pan.id); } catch { /* уже отпущен */ } } }
+  function edgeScroll(e: DragEvent) {
+    const r = boardEl!.getBoundingClientRect(), zone = 80;
+    if (e.clientX < r.left + zone) boardEl!.scrollLeft -= 18;
+    else if (e.clientX > r.right - zone) boardEl!.scrollLeft += 18;
+  }
   function openPanel(c: any) { panel = c; panelTo = c.status_id; panelNote = ''; }
   function applyPanel() {
     const c = panel, to = panelTo, note = panelNote;
@@ -168,10 +197,11 @@
       </section>
     </div>
   {:else}
-    <div class="board">
+    <div class="board" role="region" aria-label={ht('vBoard')} class:panning={pan.on} bind:this={boardEl} style:height={boardH ? `${boardH}px` : null} onpointerdown={panStart} onpointermove={panMove} onpointerup={panEnd} onpointercancel={panEnd} ondragover={edgeScroll}>
       {#each d.statuses as s (s.id)}
         <section class="col" class:over={over === s.id} style:--c={s.color} ondragover={(e) => { e.preventDefault(); over = s.id; }} ondragleave={() => (over = 0)} ondrop={(e) => drop(e, s.id)} aria-label={hn(s)}>
           <h3 class="colh">{hn(s)}<b>{cardsOf(s.id).length}</b></h3>
+          <div class="cards">
           {#each cardsOf(s.id) as c (c.id)}
             <button class="kc" draggable={canMove} ondragstart={(e) => e.dataTransfer?.setData('text/plain', `${c.id}:${c.status_id}`)} onclick={() => openPanel(c)}>
               <span class="who"><span class="ava sm" style:background={tint(c.applicant_id)}>{initials(c)}</span><b>{fullName(c)}</b></span>
@@ -180,6 +210,7 @@
               {#if c.late}<span class="late2">{ht('hLate', { n: c.late })}</span>{/if}
             </button>
           {:else}<p class="muted small empty">{ht('hEmptyCol')}</p>{/each}
+          </div>
         </section>
       {/each}
     </div>
@@ -290,12 +321,17 @@
   .feed li { display: flex; flex-direction: column; gap: 1px; padding-left: 12px; border-left: 2px solid var(--border); }
   .fd { overflow-wrap: anywhere; }
 
-  .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 14px; scroll-snap-type: x proximity; }
-  .col { flex: 0 0 264px; scroll-snap-align: start; background: var(--card-2); border-radius: 14px; border-top: 3px solid var(--c); padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 180px; }
+  /* в режиме доски рабочая область без ограничения ширины */
+  :global(.main:has(.board)) { max-width: none; }
+  @media (min-width: 1181px) { :global(.main:has(.board)) { padding-bottom: 16px; } }
+  .board { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; padding-bottom: 10px; min-height: 360px; cursor: grab; scrollbar-color: var(--border) transparent; }
+  .board.panning { cursor: grabbing; user-select: none; }
+  .col { flex: 0 0 272px; background: var(--card-2); border-radius: 14px; border-top: 3px solid var(--c); padding: 10px 6px 10px 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; cursor: default; }
+  .cards { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
   .col.over { outline: 2px dashed var(--accent); outline-offset: -4px; }
   .colh { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); padding: 2px 2px 4px; }
   .colh b { margin-left: auto; font-size: 12px; color: var(--muted); }
-  .kc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left; font: inherit; color: var(--text); cursor: grab; width: 100%; }
+  .kc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; text-align: left; font: inherit; color: var(--text); cursor: grab; width: 100%; flex: none; }
   .kc:hover { border-color: var(--accent); }
   .who { display: flex; align-items: center; gap: 8px; }
 
@@ -307,6 +343,7 @@
     .people { max-height: none; }
     .who2 { flex-direction: column-reverse; }
     .ava.big { width: 64px; height: 64px; font-size: 22px; }
-    .col { flex-basis: 84vw; }
+    .board { scroll-snap-type: x mandatory; cursor: auto; }
+    .col { flex-basis: 84vw; scroll-snap-align: start; }
   }
 </style>
