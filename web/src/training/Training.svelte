@@ -10,9 +10,9 @@
   import Team from './Team.svelte';
   import './training.css';
 
-  // маршруты: #/training, #/training/lesson/<id>, #/training/trainer, #/training/ready, #/training/team
+  // маршруты: #/training («Мой старт» у новичка), #/training/courses («Курсы»), #/training/lesson/<id>, #/training/trainer, #/training/ready; #/training/team переехал в «Мою команду» (REDIRECTS)
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean).slice(1).map(decodeURIComponent));
-  const sec = $derived(parts[0] || 'plan');
+  const sec = $derived(parts[0] === 'courses' ? 'plan' : parts[0] || 'plan');
   $effect(() => { loadMe(); });
   const canTeam = $derived(!!T.me?.can_team);
   const tabs = $derived([

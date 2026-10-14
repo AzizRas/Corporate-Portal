@@ -11,7 +11,9 @@
   import { ot } from './oc18n';
 
   let tree: any = $state(null), selected: number | null = $state(null), people: any[] = $state([]), noAccess = $state(false), loadingP = $state(false);
-  let tab = $state<'chart' | 'tree' | 'archive' | 'log' | 'deleg'>('chart');
+  // tab задаёт вкладку адресом (/people → схема, /admin/org → дерево); щелчок по вкладке временно её меняет
+  let { tab: tabProp = undefined }: { tab?: 'chart' | 'tree' | 'archive' | 'log' | 'deleg' } = $props();
+  let tab = $derived<'chart' | 'tree' | 'archive' | 'log' | 'deleg'>(tabProp ?? 'chart');
   let allPeople: any[] = $state([]), open: Record<number, boolean> = $state({});
   let dragId: number | null = $state(null), dropId: number | null = $state(null), toast = $state('');
 

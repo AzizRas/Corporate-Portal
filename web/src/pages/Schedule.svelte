@@ -15,8 +15,10 @@
   import ErrorState from '../components/ErrorState.svelte';
   import { friendlyError } from '../lib/errors';
 
+  // view задаёт вкладку адресом (/team/schedule → «Команда»); без него — как раньше: /schedule/team
+  let { view = undefined }: { view?: 'my' | 'team' } = $props();
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
-  const tab = $derived(parts[1] === 'team' ? 'team' : 'my');
+  const tab = $derived(view ?? (parts[1] === 'team' ? 'team' : 'my'));
   const tz = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   let ym = $state(tz().slice(0, 7));
   let my: any = $state(null), team: any = $state(null), err = $state(''), msg = $state(''), loadErr: unknown = $state(null);

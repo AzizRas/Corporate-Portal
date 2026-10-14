@@ -15,7 +15,9 @@
   import './chat.css';
   import './chat-tg.css';
 
-  let { channel }: { channel: string } = $props();
+  // channel === null — адрес #/chat без номера: открываем первый чат с непрочитанным, иначе первый в списке; info — адрес #/chat/<номер>/info (панель «Информация»)
+  let { channel: channelProp, info = false }: { channel: string | null; info?: boolean } = $props();
+  const channel = $derived(channelProp ?? '');
   let channels: any[] = $state([]), msgs: any[] = $state([]), people: any[] = $state([]), members: any[] = $state([]);
   let text = $state(''), box: HTMLElement | undefined = $state(), ta: HTMLTextAreaElement | undefined = $state(), fileIn: HTMLInputElement | undefined = $state();
   let err = $state(''), replyTo: any = $state(null), picked: { id: number; name: string }[] = $state([]);
@@ -54,7 +56,13 @@
 
   let retried = '';
   $effect(() => {
-    if (!loaded || !channels.length || cur) return;
+    if (!loaded) return;
+    if (channelProp === null) {   // «Общий» заранее не открываем: иначе он сразу пометился бы прочитанным
+      const first = active.find((c) => unread(c.id)) ?? active[0];
+      if (first) location.replace(`#/chat/${encodeURIComponent(first.id)}`);
+      return;
+    }
+    if (!channels.length || cur) return;
     if (retried !== channel) { retried = channel; loadChannels(); return; }
     go(`/chat/${encodeURIComponent(channels[0].id)}`);
   });
@@ -62,6 +70,7 @@
   const scroll = async (smooth = false) => { await tick(); box?.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' }); };
   async function poll(reset = false) {
     const ch = channel;
+    if (!ch) return;
     try {
       const r = await api.get(`/api/chat/${encodeURIComponent(ch)}?after=${reset ? 0 : last}${!reset && since ? `&since=${since}` : ''}`);
       if (ch !== channel) return;
@@ -85,9 +94,10 @@
   const draftKey = (c: string) => `chat-draft:${c}`;
   const readDraft = (c: string) => { try { return localStorage.getItem(draftKey(c)) ?? ''; } catch { return ''; } };
   const writeDraft = (c: string, v: string) => { try { v ? localStorage.setItem(draftKey(c), v) : localStorage.removeItem(draftKey(c)); } catch { /* без хранилища черновика нет */ } };
-  $effect(() => { const v = text; if (!editing) writeDraft(channel, v); });
+  $effect(() => { const v = text; if (channel && !editing) writeDraft(channel, v); });
   $effect(() => {
     channel; last = 0; since = 0; replyTo = null; editing = null; picked = []; text = readDraft(channel); panel = 'none'; sq = ''; results = []; msgs = []; readers = []; typingNames = []; peer = null; menuId = 0; tray = 'none'; clearPending();
+    if (!channel) return;
     poll(true); loadPins(); tick().then(autosize);
   });
   $effect(() => { cur?.id; if (cur) loadMembers(); });
@@ -466,4 +476,4 @@
   </div>
 {/if}
 {#if showNew}<NewChat {people} onclose={() => (showNew = false)} ondone={loadChannels} />{/if}
-{#if showInfo && cur}<ChatInfo chan={cur} {people} onclose={() => (showInfo = false)} onchange={async (leave) => { await loadChannels(); await loadMembers(); if (leave) { showInfo = false; go('/chat'); } }} />{/if}
+{#if (showInfo || info) && cur}<ChatInfo chan={cur} {people} onclose={() => { showInfo = false; if (info) go(`/chat/${encodeURIComponent(channel)}`); }} onchange={async (leave) => { await loadChannels(); await loadMembers(); if (leave) { showInfo = false; go('/chat'); } }} />{/if}

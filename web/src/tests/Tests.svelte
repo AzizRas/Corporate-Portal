@@ -6,15 +6,19 @@
   import { app } from '../lib/state.svelte';
   import { fmtDate } from '../lib/format';
   import { tt, tl } from './t18n';
+  import { wt } from '../lib/w18n';
   import TestRun from './TestRun.svelte';
   import TestResult from './TestResult.svelte';
   import TestTeam from './TestTeam.svelte';
   import './tests.css';
 
+  // filter и heading задают адреса /growth/self («Самопознание») и /surveys («Опросы»): каталог с готовым фильтром, без вкладок «История» и «Команда»
+  let { filter: filterProp = undefined, heading = undefined }: { filter?: string; heading?: 'self' | 'surveys' } = $props();
   const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean).slice(1).map(decodeURIComponent));
-  const view = $derived(parts[0] ?? 'catalog');
+  // вид можно задать и запросом: /tests?view=history (так старый адрес /tests/history ведёт в «Мои результаты»)
+  const view = $derived(filterProp ? 'catalog' : parts[0] ?? new URLSearchParams(app.route.split('?')[1] ?? '').get('view') ?? 'catalog');
 
-  let data: any = $state(null), hist: any = $state(null), err = $state(false), filter = $state('all');
+  let data: any = $state(null), hist: any = $state(null), err = $state(false), filter = $derived(filterProp ?? 'all');
   async function loadCatalog() {
     try { data = await api.get('/api/tests'); err = false; } catch { err = true; }
   }
@@ -37,9 +41,9 @@
   <TestResult id={Number(parts[1])} />
 {:else}
   <header class="page-head">
-    <div><h1>{tt('title')}<PageHelp topic="tests" /></h1><p class="sub">{tt('sub')}</p></div>
+    <div><h1>{heading ? wt('i2_' + heading) : tt('title')}<PageHelp topic="tests" /></h1><p class="sub">{tt('sub')}</p></div>
   </header>
-  <nav class="tabs">{#each tabs as tb}<a href={tb.id === 'catalog' ? '#/tests' : `#/tests/${tb.id}`} class:on={view === tb.id}>{tb.l}</a>{/each}</nav>
+  {#if !filterProp}<nav class="tabs">{#each tabs as tb}<a href={tb.id === 'catalog' ? '#/tests' : `#/tests/${tb.id}`} class:on={view === tb.id}>{tb.l}</a>{/each}</nav>{/if}
 
   {#if view === 'team'}
     <TestTeam />
