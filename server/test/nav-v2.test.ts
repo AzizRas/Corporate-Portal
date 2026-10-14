@@ -1252,9 +1252,9 @@ test('E3 «Тур»: «Что изменилось» — 5 шагов, запу�
   assert.ok(flat[0].includes('nav-hub-work') && flat[1].includes('nav-hub-learn') && flat[1].includes('nav-hub-grow') && flat[2].includes('nav-hub-chat') && flat[3].includes('nav-inbox') && flat[4].includes('me-card') && flat[4].includes('am-enter'));
   for (const phrase of ['Личное по работе теперь в «Моей работе»: график, заявки, зарплата', 'Обучение — что назначено и проверяется. Рост — куда расти вместе с руководителем', 'Чаты как в Telegram', 'Папки, группы команд, видно, кто в сети', 'Входящие — дела, которые ждут вас', 'Профиль и настройки — внизу; Управление — отдельный режим']) assert.ok(src.includes(phrase), phrase);
   // события: основной тур получает start, view, next, back; «Что изменилось» — только done и skip со step_id = whatsnew
-  assert.match(src, /const news = tour\.kind === 'whatsnew';\n\s*if \(news && event !== 'done' && event !== 'skip'\) return Promise\.resolve\(\);/);
+  assert.match(src, /const news = tour\.kind === 'whatsnew';\s*if \(news && event !== 'done' && event !== 'skip'\) return Promise\.resolve\(\);/);
   assert.match(src, /step_id: news \? 'whatsnew' : tour\.steps\[step\]\?\.id \?\? ''/);
-  assert.match(src, /if \(t\.auto\) startTour\(t\.kind\);\n\s*else if \(t\.whatsnew && t\.kind !== 'external'\) startTour\('whatsnew'\);/);
+  assert.match(src, /if \(t\.auto\) startTour\(t\.kind\);\s*else if \(t\.whatsnew && t\.kind !== 'external'\) startTour\('whatsnew'\);/);
   assert.match(src, /\.filter\(\(s\) => stepAllowed\(s\.id, can\)\)/); assert.match(src, /\.filter\(\(s\) => !s\.needs \|\| s\.needs\.some\(\(n\) => shown\.has\(n\)\)\)/);
   assert.match(src, /S\('hire',[\s\S]*\['hr', 'recruiter', 'admin'\]/, 'шаг «Найм» только для hr, recruiter, admin');
   // STEP_SECTION: шаги work, learn, team привязаны к разделам матрицы
