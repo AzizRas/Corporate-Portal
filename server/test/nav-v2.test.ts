@@ -352,6 +352,25 @@ test('A3 «Редиректы»: примеры из ТЗ и защита от �
   assert.deepEqual(loops, [], 'цепочка переходов не заканчивается');
 });
 
+test('A3 «Редиректы»: каждый адрес, куда ведёт REDIRECTS, обрабатывает роутер (ветка раздела и подраздела), а пункт меню под ним существует', () => {
+  const router = web('Router.svelte');
+  const heads = new Set([...router.matchAll(/head === '([\w-]+)'/g)].map((m) => m[1]));
+  const teamSub = [...router.matchAll(/parts\[1\] === '(\w+)'/g)].map((m) => m[1]);
+  const items = registry.map((r) => ({ id: r.id, href: r.href }));
+  const bad: string[] = [];
+  for (const [p, q, who] of REDIR) {
+    const to = nav.REDIRECTS(p, q, who);
+    if (!to) continue;
+    const [tp] = to.split('?'); const seg = tp.split('/').filter(Boolean);
+    if (!heads.has(seg[0])) bad.push(`${p} → ${to}: в роутере нет ветки ${seg[0]}`);
+    if (seg[0] === 'team' && seg[1] && !teamSub.includes(seg[1]) && !/^\d+$/.test(seg[1])) bad.push(`${p} → ${to}: нет подраздела ${seg[1]}`);
+    if (seg[0] === 'admin' && seg[1] && !teamSub.includes(seg[1]) && !registry.some((r) => r.href === tp)) bad.push(`${p} → ${to}: нет вкладки режима «Управление»`);
+    // адрес, куда ведёт старый, подсвечивает существующий пункт меню (кроме /home, /people/<номер> и карточки без вкладки)
+    if (!['home', 'people'].includes(seg[0]) || seg.length === 1) { const id = nav.pickActive(tp, items, nav.ROUTE_ALIASES(tp, who)); if (!id && tp !== '/home') bad.push(`${p} → ${to}: ни один пункт меню не подсвечивается`); }
+  }
+  assert.deepEqual(bad, []);
+});
+
 test('A3 «Подсветка»: ROUTE_ALIASES подсвечивает пункт на служебных адресах', () => {
   const A = nav.ROUTE_ALIASES;
   assert.equal(A('/training/lesson/7', nwCtx), 'start'); assert.equal(A('/training/lesson/7', opCtx), 'courses');
