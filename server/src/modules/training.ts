@@ -159,6 +159,18 @@ function summarize(rows: any[]) {
   const day = next ? next.day : days[days.length - 1] ?? 1;
   return { total, done, pct: total ? Math.round((done / total) * 100) : 0, day, days_total: days.length, next };
 }
+/** Признак «новичок» для меню и Главной (ТЗ №4, A2): роль newbie или стажёр, пока не выдан допуск на линию.
+ *  day / days_total — день плана «Новый оператор» (без записи на курс — нули); cleared — допуск выдан. Окончательное правило — в C2. */
+export async function onboardingOf(u: { id: number; roles: string[]; employment: string }): Promise<{ active: boolean; day: number; days_total: number; cleared: boolean }> {
+  const cleared = !!(await q('SELECT 1 FROM enrollments WHERE user_id=$1 AND cleared_at IS NOT NULL LIMIT 1', [u.id])).rows.length;
+  const flagged = u.roles.includes('newbie') || u.employment === 'intern';
+  if (!flagged) return { active: false, day: 0, days_total: 0, cleared };
+  const en = await primaryEnrollment(u.id);
+  if (!en) return { active: !cleared, day: 0, days_total: 0, cleared };
+  const sm = summarize(await planLessons(u.id, en.course_id));
+  return { active: !cleared, day: sm.day, days_total: sm.days_total, cleared };
+}
+
 async function setDone(userId: number, lessonId: number, score: number | null, patch: Record<string, unknown> = {}) {
   await q(
     `INSERT INTO lesson_progress(user_id,lesson_id,status,score,answer,done_at,updated_at) VALUES($1,$2,'done',$3,$4,now(),now())

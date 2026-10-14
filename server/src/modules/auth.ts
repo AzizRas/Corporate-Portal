@@ -6,6 +6,7 @@ import { hashPasswordAsync, verifyPasswordAsync, sha256 } from '../security.js';
 import { IP_MAX, cooldownSec, ipFail, ipWait, streak } from '../login-guard.js';
 import QRCode from 'qrcode';
 import { isRecoveryCode, newRecoveryCodes, newSecret, openSecret, otpauthUri, sealSecret, totpEnforced, totpRequired, useRecovery, verifyTotp } from '../totp.js';
+import { onboardingOf } from './training.js';
 
 export const publicUser = (u: AuthUser) => ({
   id: u.id, name: u.name, login: u.login, tab_number: u.tab_number, position: u.position,
@@ -75,7 +76,8 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/me', { preHandler: requireAuth }, async (req) => {
     const u = req.user!;
     const consents = (await q('SELECT kind FROM consents WHERE user_id=$1', [u.id])).rows.map((x) => x.kind);
-    return { user: publicUser(u), consents };
+    // onboarding нужен меню и Главной (персона «новичок»); publicUser он не меняет — другие ответы его не получают
+    return { user: { ...publicUser(u), onboarding: await onboardingOf(u) }, consents };
   });
 
   app.patch('/api/me', { preHandler: requireAuth }, async (req, reply) => {
