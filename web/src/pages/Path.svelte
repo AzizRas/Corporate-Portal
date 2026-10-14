@@ -96,7 +96,7 @@
       <span class="tag">{t('path_mentor')}</span>
       <p class="mentor-text">{d.rec ? d.rec.text : t('no_rec')}</p>
       {#if d.rec?.ai}<span class="muted small">{t('path_draft_ai')}</span>{/if}
-      <div class="row wrap u-d6f2af6"><a class="btn sm" href="#/growth/person/{app.user?.id}">{gt('p_360')}</a><a class="btn sm" href="#/growth/talk">{gt('tab_talk')}</a><a class="btn sm" href="#/growth/mentor">{gt('tab_mentor')}</a></div>
+      <div class="row wrap u-d6f2af6"><a class="btn sm" href="#/people/{app.user?.id}?tab=growth">{gt('p_360')}</a><a class="btn sm" href="#/growth/talk">{gt('tab_talk')}</a><a class="btn sm" href="#/growth/mentor">{gt('tab_mentor')}</a></div>
     </section>
 
     <section class="card a-strengths">

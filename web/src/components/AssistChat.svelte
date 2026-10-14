@@ -9,6 +9,8 @@
   interface Msg { role: 'user' | 'assistant'; content: string; kb?: any; kbBusy?: boolean; ai?: any; aiBusy?: boolean }
   let open = $state(false), text = $state(''), busy = $state(false), msgs: Msg[] = $state([]), copied = $state(-1);
   let box: HTMLDivElement | undefined = $state(), inp: HTMLTextAreaElement | undefined = $state();
+  // «Спросить ИИ» не показывается в мессенджере (/chat…): у него поле ввода на всю область, и плавающая кнопка могла бы закрыть «Отправить»
+  const onChat = $derived(app.route.split('?')[0].split('/').filter(Boolean)[0] === 'chat');
 
   const toggle = () => { open = !open; if (open) setTimeout(() => inp?.focus(), 50); };
   async function down() {   // показываем начало последнего ответа, а не его конец
@@ -36,7 +38,7 @@
   const key = (e: KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
 </script>
 
-{#if app.user && !app.user.external}
+{#if app.user && !app.user.external && !onChat}
   {#if open}
     <section class="ac card" aria-label={wt('ac_title')} data-tour="assist-chat">
       <header><b>{wt('ac_title')}</b><button class="x" onclick={toggle} aria-label={wt('nt_close')}>×</button></header>
@@ -50,9 +52,10 @@
             {@const ai = m.ai}
             {@const pf = kb?.platform}
             <div class="bot">
-              {#if kb?.articles?.length}
+              <!-- быстрый список статей — пока ИИ или поиск по базе готовят ответ; когда ответ пришёл из базы, его метка «Из базы знаний» стоит над ответом, повторять её не нужно -->
+              {#if kb?.articles?.length && ai?.mode !== 'kb'}
                 <span class="tag">{wt('ac_from_kb')}</span>
-                {#each kb.articles.slice(0, ai?.mode === 'kb' ? 0 : 3) as a}<p class="art"><a href="#/kb/{a.id}"><b>{a.title}</b></a><br /><span class="small muted">{a.snippet}</span></p>{/each}
+                {#each kb.articles.slice(0, 3) as a}<p class="art"><a href="#/kb/{a.id}"><b>{a.title}</b></a><br /><span class="small muted">{a.snippet}</span></p>{/each}
               {/if}
               {#if pf}
                 {#if pf.intent === 'denied'}<p class="note small">{wt('ac_denied')}</p>{/if}
@@ -74,7 +77,7 @@
               {:else if ai}
                 {#if ai.mode === 'kb' || ai.mode === 'general' || ai.mode === 'data'}
                   <span class="tag" class:warn={ai.mode === 'general'} class:data={ai.mode === 'data'}>{wt(ai.mode === 'kb' ? 'ac_from_kb' : ai.mode === 'data' ? 'ac_from_data' : 'ac_general')}</span>
-                  <p>{ai.answer}</p>
+                  <p class="ans">{ai.answer}</p>
                   {#if ai.reply}
                     <div class="rep"><span class="small muted">{wt('ac_reply')}</span><p>{ai.reply}</p>
                       <button class="btn sm" onclick={() => copy(ai.reply, i)}>{copied === i ? wt('ac_copied') : wt('ac_copy')}</button></div>
@@ -100,12 +103,13 @@
       <div class="priv small muted">{wt('ac_priv')}</div>
     </section>
   {/if}
-  <button class="ac-fab" class:on={open} onclick={toggle} aria-label={wt('ac_title')} data-tour="assist-fab"><span class="spark">✦</span></button>
+  <!-- на компьютере «таблетка» со значком и подписью, на телефоне круг 52 px (подпись — в aria-label) -->
+  <button class="ac-fab" class:on={open} onclick={toggle} aria-label={wt('ac_title')} aria-expanded={open} data-tour="assist-fab"><Icon name="spark" /><span class="ac-fab-t">{wt('ac_title')}</span></button>
 {/if}
 
 <style>
-  .ac-fab { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--grad); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0, 0, 0, .35); cursor: pointer; }
-  .spark { font-size: 24px; line-height: 1; }
+  .ac-fab { position: fixed; right: 20px; bottom: 20px; z-index: 40; height: 48px; padding: 0 var(--sp-4); border-radius: 999px; border: 0; background: var(--grad); color: var(--grad-ink); display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); font: inherit; font-size: var(--fs-2); font-weight: 600; box-shadow: 0 6px 20px rgba(0, 0, 0, .35); cursor: pointer; }
+  .ac-fab :global(svg) { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .ac-fab.on { opacity: .75; }
   .ac { position: fixed; right: 20px; bottom: 84px; z-index: 40; width: 360px; max-height: min(520px, calc(100vh - 110px)); display: flex; flex-direction: column; padding: 0; overflow: hidden; box-shadow: 0 10px 40px rgba(0, 0, 0, .45); }
   header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
@@ -114,6 +118,7 @@
   .me { align-self: flex-end; background: var(--grad-soft); color: #fff; padding: 8px 12px; border-radius: 14px 14px 4px 14px; max-width: 85%; white-space: pre-wrap; word-break: break-word; font-size: 14px; }
   .bot { align-self: flex-start; background: var(--card-2); padding: 8px 12px; border-radius: 14px 14px 14px 4px; max-width: 94%; font-size: 14px; }
   .bot p { margin: 4px 0; word-break: break-word; }
+  .bot .ans { white-space: pre-line; }
   .tag { font-size: 11px; font-weight: 700; color: var(--good); }
   .tag.warn { color: var(--warn); }
   .tag.data { color: var(--accent-ink); }
@@ -130,7 +135,9 @@
   .go:disabled { opacity: .4; }
   .priv { padding: 0 12px 8px; }
   @media (max-width: 760px) {
-    .ac-fab { right: 14px; bottom: calc(92px + env(safe-area-inset-bottom)); width: 46px; height: 46px; }
-    .ac { right: 8px; left: 8px; width: auto; bottom: calc(146px + env(safe-area-inset-bottom)); max-height: min(60vh, 480px); }
+    .ac-fab { right: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); width: 52px; height: 52px; padding: 0; }
+    .ac-fab-t { display: none; }
+    .ac-fab :global(svg) { width: 24px; height: 24px; }
+    .ac { right: 8px; left: 8px; width: auto; bottom: calc(156px + env(safe-area-inset-bottom)); max-height: min(60vh, 480px); }
   }
 </style>

@@ -14,10 +14,12 @@ export const DEFAULT_MATRIX: Record<Profile, Section[]> = {
   call: [...SECTIONS],
   service: without('trainer', 'ready'),
   warehouse: without('trainer', 'ready'),
-  // HR: заявки, подбор и адаптация (сами по себе роль-зависимые), чат с новичками; без помощника оператора и тренажёра
-  hr: ['home', 'news', 'plan', 'growth', 'chat', 'team', 'structure', 'schedule', 'tasks', 'help', 'pay', ...ALWAYS],
-  recruiter: ['home', 'news', 'chat', 'tasks', 'schedule', 'help', 'pay', ...ALWAYS],
-  accounting: ['home', 'news', 'chat', 'schedule', 'tasks', 'help', 'pay', ...ALWAYS],
+  // HR: заявки, подбор и адаптация (сами по себе роль-зависимые), чат с новичками; без помощника оператора и тренажёра.
+  // База знаний (kb) и «Карьера» (path) открыты: HR ведёт базу знаний, а Главная ведёт его в «Карьеру» (ТЗ №4, A8).
+  hr: ['home', 'news', 'plan', 'growth', 'chat', 'team', 'structure', 'schedule', 'tasks', 'help', 'pay', 'kb', 'path', ...ALWAYS],
+  // Рекрутёр и бухгалтерия попадают в циклы оценки 360° (reviews.ts → targetsOf), поэтому им открыты «Рост» (growth) и «Карьера» (path)
+  recruiter: ['home', 'news', 'chat', 'tasks', 'schedule', 'help', 'pay', 'growth', 'path', ...ALWAYS],
+  accounting: ['home', 'news', 'chat', 'schedule', 'tasks', 'help', 'pay', 'growth', 'path', ...ALWAYS],
 };
 
 /** Какие API закрываются на сервере вместе с разделом. Раздел из набора подразделения скрывает пункт меню, а эти правила не дают открыть данные прямым запросом.
@@ -27,7 +29,8 @@ interface Gate { prefix: string; any: Section[]; except?: string[] }
 const G = (prefix: string, any: Section[], except?: string[]): Gate => ({ prefix, any, except });
 const GATES: Gate[] = [
   G('/api/training/trainer', ['trainer']), G('/api/training/ready', ['ready']),
-  G('/api/assist/data', ['assist']), G('/api/assist/search-log', ['assist']), G('/api/search/chat', ['assist']),
+  // окно «Спросить ИИ» отвечает по базе знаний, поэтому открыто и тем, у кого есть раздел kb (HR), даже без помощника оператора
+  G('/api/assist/data', ['assist']), G('/api/assist/search-log', ['assist']), G('/api/search/chat', ['assist', 'kb']),
   G('/api/feed', ['news']), G('/api/birthdays', ['news']),
   G('/api/tasks', ['tasks']),
   G('/api/chat', ['chat']),
@@ -36,6 +39,8 @@ const GATES: Gate[] = [
   G('/api/path/me', ['path', 'growth']), G('/api/path/rate', ['path', 'growth']), G('/api/path/traits', ['path', 'growth']),
   G('/api/growth/target', ['path', 'growth']), G('/api/growth/traits', ['path', 'growth']), G('/api/growth/personal', ['path', 'growth']),
   ...['mentor', 'survey', 'reserve', 'talks', 'recs', 'analysis', '360', 'goals', 'model', 'badges'].map((x) => G(`/api/growth/${x}`, ['growth'])),
+  // циклы оценки 360° (анкеты, отчёты, калибровка) — часть раздела «Рост»
+  G('/api/reviews', ['growth']),
   G('/api/kb', ['kb'], ['hr', 'editor']),
 ];
 /** Разделы, чьи данные закрыты на сервере (см. GATES): интерфейс админки отмечает их в матрице доступа. */

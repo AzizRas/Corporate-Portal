@@ -6,13 +6,14 @@ import { hashPasswordAsync, verifyPasswordAsync, sha256 } from '../security.js';
 import { IP_MAX, cooldownSec, ipFail, ipWait, streak } from '../login-guard.js';
 import QRCode from 'qrcode';
 import { isRecoveryCode, newRecoveryCodes, newSecret, openSecret, otpauthUri, sealSecret, totpEnforced, totpRequired, useRecovery, verifyTotp } from '../totp.js';
+import { onboardingOf } from './training.js';
 
 export const publicUser = (u: AuthUser) => ({
   id: u.id, name: u.name, login: u.login, tab_number: u.tab_number, position: u.position,
   position_code: u.position_code, dept_id: u.dept_id, lang: u.lang, theme: u.theme,
   must_change_password: u.must_change_password, totp_enabled: u.totp_enabled, must_setup_2fa: totpEnforced() && totpRequired(u.roles) && !u.totp_enabled, roles: u.roles, status: u.status, birthday: u.birthday, avatar_v: u.avatar_v,
   days_off: u.days_off, shift_start: u.shift_start, shift_end: u.shift_end, wellness: u.wellness, wellness_min: u.wellness_min,
-  node_id: u.node_id, is_lead: isLead(u), team_nodes: u.branch_nodes.length, employment: u.employment, external: u.external, acting: u.acting_for.length > 0, sections: u.sections, dept_code: u.dept_code,
+  node_id: u.node_id, is_lead: isLead(u), team_nodes: u.branch_nodes.length, employment: u.employment, is_system: u.is_system, external: u.external, acting: u.acting_for.length > 0, sections: u.sections, dept_code: u.dept_code,
 });
 
 export async function authRoutes(app: FastifyInstance) {
@@ -75,7 +76,8 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/me', { preHandler: requireAuth }, async (req) => {
     const u = req.user!;
     const consents = (await q('SELECT kind FROM consents WHERE user_id=$1', [u.id])).rows.map((x) => x.kind);
-    return { user: publicUser(u), consents };
+    // onboarding нужен меню и Главной (персона «новичок»); publicUser он не меняет — другие ответы его не получают
+    return { user: { ...publicUser(u), onboarding: await onboardingOf(u) }, consents };
   });
 
   app.patch('/api/me', { preHandler: requireAuth }, async (req, reply) => {

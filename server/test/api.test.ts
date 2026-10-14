@@ -357,8 +357,16 @@ test('Развитие: сильные стороны и зоны роста —
   assert.deepEqual(forOp.growth, [], 'коллега зоны роста не видит: их видят сотрудник, супервайзер, руководитель отдела и админ');
   assert.ok((await get(sv, `/api/growth/traits/${me}`)).json().growth.length >= 1, 'супервайзер видит зоны роста');
   assert.deepEqual((await get(await login('hr'), `/api/growth/traits/${me}`)).json().growth, [], 'HR зоны роста не видит');
-  const other = await get(buh, `/api/growth/traits/${me}`);   // у бухгалтерии раздела «Развитие» нет: с S5 сервер закрывает его целиком, а не отдаёт пустой список
-  assert.equal(other.statusCode, 403); assert.equal(other.json().growth, undefined, 'из другого отдела зоны роста не видны');
+  // у бухгалтерии раздел «Рост» открыт (ТЗ №4, A8: её сотрудники получают анкеты оценки 360°), но зоны роста чужого отдела по-прежнему скрыты
+  const other = await get(buh, `/api/growth/traits/${me}`);
+  assert.equal(other.statusCode, 200); assert.deepEqual(other.json().growth, [], 'из другого отдела зоны роста не видны'); assert.equal(other.json().growth_visible, false);
+  // а если раздел «Рост» закрыть, с S5 сервер закрывает его целиком, а не отдаёт пустой список
+  const adm = await login('admin', 'admin-test-1');
+  assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { accounting: ['home', 'chat'] } })).statusCode, 200);
+  try {
+    const closed = await get(await login('buh'), `/api/growth/traits/${me}`);
+    assert.equal(closed.statusCode, 403); assert.equal(closed.json().growth, undefined);
+  } finally { await send(adm, 'DELETE', '/api/admin/access'); }
   const own = (await get(dil, `/api/growth/traits/${me}`)).json();
   assert.ok(own.growth.every((g: any) => typeof g.votes === 'number'));
   const mineId = forOp.strengths.find((x: any) => x.mine).id;

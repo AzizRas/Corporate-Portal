@@ -72,30 +72,7 @@ test('UX 7: тур показывает только шаги по доступ�
   assert.match(tours, /\.filter\(\(s\) => stepAllowed\(s\.id, can\)\)/);
 });
 
-test('Меню: 7 разделов первого уровня, у каждого вкладки; все пункты меню попадают в раздел', async () => {
-  const nav = await import('../../web/src/lib/nav-core.ts');
-  assert.deepEqual(nav.HUBS.map((h) => h.id), ['home', 'chat', 'know', 'learn', 'grow', 'work', 'manage'], 'ровно 7 пунктов первого уровня (ТЗ: 6–7)');
-  const src = fs.readFileSync(new URL('../../web/src/lib/nav.ts', import.meta.url), 'utf8');
-  const ids = [...src.matchAll(/\bit\('(\w+)'/g)].map((m) => m[1]);
-  assert.ok(ids.length >= 20, 'пункты найдены');
-  const inHubs = [...nav.HUBS, nav.PROFILE_HUB].flatMap((h) => h.items);
-  assert.deepEqual(ids.filter((i) => !inHubs.includes(i)), [], 'каждый пункт меню лежит в каком-то разделе');
-  assert.equal(new Set(inHubs).size, inHubs.length, 'пункт не может быть в двух разделах');
-  assert.deepEqual(nav.HUBS.find((h) => h.id === 'know')!.items, ['kb', 'assist', 'assistant', 'queue', 'help'], '«Знания»: ЧАВО, помощник, очередь и помощь вместе');
-  assert.equal(nav.hubOfItem('trainer'), 'learn'); assert.equal(nav.hubOfItem('settings'), 'profile'); assert.equal(nav.hubOfItem('нет'), null);
-  // сборка: недоступные пункты пропускаются, пустые разделы исчезают, порядок вкладок как в описании
-  const it = (id: string) => ({ id, label: id, href: `/${id}`, icon: 'x' });
-  const hubs = nav.buildHubs(['library', 'tests', 'chat', 'home'].map(it));
-  assert.deepEqual(hubs.map((h) => h.id), ['home', 'chat', 'learn']);
-  assert.deepEqual(hubs.find((h) => h.id === 'learn')!.items.map((i) => i.id), ['tests', 'library'], 'порядок вкладок задан описанием, а не порядком данных');
-  assert.deepEqual(nav.buildHubs([]), []);
-  assert.equal(nav.hubOfActive(hubs, 'library')?.id, 'learn'); assert.equal(nav.hubOfActive(hubs, undefined), null); assert.equal(nav.hubOfActive(hubs, 'admin'), null);
-  // оболочка рисует разделы и вкладки; тур находит раздел, если самого пункта на экране нет
-  const shell = fs.readFileSync(new URL('../../web/src/components/Shell.svelte', import.meta.url), 'utf8');
-  assert.match(shell, /navHubs\(/); assert.match(shell, /<HubTabs/); assert.doesNotMatch(shell, /toggleGroup/);
-  assert.match(fs.readFileSync(new URL('../../web/src/components/Tour.svelte', import.meta.url), 'utf8'), /nav-hub-/);
-  assert.match(fs.readFileSync(new URL('../../web/src/components/HubTabs.svelte', import.meta.url), 'utf8'), /aria-current/);
-});
+// «Меню: 7 разделов первого уровня…» заменён сводным тестом каркаса server/test/nav-v2.test.ts (ТЗ №4, A11): разделы, реестр пунктов, оболочка, вкладки раздела и подсветка тура.
 
 test('«Удалено · Отменить»: запись убирается сразу, настоящее удаление — через 8 секунд, отмена возвращает; сбой сервера тоже возвращает', async (t) => {
   const { scheduleDelete, UNDO_MS } = await import('../../web/src/lib/defer-delete.ts');

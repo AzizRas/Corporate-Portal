@@ -3,7 +3,7 @@ import { api } from './api';
 import { app } from './state.svelte';
 import { st } from './s18n';
 
-export const notif = $state({ prefs: null as null | { quiet_from: string | null; quiet_to: string | null }, chat: {} as Record<string, { n: number; mentions: number; muted?: boolean }>, chat_total: 0, items: [] as any[], unread: 0, toasts: [] as { id: number; title: string; body: string; link: string | null }[] });
+export const notif = $state({ prefs: null as null | { quiet_from: string | null; quiet_to: string | null }, chat: {} as Record<string, { n: number; mentions: number; muted?: boolean }>, chat_total: 0, inbox_todo: 0, items: [] as any[], unread: 0, toasts: [] as { id: number; title: string; body: string; link: string | null }[] });
 let seen = 0, started = false, timer: ReturnType<typeof setInterval> | undefined, baseTitle = document.title;
 
 // тихие часы: без всплывающих и браузерных уведомлений (счётчики остаются)
@@ -27,7 +27,7 @@ async function tick() {
     const firstRun = seen === 0 && !started;
     if (r.items.length) seen = Math.max(seen, ...r.items.map((i: any) => i.id));
     const prevChat = notif.chat_total;
-    notif.chat = r.chat; notif.chat_total = r.chat_total; notif.items = r.items; notif.unread = r.unread; notif.prefs = r.prefs;
+    notif.chat = r.chat; notif.chat_total = r.chat_total; notif.inbox_todo = r.inbox_todo ?? 0; notif.items = r.items; notif.unread = r.unread; notif.prefs = r.prefs;
     if (!firstRun && !quietNow()) {
       for (const i of fresh.slice(0, 3)) {
         notif.toasts.push({ id: i.id, title: i.title, body: i.body, link: i.link });

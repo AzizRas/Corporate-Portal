@@ -28,6 +28,8 @@
   --nav-on: #2c2c31;
   --stage-bg: rgba(255, 217, 92, .08);
   --ink: #1d1d1f;
+  --mode-admin: #3b2f6b;
+  --mode-admin-ink: #f4f4f5;
   color-scheme: dark;
 }
 :root[data-theme='light'] {
@@ -57,6 +59,8 @@
   --nav-on: #ececef;
   --stage-bg: #fffbe9;
   --ink: #1d1d1f;
+  --mode-admin: #ede9fe;
+  --mode-admin-ink: #3b2f6b;
   color-scheme: light;
 }
 
@@ -268,7 +272,7 @@ label.chk input { width: 18px; height: 18px; accent-color: var(--accent); }
   .tabbar em { position: absolute; top: -6px; right: -6px; margin: 0; }
   .toasts { top: 10px; }
   .topbar .row { gap: 6px; }
-  .topbar .bell, .topbar .srch-btn { width: 38px; height: 38px; }
+  .topbar .bell, .topbar .tb-btn { width: 38px; height: 38px; }
   .tabbar a.on { color: var(--text); font-weight: 700; }
   .tabbar a.on i { background: var(--grad); }
   .tabbar svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -338,3 +342,30 @@ a { color: var(--accent-ink); }
 @media (max-width: 880px) { .main { padding: 14px 16px calc(96px + env(safe-area-inset-bottom)); } .card { padding: 18px; } }
 input[type='tel'], input[type='email'], input[type='url'], input[type='datetime-local'] { width: 100%; border: 1px solid var(--border); padding: 12px 14px; outline: none; color: var(--text); }
 @media (max-width: 880px) { .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 18px; } .tabs a, .tabs button { white-space: nowrap; } }
+
+/* ============ Меню по кругам «я → моя команда → компания» (ТЗ №4, A5): низ колонки, кнопка «?», режим «Управление» ============ */
+.side-btns { display: flex; align-items: center; gap: 6px; }
+.side-help { border: 1px solid var(--border); background: var(--card); width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex: none; margin-bottom: 18px; text-decoration: none; }
+.side-help:hover { color: var(--text); text-decoration: none; }
+.side-help svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.side.collapsed .side-btns { flex-direction: column; gap: 8px; }
+.side.collapsed .side-help, .side.collapsed .collapse { margin-bottom: 0; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 12px; }
+.side-foot .me-card { margin-top: 0; }
+.me-card.on { border-color: var(--accent); }
+.me-text { min-width: 0; }
+.me-name { font-weight: 700; }
+.nv.am-enter { border: 1px solid var(--border); margin-bottom: 4px; }
+.tb-btn { border: 1px solid var(--border); background: var(--card); width: 44px; height: 44px; padding: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text); flex: none; text-decoration: none; }
+.tb-btn:hover { text-decoration: none; }
+.tb-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.am-back-m { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); font-weight: 700; color: inherit; text-decoration: none; }
+.am-back-m:hover { text-decoration: none; }
+.side:not(.collapsed) .am-back i { display: none; }   /* в подписи уже есть стрелка; значок нужен только свёрнутой колонке */
+.side.collapsed > .nv.am-back { display: flex; }      /* свёрнутая колонка прячет прямые пункты, а «Вернуться в портал» нужен и ей */
+/* режим «Управление»: колонка и верхняя панель телефона окрашены токеном --mode-admin, чтобы было видно, что это не обычный портал; внутри колонки весь текст цвета --mode-admin-ink (контраст проверяет web/scripts/contrast.mjs) */
+.app--admin .side, .app--admin .topbar { background: var(--mode-admin); color: var(--mode-admin-ink); }
+.app--admin .side { --text: var(--mode-admin-ink); --muted: var(--mode-admin-ink); --nav-on: color-mix(in srgb, var(--mode-admin-ink) 16%, transparent); --border: color-mix(in srgb, var(--mode-admin-ink) 32%, transparent); --card: color-mix(in srgb, var(--mode-admin-ink) 8%, transparent); --card-2: color-mix(in srgb, var(--mode-admin-ink) 12%, transparent); --chip: color-mix(in srgb, var(--mode-admin-ink) 12%, transparent); }
+.app--admin .side .nv.on svg { stroke: currentColor; }
+.app--admin .side .nv.on { font-weight: 700; }
+.app--admin .topbar { padding: 8px 12px; border-radius: var(--r-2); margin-bottom: 12px; }

@@ -36,6 +36,7 @@ export interface AuthUser {
   // структура компании
   node_id: number | null;
   employment: 'intern' | 'staff' | 'dismissed';
+  is_system: boolean;                // служебная учётная запись (users.is_system): техническая учётка администратора, а не человек в штате
   branch_nodes: number[];            // узлы, которыми руководит (и вложенные), с учётом делегирования
   acting_for: number[];              // кого замещает по делегированию
   external: string[] | null;         // для внешнего подразделения — разрешённые разделы
@@ -89,7 +90,7 @@ export async function loadUser(token: string | undefined): Promise<AuthUser | nu
 async function loadUserFromDb(token: string): Promise<AuthUser | null> {
   const r = await q(
     `SELECT u.id,u.name,u.login,u.tab_number,u.position,u.position_code,u.target_position_code,u.dept_id,
-            u.manager_id,u.node_id,u.employment,u.lang,u.theme,u.must_change_password,u.totp_enabled,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
+            u.manager_id,u.node_id,u.employment,u.is_system,u.lang,u.theme,u.must_change_password,u.totp_enabled,u.status,to_char(u.birthday,'YYYY-MM-DD') AS birthday,u.avatar_v,u.days_off,
             to_char(u.shift_start,'HH24:MI') AS shift_start,to_char(u.shift_end,'HH24:MI') AS shift_end,u.wellness,u.wellness_min,
             COALESCE((SELECT array_agg(role) FROM user_roles WHERE user_id=u.id),'{}') AS roles,
             (SELECT code FROM departments d WHERE d.id=u.dept_id) AS dept_code
@@ -129,6 +130,9 @@ export const requireLead = (...roles: Role[]) => async (req: FastifyRequest, rep
 };
 export const hasRole = (u: AuthUser | undefined, ...roles: Role[]) =>
   !!u && (u.roles.includes('admin') || roles.some((r) => u.roles.includes(r)));
+/** Человек в штате: не внешнее подразделение, не служебная учётная запись и не уволенный. Он видит «Мою работу», «Обучение» и «Рост» (меню строится по тому же признаку,
+ *  web/src/lib/nav-core.ts → visCtxOf) и вправе подавать заявки и заказывать справки. Роль employee для этого не нужна: стажёр с одной ролью newbie и администратор-человек тоже в штате. */
+export const isStaffUser = (u: Pick<AuthUser, 'external' | 'is_system' | 'employment'>): boolean => !u.external && !u.is_system && u.employment !== 'dismissed';
 
 export function registerAuth(app: FastifyInstance) {
   app.decorateRequest('user', undefined);

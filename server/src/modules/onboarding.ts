@@ -7,10 +7,14 @@ import { requireAuth, requireRole, type AuthUser } from '../auth.js';
 import { HELP_TOPICS, matchTopics, topicsFor, type HelpTopic } from '../help-topics.js';
 
 export type TourKind = 'operator' | 'lead' | 'staff' | 'external';
+// Руководитель — тот, кто возглавляет узел структуры (branch_nodes, с учётом замещения); роли manager и head без узла «Моей команды» не дают, поэтому и тура руководителя тоже.
+// К «staff» относятся и рекрутёры: у них в портале режим «Управление» (найм).
 export const tourKind = (u: Pick<AuthUser, 'roles' | 'external'> & { branch_nodes?: number[] }): TourKind =>
-  u.external ? 'external' : u.roles.includes('manager') || u.roles.includes('head') || (u.branch_nodes?.length ?? 0) > 0 ? 'lead' : u.roles.some((r) => ['hr', 'admin', 'editor', 'accountant'].includes(r)) ? 'staff' : 'operator';
+  u.external ? 'external' : (u.branch_nodes?.length ?? 0) > 0 ? 'lead' : u.roles.some((r) => ['hr', 'admin', 'editor', 'accountant', 'recruiter'].includes(r)) ? 'staff' : 'operator';
 
-const PAGES = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports', 'search']);
+// Страницы, посещения которых считаем (POST /api/visit): первый сегмент адреса (team, admin, hire, att …) и для team, training, growth ещё и первые два (team/newbies, training/courses, growth/talk).
+// Старые id (queue, assistant, editor, reports, structure …) остаются: в базе есть записи статистики, а по старой ссылке человек ещё может зайти.
+const PAGES = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports', 'search', 'inbox', 'requests', 'people', 'surveys', 'pay', 'team/schedule', 'team/newbies', 'team/learning', 'team/growth', 'team/tasks', 'team/hire', 'training/courses', 'training/lead', 'growth/self', 'growth/reviews', 'growth/talk', 'growth/mentor', 'att', 'hire', 'hr', 'leaves']);
 const EVENTS = new Set(['start', 'view', 'next', 'back', 'skip', 'done', 'restart']);
 
 interface Item { id: string; topic: string; route: string; done: boolean }
@@ -60,9 +64,12 @@ export async function onboardingRoutes(app: FastifyInstance) {
     await q('INSERT INTO tour_state(user_id) VALUES($1) ON CONFLICT DO NOTHING', [u.id]);
     return (await q('SELECT status,step,total,checklist_hidden FROM tour_state WHERE user_id=$1', [u.id])).rows[0];
   };
+  // whatsnew — тур «Что изменилось»: его видит один раз тот, кто основной тур уже проходил (статус не «new»), пока он не закрыл «Что изменилось» кнопкой «Готово» или «Пропустить».
+  // Основной тур сам не показывается заново: его события (start, view, next, back) тур «Что изменилось» не шлёт, чтобы не перевести статус обратно в active.
   app.get('/api/tour', auth, async (req) => {
     const s = await state(req.user!);
-    return { ...s, kind: tourKind(req.user!), auto: s.status === 'new' };
+    const closed = (await q(`SELECT 1 FROM tour_events WHERE user_id=$1 AND step_id='whatsnew' AND event IN ('done','skip') LIMIT 1`, [req.user!.id])).rows.length > 0;
+    return { ...s, kind: tourKind(req.user!), auto: s.status === 'new', whatsnew: s.status !== 'new' && !closed };
   });
   app.post('/api/tour/event', auth, async (req, reply) => {
     const u = req.user!, b = (req.body ?? {}) as { event?: string; step?: number; step_id?: string; total?: number };
@@ -97,11 +104,13 @@ export async function onboardingRoutes(app: FastifyInstance) {
   });
 
   /* ----- справочник и ответы «как это сделать» ----- */
-  app.get('/api/help/topics', auth, async (req) => ({ topics: topicsFor(req.user!.roles, req.user!.external).map(meta) }));
+  // темы закрытых подразделению разделов не показываются (u.sections); руководителю по структуре — темы руководителя, даже без роли manager/head
+  const topicsOf = (u: AuthUser) => topicsFor(u.roles, u.external, u.sections, u.branch_nodes.length > 0);
+  app.get('/api/help/topics', auth, async (req) => ({ topics: topicsOf(req.user!).map(meta) }));
 
   app.post('/api/help/ask', auth, async (req) => {
     const u = req.user!, query = String((req.body as any)?.query ?? '').trim().slice(0, 300);
-    const topics = topicsFor(u.roles, u.external);
+    const topics = topicsOf(u);
     if (query.length < 3) return { topic: null, alternatives: [], answer: null, ai: false };
     const lang = u.lang === 'uz' ? 'uz' : 'ru';
     const local = matchTopics(query, topics);
@@ -122,20 +131,24 @@ export async function onboardingRoutes(app: FastifyInstance) {
 
   /* ----- статистика для администратора: где люди застревают ----- */
   app.get('/api/admin/tour/stats', { preHandler: requireRole('admin') }, async () => {
+    // тур «Что изменилось» (step_id = whatsnew) в воронку основного тура не входит: он считается отдельно, в поле whatsnew
     const kinds = (await q(
       `SELECT kind,
               count(DISTINCT user_id) FILTER (WHERE event='start')::int AS started,
               count(DISTINCT user_id) FILTER (WHERE event='done')::int AS done,
               count(DISTINCT user_id) FILTER (WHERE event='skip')::int AS skipped,
               count(*) FILTER (WHERE event='restart')::int AS restarts
-         FROM tour_events GROUP BY kind ORDER BY kind`)).rows;
+         FROM tour_events WHERE step_id IS DISTINCT FROM 'whatsnew' GROUP BY kind ORDER BY kind`)).rows;
     const steps = (await q(
       `SELECT kind, step, max(step_id) AS step_id, count(DISTINCT user_id)::int AS reached,
               count(DISTINCT user_id) FILTER (WHERE event='skip')::int AS skipped_here
-         FROM tour_events WHERE event IN ('view','skip') GROUP BY kind, step ORDER BY kind, step`)).rows;
+         FROM tour_events WHERE event IN ('view','skip') AND step_id IS DISTINCT FROM 'whatsnew' GROUP BY kind, step ORDER BY kind, step`)).rows;
+    const whatsnew = (await q(
+      `SELECT count(DISTINCT user_id) FILTER (WHERE event='done')::int AS done, count(DISTINCT user_id) FILTER (WHERE event='skip')::int AS skipped
+         FROM tour_events WHERE step_id='whatsnew'`)).rows[0];
     const pages = (await q(`SELECT page, count(*)::int AS users, sum(n)::int AS visits FROM page_visits GROUP BY page ORDER BY users DESC LIMIT 30`)).rows;
     const misses = (await q(`SELECT query, count(*)::int AS n, max(at) AS last FROM help_misses GROUP BY query ORDER BY n DESC, last DESC LIMIT 30`)).rows;
     const users = (await q(`SELECT count(*)::int AS total, count(*) FILTER (WHERE status='done')::int AS done, count(*) FILTER (WHERE status='skipped')::int AS skipped, count(*) FILTER (WHERE status IN ('new','active'))::int AS pending FROM tour_state`)).rows[0];
-    return { kinds, steps: steps.map((s) => ({ ...s, left: undefined })), pages, misses, users, topics: HELP_TOPICS.length };
+    return { kinds, steps: steps.map((s) => ({ ...s, left: undefined })), pages, misses, users, topics: HELP_TOPICS.length, whatsnew };
   });
 }

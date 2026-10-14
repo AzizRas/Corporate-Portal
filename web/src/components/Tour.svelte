@@ -12,12 +12,17 @@
   let rect: { x: number; y: number; w: number; h: number } | null = $state(null), box: HTMLElement | undefined = $state(), tipStyle = $state(''), viaMore = $state(false), tipEl: HTMLElement | undefined = $state();
 
   const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
+  // пункты внизу колонки (профиль, настройки, помощь) не лежат во вкладках раздела: их подсвечивают карточка «Профиль и настройки» (me-card; на телефоне — аватар в шапке) и кнопка «?»
+  const ALIAS: Record<string, string> = { 'nav-profile': 'me-card', 'nav-settings': 'me-card', 'nav-help': 'help', 'nav-manage': 'am-enter' };
+  // одна и та же метка стоит и в колонке, и в шапке телефона: берём тот элемент, который сейчас виден
+  const shown = (t: string): HTMLElement | null => [...document.querySelectorAll(`[data-tour="${t}"]`)].find(visible) ?? null;
   /** Первый видимый элемент из списка (на телефоне боковое меню скрыто — берём нижнюю панель, а если пункта там нет — «Ещё»). */
   function find(targets: string[]): { el: HTMLElement | null; more: boolean } {
+    const names = targets.map((t) => ALIAS[t] ?? t);
     // пункты меню теперь собраны в разделы: если самого пункта на экране нет, подсвечиваем его раздел
-    const hubs = targets.filter((t) => t.startsWith('nav-') && !t.startsWith('nav-hub-')).map((t) => hubOfItem(t.slice(4))).filter(Boolean).map((h) => `nav-hub-${h}`);
-    const list = [...targets.filter((t) => t !== 'tab-more'), ...hubs, ...targets.filter((t) => t === 'tab-more')];
-    for (const [i, t] of list.entries()) { const el = document.querySelector(`[data-tour="${t}"]`); if (visible(el)) return { el, more: t === 'tab-more' && i > 0 }; }
+    const hubs = names.filter((t) => t.startsWith('nav-') && !t.startsWith('nav-hub-')).map((t) => hubOfItem(t.slice(4))).filter(Boolean).map((h) => `nav-hub-${h}`);
+    const list = [...names.filter((t) => t !== 'tab-more'), ...hubs, ...names.filter((t) => t === 'tab-more')];
+    for (const [i, t] of list.entries()) { const el = shown(t); if (el) return { el, more: t === 'tab-more' && i > 0 }; }
     return { el: null, more: false };
   }
 

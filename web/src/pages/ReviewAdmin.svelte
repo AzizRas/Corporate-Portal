@@ -6,6 +6,8 @@
   import EmptyState from '../components/EmptyState.svelte';
   import ReviewReport from '../growth/ReviewReport.svelte';
   import { rt } from '../growth/r18n';
+  import { wt } from '../lib/w18n';
+  import Segmented from '../components/Segmented.svelte';
   import '../growth/reviews.css';
 
   const uz = $derived(app.lang === 'uz');
@@ -84,7 +86,7 @@
       <h3 class="card-title">{open.name} · {rt(`st_${open.status}`)}</h3>
       {#if !cal}<p class="muted small">{rt('st_' + open.status)}: {open.done}/{open.total} {rt('progress')}</p>
       {:else}
-        <nav class="tabs"><button class:on={view === 'cal'} onclick={() => (view = 'cal')}>{rt('calibrate')}</button><button class:on={view === 'nine'} onclick={() => (view = 'nine')}>{rt('ninebox')}</button></nav>
+        <div class="mb-4"><Segmented label={wt('ai_a_reviews')} value={view} options={[{ id: 'cal', label: rt('calibrate') }, { id: 'nine', label: rt('ninebox') }]} onchange={(id) => (view = id as 'cal' | 'nine')} /></div>
         {#if view === 'cal'}
           {#each cal.people as p (p.target_id)}
             <details class="rv-cal">

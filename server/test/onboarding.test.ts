@@ -115,6 +115,32 @@ test('Чек-лист «Первые шаги»: пункты закрывают
   assert.deepEqual(ext.items.map((i: any) => i.id), ['profile', 'chat', 'training']);
 });
 
+test('ТЗ №4, A10: учёт посещений знает новые адреса меню, старые id остаются, чужие отклоняются; набор клиента не шире серверного', async () => {
+  const op = await login('op2'), id = (await pool.query(`SELECT id FROM users WHERE login='op2'`)).rows[0].id;
+  // новые разделы и вкладки (первый сегмент адреса, для team, training и growth ещё и два): inbox, requests, people, surveys, pay, att, hire, admin
+  const fresh = ['inbox', 'requests', 'people', 'surveys', 'pay', 'att', 'hire', 'admin', 'team', 'team/schedule', 'team/newbies', 'team/learning', 'team/growth', 'team/tasks', 'team/hire',
+    'training/courses', 'training/lead', 'growth/self', 'growth/reviews', 'growth/talk', 'growth/mentor'];
+  for (const page of fresh) assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, 200, page);
+  // старые id не удалены: по ним есть записи статистики, и по старой ссылке человек ещё может зайти
+  for (const page of ['queue', 'assistant', 'editor', 'reports', 'structure', 'schedule/team', 'profile/pay', 'profile/settings', 'training/team']) {
+    assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, page === 'training/team' ? 400 : 200, page);
+  }
+  for (const bad of ['', 'нет-такой', 'team/newbies/extra', 'admin/users', 'inbox?type=task']) assert.equal((await send(op, 'POST', '/api/visit', { page: bad })).statusCode, 400, `«${bad}» не страница`);
+  assert.equal((await pool.query(`SELECT n FROM page_visits WHERE user_id=$1 AND page='team/newbies'`, [id])).rows[0].n, 1);
+  await send(op, 'POST', '/api/visit', { page: 'team/newbies' });
+  assert.equal((await pool.query(`SELECT n FROM page_visits WHERE user_id=$1 AND page='team/newbies'`, [id])).rows[0].n, 2, 'повторный визит считается');
+  // клиент отправляет только то, что сервер принимает (иначе каждый визит в такую страницу давал бы 400 в консоли)
+  const fs = await import('node:fs');
+  const tour = fs.readFileSync(new URL('../../web/src/lib/tour.svelte.ts', import.meta.url), 'utf8');
+  const ids = [...(/const PAGE_IDS = new Set\(\[(.*?)\]\);/s.exec(tour)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 40, `в PAGE_IDS ${ids.length} страниц`);
+  for (const page of ids) assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, 200, `клиент шлёт «${page}», сервер должен принять`);
+  for (const page of fresh) assert.ok(ids.includes(page), `клиент считает визит в «${page}»`);
+  // каждая страница из соответствия «раздел матрицы → страницы» принимается сервером
+  const { SECTION_PAGES } = await import('../src/modules/usage.js');
+  for (const pages of Object.values(SECTION_PAGES)) for (const page of pages) assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, 200, `usage: «${page}»`);
+});
+
 test('«Как это сделать»: без ИИ подбор по словам (RU и UZ), права по ролям, неотвеченное запоминается', async () => {
   const op = await login('op1'), sv = await login('rustam'), ext = await login('ext1');
   const ask = async (who: any, query: string) => (await send(who, 'POST', '/api/help/ask', { query })).json();
@@ -152,4 +178,91 @@ test('«Как это сделать» с ИИ: выбирает тему из �
   aiReply = JSON.stringify({ topic: null });
   assert.equal((await send(op, 'POST', '/api/help/ask', { query: 'как построить космический корабль' })).json().topic, null);
   delete process.env.ANTHROPIC_API_KEY;
+});
+
+test('ТЗ №4, E2: темы справки по разделам матрицы и по узлу структуры; группы — разделы меню, адреса новые', async () => {
+  const GROUPS = ['home', 'chat', 'team', 'work', 'learn', 'grow', 'company', 'manage', 'util'];
+  type Topic = { id: string; group: string; route: string; target: string | null };
+  const topics = async (who: any) => (await get(who, '/api/help/topics')).json().topics as Topic[];
+  // HR: помощника оператора и тренажёра в его наборе нет, а база знаний и карьера открыты (A8) — темы следуют за разделами, а не только за ролями
+  const hr = await topics(await login('hr')), hrIds = hr.map((t) => t.id);
+  assert.ok(!hrIds.includes('assist'), 'у HR помощника оператора нет — темы про него тоже');
+  assert.ok(hrIds.includes('kb_search') && hrIds.includes('path'));
+  assert.ok(!hrIds.includes('trainer') && !hrIds.includes('readiness'));
+  assert.ok(hrIds.includes('structure_edit') && hrIds.includes('sv_assistant') && hrIds.includes('ai_editor'), 'темы HR по ролям остались');
+  assert.deepEqual(hr.filter((t) => !GROUPS.includes(t.group)), [], 'группа каждой темы — раздел меню, режим «Управление» или утилиты');
+  // руководитель по структуре видит темы руководителя; оператор — нет
+  const rustam = await topics(await login('rustam')), op1 = await topics(await login('op1'));
+  for (const id of ['panel_team', 'give_task', 'assign_test', 'queue', 'sv_assistant', 'dayoff_approve']) {
+    assert.ok(rustam.some((t) => t.id === id), `руководитель: ${id}`); assert.ok(!op1.some((t) => t.id === id), `оператор: ${id}`);
+  }
+  const give = rustam.find((t) => t.id === 'give_task')!;
+  assert.deepEqual([give.group, give.route, give.target], ['team', '/team/tasks', 'nav-team_tasks']);
+  const sv = rustam.find((t) => t.id === 'sv_assistant')!;
+  assert.deepEqual([sv.group, sv.route, sv.target], ['learn', '/training/lead', 'nav-lead_school']);
+  assert.ok(!rustam.some((t) => t.id === 'reports') && !op1.some((t) => ['structure_edit', 'admin_ai', 'ai_editor'].includes(t.id)));
+  assert.deepEqual(op1.filter((t) => !GROUPS.includes(t.group)), []);
+  // админ закрыл колл-центру раздел «График»: тем про график нет, и ответ «как попросить выходной» их не предлагает
+  const adm = await login('admin', 'admin-test-1');
+  try {
+    assert.ok(op1.some((t) => t.id === 'dayoff_request') && op1.some((t) => t.id === 'checkin'));
+    assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { call: ['home', 'chat', 'plan', 'trainer', 'ready', 'growth', 'path', 'kb', 'assist', 'news', 'help', 'tasks', 'team', 'structure', 'pay'] } })).statusCode, 200);
+    const closed = await topics(await login('op1')), ids = closed.map((t) => t.id);
+    for (const id of ['schedule_view', 'dayoff_request', 'checkin']) assert.ok(!ids.includes(id), `раздел «График» закрыт — темы ${id} нет`);
+    assert.ok(ids.includes('chat_write') && ids.includes('training_plan'));
+    const ans = (await send(await login('op1'), 'POST', '/api/help/ask', { query: 'как попросить выходной на пятницу' })).json();
+    assert.notEqual(ans.topic?.id, 'dayoff_request');
+  } finally { await send(adm, 'DELETE', '/api/admin/access'); }
+  assert.ok((await topics(await login('op1'))).some((t) => t.id === 'dayoff_request'), 'сброс матрицы вернул тему');
+});
+
+test('ТЗ №4, E3: вид тура — руководитель только по узлу, рекрутёр — «staff»; «Что изменилось» один раз видит тот, кто основной тур уже проходил', async () => {
+  const adm = await login('admin', 'admin-test-1');
+  const make = async (l: string, roles: string[]) => {
+    const r = await send(adm, 'POST', '/api/admin/users', { login: l, name: `Тур ${l}`, password: 'demo12345', roles });
+    assert.equal(r.statusCode, 200, r.body);
+    return login(l);
+  };
+  // роли manager и head без узла руководителем не делают (тура руководителя и чек-листа руководителя у них нет); рекрутёр — к «staff»
+  const mgr = await make('tour_mgr', ['employee', 'manager', 'head']), rec = await make('tour_rec', ['employee', 'recruiter']);
+  assert.equal((await get(mgr, '/api/tour')).json().kind, 'operator'); assert.equal((await get(mgr, '/api/checklist')).json().kind, 'operator');
+  assert.equal((await get(rec, '/api/tour')).json().kind, 'staff');
+  for (const l of ['rustam', 'head']) assert.equal((await get(await login(l), '/api/tour')).json().kind, 'lead', `${l} возглавляет узел`);
+  assert.equal((await get(await login('editor'), '/api/tour')).json().kind, 'staff');
+
+  // новому сотруднику основной тур впереди, «Что изменилось» ему не нужно
+  const u = await login('op4');
+  const flags = async (who: any) => { const t = (await get(who, '/api/tour')).json(); return [t.status, t.auto, t.whatsnew]; };
+  assert.deepEqual(await flags(u), ['new', true, false]);
+  // основной тур пройден — «Что изменилось» ждёт показа
+  await send(u, 'POST', '/api/tour/event', { event: 'start', step: 0, step_id: 'chat', total: 7 });
+  await send(u, 'POST', '/api/tour/event', { event: 'done', step: 6, step_id: 'bell', total: 7 });
+  assert.deepEqual(await flags(u), ['done', false, true]);
+  // у другого сотрудника — своё состояние
+  assert.deepEqual(await flags(await login('buh')), ['new', true, false]);
+
+  // статистика основного тура не должна считать «Что изменилось»: воронка и итоги прежние, у «Что изменилось» — свой счётчик
+  const stats = async () => (await get(adm, '/api/admin/tour/stats')).json();
+  const before = await stats();
+  assert.deepEqual(before.whatsnew, { done: 0, skipped: 0 });
+  await send(u, 'POST', '/api/tour/event', { event: 'done', step: 4, step_id: 'whatsnew', total: 5 });
+  assert.deepEqual(await flags(u), ['done', false, false], 'после «Готово» «Что изменилось» не возвращается');
+  const after = await stats();
+  assert.deepEqual(after.kinds, before.kinds); assert.deepEqual(after.steps, before.steps);
+  assert.deepEqual(after.whatsnew, { done: 1, skipped: 0 });
+  // не возвращается и после повторного прохождения основного тура из профиля
+  await send(u, 'POST', '/api/tour/event', { event: 'restart' });
+  assert.deepEqual(await flags(u), ['new', true, false]);
+  await send(u, 'POST', '/api/tour/event', { event: 'done', step: 6, step_id: 'bell', total: 7 });
+  assert.deepEqual(await flags(u), ['done', false, false]);
+
+  // «Пропустить» закрывает так же, как «Готово»
+  const v = await login('dilnoza');
+  await send(v, 'POST', '/api/tour/event', { event: 'skip', step: 1, step_id: 'chat', total: 7 });
+  assert.deepEqual(await flags(v), ['skipped', false, true]);
+  await send(v, 'POST', '/api/tour/event', { event: 'skip', step: 0, step_id: 'whatsnew', total: 5 });
+  assert.deepEqual(await flags(v), ['skipped', false, false]);
+  assert.deepEqual((await stats()).whatsnew, { done: 1, skipped: 1 });
+  // события «Что изменилось» не мешают тому, кто тур не проходил: у него по-прежнему впереди основной тур
+  assert.deepEqual(await flags(await login('hr')), ['new', true, false]);
 });

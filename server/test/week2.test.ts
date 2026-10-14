@@ -131,13 +131,15 @@ test('S5: сервер закрывает API каждого скрытого р
       if (!allowed) closedSeen.add(url);
     }
   }
-  // конкретные случаи из ТЗ: HR не видит путь, базу знаний, тренажёр, помощника; рекрутёр — ещё и обучение
+  // конкретные случаи из ТЗ: HR не видит тренажёр и помощника (базу знаний и «Мой путь» ему открыли в ТЗ №4, A8); рекрутёр не видит базу знаний, обучение, тренажёр и помощника
   const hr = await login('hr'), rec = await login('rec1'), cc = await login('cc1'), adm = await login('admin', 'admin-test-1');
   for (const url of ['/api/kb/sections', '/api/kb/search?q=a', '/api/training/trainer', '/api/assist/data']) assert.equal((await get(rec, url)).statusCode, 403, `рекрутёр ${url}`);
   assert.equal((await get(rec, '/api/kb/sections')).json().error, 'section_forbidden');
   assert.equal((await get(rec, '/api/training/me')).statusCode, 403);
-  assert.equal((await get(rec, '/api/growth/mentor')).statusCode, 403);
-  assert.equal((await get(rec, '/api/path/me')).statusCode, 403);
+  // ТЗ №4, A8: рекрутёр получает анкеты оценки 360° (циклы берут всех активных), поэтому ему открыты «Рост» и «Мой путь»
+  assert.equal((await get(rec, '/api/growth/mentor')).statusCode, 200, 'у рекрутёра раздел «Рост» открыт');
+  assert.equal((await get(rec, '/api/path/me')).statusCode, 200, 'у рекрутёра открыт «Мой путь»');
+  assert.equal((await get(rec, '/api/reviews/my')).statusCode, 200);
   assert.equal((await get(hr, '/api/training/trainer')).statusCode, 403);
   assert.equal((await get(hr, '/api/assist/data')).statusCode, 403);
   assert.equal((await get(hr, '/api/growth/mentor')).statusCode, 200, 'у HR раздел «Развитие» открыт');
@@ -147,12 +149,30 @@ test('S5: сервер закрывает API каждого скрытого р
   // у колл-центра и админа всё открыто; библиотека и тесты не закрываются никому
   for (const [url] of SAMPLE) { assert.notEqual((await get(cc, url)).statusCode, 403, `колл-центр ${url}`); assert.notEqual((await get(adm, url)).statusCode, 403, `админ ${url}`); }
   assert.equal((await get(rec, '/api/library')).statusCode === 403, false);
-  assert.ok(closedSeen.size >= 8, 'проверено достаточно закрытых адресов');
+  // по умолчанию закрыты тренажёр, готовность к линии, обучение, база знаний и помощник; «Рост» и «Мой путь» открыты всем (ТЗ №4, A8) — их закрытие проверяет блок в конце теста
+  assert.ok(closedSeen.size >= 6, 'проверено достаточно закрытых адресов');
   // отказ попадает в журнал
   assert.ok((await pool.query(`SELECT count(*)::int n FROM audit_log WHERE action='access_denied' AND target LIKE '/api/kb/%'`)).rows[0].n >= 1);
   // админ расширяет набор — сервер открывает сразу
   const matrix = (await get(adm, '/api/admin/access')).json();
   assert.ok(matrix.matrix?.recruiter || matrix.profiles, 'матрица читается');
+  // а закрывает — закрывает сразу: «Рост» и «Мой путь» у рекрутёра в умолчаниях открыты (A8), но админ вправе их убрать
+  try {
+    assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { recruiter: ['home', 'chat'] } })).statusCode, 200);
+    const recNow = await login('rec1'), sections = (await get(recNow, '/api/me')).json().user.sections as string[];
+    for (const url of ['/api/growth/mentor', '/api/path/me', '/api/reviews/my']) {
+      const r = await get(recNow, url);
+      assert.equal(r.statusCode, 403, `рекрутёр без раздела: ${url}`); assert.equal(r.json().error, 'section_forbidden');
+    }
+    // и те же правила, что в общем цикле выше: закрыто ровно то, что закрыто по матрице; теперь среди закрытых и «Рост», и «Мой путь»
+    for (const [url, method] of SAMPLE) {
+      const r = await app.inject({ method, url, ...recNow });
+      const allowed = access.urlAllowed(url, sections, ['employee', 'recruiter']);
+      assert.equal(r.statusCode === 403 && r.json().error === 'section_forbidden', !allowed, `рекрутёр с суженной матрицей ${url}`);
+      if (!allowed) closedSeen.add(url);
+    }
+    assert.ok(closedSeen.size >= 11, `закрытых адресов проверено: ${closedSeen.size}`);
+  } finally { await send(adm, 'DELETE', '/api/admin/access'); }
 });
 
 test('S5: правила не перекрываются с ролевыми: расчёт по самому длинному префиксу; адреса руководителя не затронуты', async () => {

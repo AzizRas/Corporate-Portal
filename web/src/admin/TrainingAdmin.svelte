@@ -4,6 +4,8 @@
   import { api, ApiError } from '../lib/api';
   import Modal from '../components/Modal.svelte';
   import { fmtDate } from '../lib/format';
+  import { wt } from '../lib/w18n';
+  import Segmented from '../components/Segmented.svelte';
   import '../training/training.css';
 
   const KINDS: [string, string][] = [['read', 'Материал'], ['video', 'Видео'], ['task', 'Задание'], ['quiz', 'Тест'], ['scenario', 'Тренажёр'], ['practice', 'Практика'], ['exam', 'Экзамен']];
@@ -157,11 +159,8 @@
   {#if msg}<div class="alert ok u-da12f28">{msg}</div>{/if}
   {#if err && !ed && !sed}<div class="alert u-da12f28">{err}</div>{/if}
 
-  <nav class="tabs">
-    <button class:on={tab === 'plan'} onclick={() => (tab = 'plan')}>Курсы и уроки</button>
-    <button class:on={tab === 'scen'} onclick={() => (tab = 'scen')}>Сценарии тренажёра</button>
-    <button class:on={tab === 'enr'} onclick={() => (tab = 'enr')}>Запись и наставники</button>
-  </nav>
+  <!-- виды одной страницы «Курсы и уроки» — переключатель, а не вкладки раздела: вкладки группы «Курсы и тесты» рисует HubTabs -->
+  <div class="mb-4"><Segmented label={wt('ai_a_training')} value={tab} options={[{ id: 'plan', label: 'Курсы и уроки' }, { id: 'scen', label: 'Сценарии тренажёра' }, { id: 'enr', label: 'Запись и наставники' }]} onchange={(id) => (tab = id as typeof tab)} /></div>
 
   {#if !ov}<span class="spin"></span>
   {:else if tab === 'plan'}

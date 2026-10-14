@@ -3,7 +3,11 @@
   import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
   import { pt } from './p18n';
+  import { wt } from '../lib/w18n';
   import { fmtDate } from '../lib/format';
+
+  // Пока нет страницы «Входящие» (эпик D) и «Поручения» (эпик H) этот список показывается под их названиями.
+  let { title = undefined }: { title?: 'inbox' | 'team_tasks' } = $props();
 
   let items: any[] = $state([]), loading = $state(true), failed = $state(false), err = $state(''), busyId: number | null = $state(null);
   const open = $derived(items.filter((t) => !t.done_at));
@@ -20,7 +24,7 @@
   }
 </script>
 
-<header class="page-head"><div><h1>{pt('t_title')}<PageHelp topic="tasks" /></h1><p class="sub">{pt('t_sub')}</p></div></header>
+<header class="page-head"><div><h1>{title ? wt('i2_' + title) : pt('t_title')}<PageHelp topic="tasks" /></h1><p class="sub">{pt('t_sub')}</p></div></header>
 {#if loading}<p class="muted"><span class="spin"></span></p>
 {:else if failed}<p class="alert">{pt('t_load_err')}</p>
 {:else}

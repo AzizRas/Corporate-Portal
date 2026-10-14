@@ -117,5 +117,5 @@
   :global(.n-item) { display: flex; gap: 12px; align-items: flex-start; text-align: left; border: 0; background: none; color: inherit; padding: 10px; border-radius: 14px; cursor: pointer; width: 100%; text-decoration: none; }
   :global(.n-item:hover) { background: var(--card-2); text-decoration: none; }
   :global(.n-item .ic) { font-size: 20px; line-height: 1.2; flex: none; }
-  :global(.np-pop .clip) { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  :global(.np-pop .clip) { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
 </style>

@@ -275,7 +275,7 @@ test('L2: «очистить» не удаляет заявки сотрудни
 });
 
 /* ---------------- навигация и адрес «/» ---------------- */
-test('Адрес «/» открывает главную; если главная закрыта подразделению — первый доступный раздел; нижняя панель телефона: Главная, Чат, Обучение, График, Ещё', async () => {
+test('Адрес «/» открывает главную; если главная закрыта подразделению — первый доступный раздел; нижняя панель телефона оператора: Главная, Чаты, График, Обучение, Ещё', async () => {
   const nav = await import('../../web/src/lib/nav-core.ts');
   const all = () => true;
   assert.equal(nav.pickLanding(all), 'home', 'раньше «/» открывал чат');
@@ -286,11 +286,12 @@ test('Адрес «/» открывает главную; если главна�
   assert.equal(nav.normPath('/', 'home'), '/home');
   assert.equal(nav.normPath('?x=1', 'home'), '/home');
   assert.equal(nav.normPath('chat/general?x=1', 'home'), '/chat/general');
-  assert.deepEqual(nav.MOBILE_TABS.map((t) => t.id), ['home', 'chat', 'training', 'schedule', 'more']);
-  assert.deepEqual(nav.MOBILE_TAB_IDS, ['home', 'chat', 'training', 'schedule']);
-  // каждая вкладка привязана к существующему разделу матрицы доступа
-  const { SECTIONS } = await import('../src/access.js');
-  for (const t of nav.MOBILE_TABS) assert.ok(t.section === null || (SECTIONS as readonly string[]).includes(t.section), `раздел ${t.section}`);
+  // ТЗ №4, G1: панель строится по персоне (mobileTabs), а не одна на всех; константы MOBILE_TABS и MOBILE_TAB_IDS удалены
+  assert.deepEqual(nav.mobileTabs('operator', () => true), ['home', 'chat', 'schedule', 'learn', 'more']);
+  assert.equal((nav as Record<string, unknown>).MOBILE_TABS, undefined); assert.equal((nav as Record<string, unknown>).MOBILE_TAB_IDS, undefined);
+  // каждая вкладка привязана к существующим пунктам меню (HUBS, ADMIN_HUBS или утилиты)
+  const known = new Set<string>([...nav.HUBS, ...nav.ADMIN_HUBS].flatMap((h: { items: string[] }) => h.items).concat(nav.UTIL));
+  for (const [tab, items] of Object.entries(nav.TAB_ITEMS as Record<string, string[]>)) for (const i of items) assert.ok(known.has(i), `вкладка ${tab}: нет пункта ${i}`);
   // роутер и оболочка действительно используют единый «посадочный» раздел, а не зашитый чат
   const router = fs.readFileSync(new URL('../../web/src/Router.svelte', import.meta.url), 'utf8');
   assert.match(router, /parts\[0\] \|\| landing\(\)/);

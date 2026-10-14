@@ -1,26 +1,40 @@
+<script module lang="ts">
+  // Поиск смонтирован один раз (в боковой колонке). Открывают его три способа: кнопка в колонке, лупа в верхней панели телефона и Ctrl+K — состояние общее.
+  const ui = $state({ open: false });
+  export function openSearch() { ui.open = true; }
+</script>
+
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
-  import { navGroups, hubLabel } from '../lib/nav';
+  import { visibleItems, hubLabel, fillPaths } from '../lib/nav';
   import { hubOfItem } from '../lib/nav-core';
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
   import { portal } from '../lib/portal';
   import Icon from './Icon.svelte';
   import { HELP } from '../lib/help-content';
-  import { pointAt } from '../lib/tour.svelte';
+  import { pointAt, visitSearch } from '../lib/tour.svelte';
   import Avatar from './Avatar.svelte';
   import AiFeedback from './AiFeedback.svelte';
 
-  let { row = false }: { row?: boolean } = $props();
-  let open = $state(false), q = $state(''), sel = $state(0), res: any = $state(null), busy = $state(false);
+  let q = $state(''), sel = $state(0), res: any = $state(null), busy = $state(false);
+  const open = $derived(ui.open);
   let asking = $state(false), helpHit: any = $state(null), ans: any = $state(null), input: HTMLInputElement | undefined = $state();
   let seq = 0, timer: ReturnType<typeof setTimeout> | undefined;
   const lang = $derived(app.lang);
   const tr = (r: any, k: string) => (lang === 'uz' && r[`${k}_uz`]) || r[`${k}_ru`];
 
-  function show() { open = true; q = ''; res = null; ans = null; sel = 0; setTimeout(() => input?.focus(), 30); }
-  function hide() { open = false; clearTimeout(timer); }
+  const show = () => { ui.open = true; };
+  const hide = () => { ui.open = false; };
+  // при открытии поле очищается и получает фокус (откуда бы ни открыли), при закрытии отложенный запрос отменяется
+  let wasOpen = false;
+  $effect(() => {
+    if (ui.open === wasOpen) return;
+    wasOpen = ui.open;
+    if (ui.open) { q = ''; res = null; ans = null; sel = 0; visitSearch(); setTimeout(() => input?.focus(), 30); }
+    else clearTimeout(timer);
+  });
 
   // поиск с задержкой; устаревшие ответы отбрасываем
   $effect(() => {
@@ -44,7 +58,7 @@
     const text = q.trim().toLowerCase();
     if (text.length < 2) return [];
     const out: Row[] = [];
-    for (const g of navGroups(0)) for (const i of g.items) if (i.label.toLowerCase().includes(text)) out.push({ key: `s${i.id}`, group: wt('sr_sections'), label: i.label, sub: hubLabel(hubOfItem(i.id) ?? g.id), href: i.href });
+    for (const i of visibleItems()) if (i.label().toLowerCase().includes(text)) out.push({ key: `s${i.id}`, group: wt('sr_sections'), label: i.label(), sub: hubLabel(hubOfItem(i.id) ?? i.hub), href: i.href });
     if (res) {
       for (const a of res.kb) out.push({ key: `k${a.id}`, group: wt('sr_kb'), label: tr(a, 'title'), sub: (lang === 'uz' && a.snippet_uz ? a.snippet_uz : a.snippet_ru)?.slice(0, 90), href: `/kb/${a.id}` });
       for (const x of res.tests) out.push({ key: `t${x.slug}`, group: wt('sr_tests'), label: tr(x, 'title'), href: `/tests/${x.slug}` });
@@ -62,23 +76,33 @@
     if (r.person) { personOpen = personOpen?.id === r.person.id ? null : r.person; return; }
     if (r.href) { hide(); go(r.href); }
   }
+  // шаги справки с путями из реестра меню ({path:<пункт>} → «Раздел → вкладка»)
+  const stepsOf = (id: string): string[] => (HELP[id]?.[app.lang] ?? HELP[id]?.ru ?? []).map(fillPaths);
   function showHelp(t: any) {
     const targets = t.target ? [t.target, 'tab-' + t.target.replace(/^nav-/, ''), 'tab-more'] : [];
     hide(); go(t.route);
-    setTimeout(() => pointAt(targets, t.title[app.lang], (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? [])[0] ?? '', t.group), 450);
+    setTimeout(() => pointAt(targets, t.title[app.lang], stepsOf(t.id)[0] ?? '', t.group), 450);
   }
+  let sent = $state(false);        // вопрос руководителю отправлен
+  // ответ базы знаний показываем простым текстом (в режиме extract это кусок статьи в markdown): без маркеров заголовков, жирного и ссылок
+  const plain = (s: string) => s.replace(/^#{1,6}\s+/gm, '').replace(/\*\*|`/g, '').replace(/!?\[([^\]]*)\]\([^)\s]*\)/g, '$1').replace(/^\s*[-*]\s+/gm, '• ').trim();
   async function ask() {
     const text = q.trim();
     if (text.length < 3 || asking) return;
-    asking = true; ans = null;
+    asking = true; ans = null; sent = false;
     try {
-      // сначала «как это сделать в портале»: подсказка со шагами и подсветкой кнопки; если такой темы нет — ответ по базе знаний
+      // сначала «как это сделать в портале»: подсказка со шагами и подсветкой кнопки; если такой темы нет — ответ по базе знаний (RAG: ответ только по статьям, со ссылками на них)
       const h = await api.post('/api/help/ask', { query: text });
       if (h.topic) { ans = { help: h }; return; }
-      ans = await api.post('/api/search/ask', { query: text });
+      ans = { kb: await api.post('/api/kb/ask', { question: text }) };
     }
-    catch (e) { ans = { found: false, error: e instanceof ApiError ? e.code : 'error' }; }
+    catch (e) { ans = { error: e instanceof ApiError ? e.code : 'error' }; }
     finally { asking = false; }
+  }
+  // ответа в базе нет — человек сам решает, задать ли вопрос руководителю; ответ он увидит в «Заявках»
+  async function toLeader() {
+    try { await api.post('/api/questions', { body: q.trim() }); sent = true; }
+    catch (e) { ans = { error: e instanceof ApiError ? e.code : 'error' }; }
   }
   function key(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open ? hide() : show(); return; }
@@ -94,17 +118,13 @@
 
 <svelte:window onkeydown={key} />
 
-{#if row}
-  <button class="nv" title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i><span class="lbl">{wt('sr_open')}</span></button>
-{:else}
-  <button class="srch-btn" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i></button>
-{/if}
+<button class="nv" title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i><span class="lbl">{wt('sr_open')}</span></button>
 
 {#snippet helpCard(h: any)}
   {@const t = h.topic}
   {#if h.answer}<p class="small">{h.ai ? '' : ''}{h.answer}</p>{/if}
   <b>{t.title[app.lang]}</b>
-  <ol class="u-ba31dbb">{#each (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? []) as step}<li>{step}</li>{/each}</ol>
+  <ol class="u-ba31dbb">{#each stepsOf(t.id) as step}<li>{step}</li>{/each}</ol>
   <div class="row wrap u-f6c3b0c">
     <button class="btn grad sm" onclick={() => showHelp(t)}>{wt('hp_show')}</button>
     <a class="btn sm" href={'#' + t.route} onclick={hide}>{wt('hp_where')}</a>
@@ -145,15 +165,24 @@
           <div class="sr-ans">
             {#if ans.help}
               {@render helpCard(ans.help)}
-            {:else if ans.found}
+            {:else if ans.kb}
+              {@const k = ans.kb}
               <div class="muted xs">{wt('sr_answer')}</div>
-              <p class="u-94badf9">{ans.answer}</p>
-              <div class="muted xs u-fe7b497">{wt('sr_sources')}</div>
-              <div class="row wrap u-c231079">{#each ans.sources as s}<a class="chip" href="#/kb/{s.id}" onclick={hide}>{s.title}</a>{/each}</div>
-              <div class="u-d2c171b"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
+              <p class="u-94badf9 sr-txt">{plain(k.answer)}</p>
+              {#if k.mode === 'extract'}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}
+              {#if k.citations?.length}
+                <div class="muted xs u-fe7b497">{wt('sr_sources')}</div>
+                <div class="row wrap u-c231079">{#each k.citations as c}<a class="chip" href="#/kb/{c.article_id}" onclick={hide}>{c.title}</a>{/each}</div>
+              {/if}
+              {#if k.grounded}
+                <div class="u-d2c171b"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
+              {:else if sent}
+                <p class="small">{wt('sr_sent')}</p>
+              {:else}
+                <button class="btn sm grad" onclick={toLeader}>{wt('sr_to_leader')}</button>
+              {/if}
             {:else}
-              <p class="small">{ans.queued ? (ans.dup ? wt('sr_queued_dup') : wt('sr_queued')) : wt('sr_none')}</p>
-              {#if ans.ai === false && !ans.error}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}
+              <p class="small">{wt('sr_none')}</p>
               {#if ans.error}<p class="xs u-ae5afff">{wt('sr_err')}: {ans.error}</p>{/if}
             {/if}
           </div>
@@ -165,9 +194,7 @@
 {/if}
 
 <style>
-  .srch-btn { border: 1px solid var(--border); background: var(--card); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text); flex: none; }
-  .srch-btn i { display: block; width: 22px; height: 22px; }
-  .srch-btn :global(svg), .sr-in :global(svg), .sr-x :global(svg) { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sr-in :global(svg), .sr-x :global(svg) { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   :global(.sr-layer) { position: fixed; inset: 0; z-index: 2100; }
   :global(.sr-back) { position: absolute; inset: 0; background: rgba(0, 0, 0, .45); backdrop-filter: blur(3px); }
   :global(.sr-box) { position: absolute; top: 12vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 24px)); max-height: 76vh; display: flex; flex-direction: column; padding: 10px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); overflow: hidden; }
@@ -183,6 +210,7 @@
   :global(.sr-person) { margin: 0 12px 6px 56px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); }
   :global(.sr-empty) { padding: 18px 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
   :global(.sr-ans) { margin: 8px 8px 4px; padding: 14px; border-radius: 14px; background: var(--card-2); }
+  .sr-txt { white-space: pre-line; }
   :global(.sr-foot) { flex: none; padding: 8px 12px 2px; border-top: 1px solid var(--border); }
   @media (max-width: 880px) { :global(.sr-box) { top: 8px; max-height: calc(100vh - 16px); } :global(.sr-foot) { display: none; } }
 </style>

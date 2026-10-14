@@ -1,20 +1,21 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
-  import { app, setLang, setTheme, logout, loadMe } from '../lib/state.svelte';
+  import { app, setLang, setTheme, logout, loadMe, go } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
   import { st } from '../lib/s18n';
   import Avatar from '../components/Avatar.svelte';
-  import { wt } from '../lib/w18n';
+  import { wt, roleLabel } from '../lib/w18n';
   import { setDensity, pickDensity, type Density } from '../lib/density';
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
   import Payroll from './Payroll.svelte';
   import NotifyPrefs from '../components/NotifyPrefs.svelte';
-  import HrRequests from './HrRequests.svelte';
+  import Segmented from '../components/Segmented.svelte';
   import TwoFactor from '../components/TwoFactor.svelte';
   import TelegramLink from '../components/TelegramLink.svelte';
   import { restartTour } from '../lib/tour.svelte';
 
+  // tab: «me» (#/profile — фото и статус), «settings» (#/profile/settings) и «pay» (#/pay — «Зарплата и KPI» в разделе «Моя работа»); документы и отпуск переехали в «Заявки» (#/requests)
   let { tab = 'me' }: { tab?: string } = $props();
 
   let oldPw = $state(''), newPw = $state(''), newPw2 = $state(''), msg = $state(''), ok = $state(false);
@@ -48,18 +49,14 @@
     } catch { perr = st('pf_photo_err'); } finally { busy = false; (e.currentTarget as HTMLInputElement).value = ''; }
   }
   async function dropPhoto() { await api.del('/api/me/avatar'); await loadMe(); }
-  const roleName: Record<string, string> = { employee: 'Оператор', newbie: 'Новичок', senior: 'Старший оператор', mentor: 'Наставник', manager: 'Супервайзер', head: 'Руководитель отдела', hr: 'HR', recruiter: 'Рекрутер', accountant: 'Бухгалтерия', editor: 'Редактор базы', admin: 'Администратор' };
 </script>
 
-<header class="page-head"><div><h1>{t('profile_title')}<PageHelp topic="profile_photo" /></h1><p class="sub">{app.user?.name} · {app.user?.position}</p></div></header>
-<nav class="tabs">
-  <a href="#/profile" class:on={tab === 'me'}>{wt('i_mydata')}</a>
-  <a href="#/profile/pay" class:on={tab === 'pay'}>{st('n_pay')}</a>
-  {#if app.user?.roles.includes('employee')}<a href="#/profile/docs" class:on={tab === 'docs'}>{app.lang === 'uz' ? 'Hujjatlar va ta’til' : 'Документы и отпуск'}</a>{/if}
-  <a href="#/profile/settings" class:on={tab === 'settings'}>{wt('i_settings')}</a>
-</nav>
+{#if tab !== 'pay'}
+  <header class="page-head"><div><h1>{t('profile_title')}<PageHelp topic="profile_photo" /></h1><p class="sub">{app.user?.name} · {app.user?.position}</p></div></header>
+  <!-- «Профиль» и «Настройки» — две страницы одной карточки внизу колонки; это переключатель, а не ряд вкладок раздела -->
+  <div class="mb-4"><Segmented label={wt('ut_profile_settings')} value={tab === 'settings' ? 'settings' : 'me'} options={[{ id: 'me', label: wt('i2_profile') }, { id: 'settings', label: wt('i2_settings') }]} onchange={(id) => go(id === 'settings' ? '/profile/settings' : '/profile')} /></div>
+{/if}
 {#if tab === 'pay'}<Payroll />
-{:else if tab === 'docs'}<HrRequests />
 {:else if tab === 'settings'}
 <div class="grid u-0e12b30">
   <section class="card stack">
@@ -71,7 +68,6 @@
           <button class:on={app.theme === v} onclick={() => setTheme(v as any)}>{t(k as any)}</button>
         {/each}</div></div>
     <div><div class="muted small">{wt('dn_title')}</div><div class="tabs u-c94d43e">{#each ['normal', 'compact'] as d}<button class:on={dens === d} onclick={() => chooseDens(d as Density)}>{wt(d === 'normal' ? 'dn_normal' : 'dn_compact')}</button>{/each}</div><p class="muted xs u-fe7b497">{wt('dn_hint')}</p></div>
-    <div><div class="muted small">{t('role')}</div><div class="row wrap u-8a77e5a">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
     <div class="row wrap u-33fcd4c"><button class="btn danger" onclick={logout}>{t('nav_logout')}</button><button class="btn" onclick={logoutOthers}>{wt('lo_others')}</button></div>
     <p class="muted xs">{loMsg || wt('lo_others_hint')}</p>
   </section>
@@ -105,6 +101,8 @@
     {#if perr}<div class="alert">{perr}</div>{/if}
     <label class="f u-1169661">{st('pf_status')}<input maxlength="80" bind:value={status} placeholder={st('pf_status_ph')} /></label>
     <label class="f u-1169661">{st('pf_birthday')}<input type="date" bind:value={birthday} /></label>
+    <!-- роли словами (E6): блок переехал сюда из «Настроек» -->
+    <div><div class="muted small">{t('role')}</div><div class="row wrap u-8a77e5a">{#each app.user?.roles ?? [] as r}<span class="chip">{roleLabel(r)}</span>{/each}</div></div>
     {#if pmsg}<div class="alert ok">{pmsg}</div>{/if}
     <button class="btn grad">{t('save')}</button>
   </form>

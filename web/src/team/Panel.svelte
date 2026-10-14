@@ -15,7 +15,7 @@
   let dismissed: Record<number, boolean> = $state({});
   let toast = $state('');
 
-  const items = $derived<Item[]>(shown);
+  const items = $derived.by<Item[]>(() => shown);   // shown объявлен ниже: функция, а не значение, чтобы не читать его до объявления
   const sum = $derived(data?.summary);
   const aiOn = $derived(data?.ai?.available === true);
   const isAdminNote = $derived(!!data?.ai && data.ai.available === false && !!data.ai.reason);

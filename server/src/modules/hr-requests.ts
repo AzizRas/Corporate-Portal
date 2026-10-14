@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { q } from '../db.js';
-import { audit, hasRole, requireAuth, teamIds, type AuthUser, isLead } from '../auth.js';
+import { audit, hasRole, requireAuth, teamIds, type AuthUser, isLead, isStaffUser } from '../auth.js';
 import { getSetting, tzDate } from '../settings.js';
 import { notify } from '../notify.js';
 
@@ -72,7 +72,9 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 export async function hrRequestRoutes(app: FastifyInstance) {
   const auth = { preHandler: requireAuth };
   const err = (reply: any, code: number, error: string) => reply.code(code).send({ error });
-  const isStaff = (u: AuthUser) => u.roles.includes('employee');
+  // справки и отпуск — человеку в штате: так же, как пункт «Заявки» в меню (не внешний, не служебная учётная запись). Роль employee не нужна:
+  // стажёр с одной ролью newbie (так оформляет найм) и администратор-человек тоже подают заявки (ТЗ №4, I4)
+  const isStaff = (u: AuthUser) => isStaffUser(u);
   const isHr = (u: AuthUser) => hasRole(u, 'hr', 'admin');
 
   /* ----- справки ----- */
@@ -157,7 +159,7 @@ ${ok ? `<h1 style="margin:0 0 8px;color:#15803d;font-size:22px">✔ Справк
     const from = isDay(qs.from) ? qs.from : tzDate().slice(0, 8) + '01';
     const to = isDay(qs.to) ? qs.to : new Date(Date.parse(from) + 62 * 86_400_000).toISOString().slice(0, 10);
     const ids = sc === null ? null : sc;
-    const people = (await q(`SELECT u.id,u.name,u.position,u.position_code FROM users u WHERE u.active AND NOT (EXISTS(SELECT 1 FROM user_roles sr WHERE sr.user_id=u.id AND sr.role='admin') AND NOT EXISTS(SELECT 1 FROM user_roles se WHERE se.user_id=u.id AND se.role='employee'))
+    const people = (await q(`SELECT u.id,u.name,u.position,u.position_code FROM users u WHERE u.active AND NOT u.is_system
                               AND ($1::int[] IS NULL OR u.id = ANY($1)) ORDER BY u.name`, [ids])).rows;
     const uids = people.map((p) => p.id);
     const leaves = (await q(`SELECT id,user_id,kind,to_char(from_date,'YYYY-MM-DD') AS from_date,to_char(to_date,'YYYY-MM-DD') AS to_date,'approved' AS status,NULL::int AS request_id FROM user_leaves WHERE user_id = ANY($1::int[]) AND from_date <= $3::date AND to_date >= $2::date`, [uids, from, to])).rows;

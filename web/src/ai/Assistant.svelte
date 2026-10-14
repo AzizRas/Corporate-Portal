@@ -6,13 +6,17 @@
   import { md } from '../lib/md';
   import { et } from './e18n';
   import AiFeedback from '../components/AiFeedback.svelte';
+  import Segmented from '../components/Segmented.svelte';
+  import Modal from '../components/Modal.svelte';
 
   const lang = $derived(app.lang);
   const loc = (o: any) => (o ? (lang === 'uz' && o.uz) || o.ru : '');
   const isAdmin = $derived(!!app.user?.roles.includes('admin') && has('admin'));
 
   let ov: any = $state(null), loadErr = $state('');
-  let tab = $state<'trainer' | 'plan' | 'ask'>('trainer');
+  // «Разбор ситуаций» (тренажёр) и «Чек-лист руководителя» (план развития) — переключатель внутри страницы; «Спросить ИИ» открывается окном (ТЗ №4, A6)
+  let tab = $state<'trainer' | 'plan'>('trainer');
+  let askOpen = $state(false);
 
   function emsg(e: unknown, ctx: 'load' | 'act' = 'act') {
     if (e instanceof ApiError) {
@@ -79,10 +83,13 @@
 
 <header class="page-head">
   <div><h1>{et('a_title')}<PageHelp topic="sv_assistant" /></h1><p class="sub">{et('a_sub')}</p></div>
-  {#if ov && !ov.ai?.available}
+  {#if ov}
     <div class="head-actions">
-      <span class="chip" title={isAdmin && ov.ai?.reason ? ov.ai.reason : ''}>{et('a_builtin')}</span>
-      {#if isAdmin && ov.ai?.reason}<div class="muted xs u-2e175c9">{et('a_ai_reason')}: {ov.ai.reason}</div>{/if}
+      {#if !ov.ai?.available}
+        <span class="chip" title={isAdmin && ov.ai?.reason ? ov.ai.reason : ''}>{et('a_builtin')}</span>
+        {#if isAdmin && ov.ai?.reason}<div class="muted xs u-2e175c9">{et('a_ai_reason')}: {ov.ai.reason}</div>{/if}
+      {/if}
+      <button type="button" class="btn grad" onclick={() => (askOpen = true)}><Icon inline name="spark" /> {et('a_tab_ask')}</button>
     </div>
   {/if}
 </header>
@@ -92,11 +99,7 @@
 {:else if !ov}
   <span class="spin"></span>
 {:else}
-  <nav class="tabs">
-    <button class:on={tab === 'trainer'} onclick={() => (tab = 'trainer')}>{et('a_tab_trainer')}</button>
-    <button class:on={tab === 'plan'} onclick={() => (tab = 'plan')}>{et('a_tab_plan')}</button>
-    <button class:on={tab === 'ask'} onclick={() => (tab = 'ask')}>{et('a_tab_ask')}</button>
-  </nav>
+  <div class="mb-4"><Segmented label={et('a_title')} value={tab} options={[{ id: 'trainer', label: et('a_tab_trainer') }, { id: 'plan', label: et('a_tab_plan') }]} onchange={(id) => (tab = id as 'trainer' | 'plan')} /></div>
 
   {#if tab === 'trainer'}
     {#if scLoading}<span class="spin"></span>
@@ -180,7 +183,7 @@
       {/each}
     {/if}
 
-  {:else if tab === 'plan'}
+  {:else}
     <section class="card stack u-905d8b3">
       <div class="row u-b4a0603">
         <h3 class="card-title u-b2297c5">{et('a_progress')}</h3>
@@ -230,8 +233,12 @@
       </aside>
     </div>
 
-  {:else}
-    <section class="card stack as-ask">
+  {/if}
+{/if}
+
+{#if askOpen}
+  <Modal onclose={() => (askOpen = false)}>
+    <section class="stack as-ask">
       <h3 class="as-h3">{et('a_ask_t')}</h3>
       <p class="muted small">{et('a_ask_hint')}</p>
       <textarea rows="4" bind:value={question} placeholder={et('a_ask_ph')} maxlength="600" aria-label={et('a_ask_t')}></textarea>
@@ -244,7 +251,7 @@
         {#if reply.ai === false}
           <div class="alert info" role="status">
             {et('a_ask_off')}
-            <div class="u-d2c171b"><button class="btn sm" onclick={() => (tab = 'trainer')}>{et('a_ask_to_trainer')}</button></div>
+            <div class="u-d2c171b"><button class="btn sm" onclick={() => { tab = 'trainer'; askOpen = false; }}>{et('a_ask_to_trainer')}</button></div>
           </div>
         {:else}
           <div class="as-answer">
@@ -254,8 +261,9 @@
           </div>
         {/if}
       {/if}
+      <div class="row u-9990cea"><button type="button" class="btn" onclick={() => (askOpen = false)}>{et('a_close')}</button></div>
     </section>
-  {/if}
+  </Modal>
 {/if}
 
 <style>

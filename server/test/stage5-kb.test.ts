@@ -89,6 +89,36 @@ test('H: «Спросить базу» без ИИ — ответ фрагмен
   assert.equal((await send(op, 'POST', `/api/kb/answers/${r.id}/save`)).statusCode, 403);
 });
 
+test('ТЗ №4, E5: окно «Спросить ИИ» отвечает по базе через RAG (askKb): у HR без ключа ИИ — фрагмент статьи со ссылкой; вне базы — вопрос уходит в очередь', async () => {
+  const hr = await login('hr'), op = await login('op1');
+  const chat = (who: any, content: string) => send(who, 'POST', '/api/search/chat', { messages: [{ role: 'user', content }] });
+  // HR: помощника оператора у него нет, база знаний есть — и без ключа ИИ он получает ответ (режим extract), а не пустое «нет ответа»
+  const r = await chat(hr, 'За сколько дней возвращаются деньги при возврате?');
+  assert.equal(r.statusCode, 200, r.body);
+  const a = r.json();
+  assert.equal(a.mode, 'kb'); assert.equal(a.ai, false, 'ключа ИИ нет'); assert.equal(a.queued, false);
+  assert.ok(a.kb.citations.length >= 1, 'ответ по базе приходит со ссылками на статьи');
+  assert.equal(a.kb.citations[0].article_id, artId); assert.equal(a.kb.grounded, true); assert.ok(a.kb.answer.length > 20);
+  // в окне ответ — простым текстом: без маркеров markdown (в режиме extract это кусок статьи)
+  const { plainMd } = await import('../src/modules/search.js');
+  assert.equal(plainMd('## Порядок\n\n1. Согласуйте **даты** с `руководителем`.\n- пункт [ссылка](#/kb/3)\n\n\n\n> цитата'), 'Порядок\n\n1. Согласуйте даты с руководителем.\n• пункт ссылка\n\nцитата');
+  assert.doesNotMatch(a.answer, /^#|\*\*|`|\]\(/m, 'в ответе окна нет разметки markdown');
+  assert.deepEqual(a.sources.map((s: any) => s.id), a.kb.citations.map((c: any) => c.article_id), 'sources — те же статьи для ссылок в окне');
+  // оператору тот же ответ
+  assert.equal((await chat(op, 'За сколько дней возвращаются деньги при возврате?')).json().kb.citations[0].article_id, artId);
+  // вне базы: необоснованный ответ → вопрос уходит в очередь руководителя, как и раньше
+  const none = (await chat(hr, 'квантовая хромодинамика глюонов')).json();
+  assert.equal(none.kb.grounded, false); assert.equal(none.kb.citations.length, 0); assert.equal(none.mode, 'none'); assert.equal(none.queued, true);
+  assert.ok((await pool.query(`SELECT 1 FROM open_questions WHERE body LIKE 'квантовая хромодинамика%'`)).rows.length, 'необоснованный вопрос попал в очередь');
+  // вопросы о людях и данных идут прежним путём: askKb не вызывается, поля kb нет
+  const people = (await chat(op, 'Сколько книг прочитал Рустам?')).json();
+  assert.equal(people.kb, undefined);
+  // каждый вопрос по базе записан в журнал ответов
+  assert.ok((await pool.query(`SELECT 1 FROM kb_answers WHERE question LIKE 'За сколько дней%' AND user_id=(SELECT id FROM users WHERE login='hr')`)).rows.length);
+  // бухгалтерии (нет ни помощника, ни базы) окно по-прежнему закрыто
+  assert.equal((await chat(await login('buh'), 'привет')).statusCode, 403);
+});
+
 test('H: векторный поиск подключается провайдером эмбеддингов (заглушка)', async () => {
   // «эмбеддинг» — мешок слов по хэшу: синоним-«деньги» и «оплата» в одном измерении
   const dim = 64, h = (w: string) => [...w].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % dim;

@@ -130,3 +130,24 @@ test('Календарь отпусков: руководитель видит �
   assert.equal((await get(await login('op1'), '/api/leaves/calendar')).statusCode, 403);
   assert.ok((await get(await login('hr'), '/api/leaves/calendar')).json().people.length >= cal.people.length, 'HR видит всех');
 });
+
+test('Право на справки и заявки (ТЗ №4, I4 и правило 8): человек в штате без роли employee — стажёр с одной ролью newbie, администратор-человек — подаёт; служебная запись и внешнее подразделение нет', async () => {
+  const seed = await import('../src/seed.js');
+  await seed.createUser({ login: 'newbie1', name: 'Стажёр newbie', roles: ['newbie'], dept: 'call', password: 'demo12345', position: 'Стажёр' });
+  await seed.createUser({ login: 'owner1', name: 'Владелец портала', roles: ['admin'], dept: 'call', password: 'demo12345', position: 'Владелец' });
+  const cert = (who: any) => post(who, '/api/hr/certificates', { lang: 'ru' });
+  const leave = (who: any, from: string, to: string) => post(who, '/api/leaves/request', { kind: 'vacation', from, to });
+  const nb = await login('newbie1'), owner = await login('owner1');
+  assert.equal((await cert(nb)).statusCode, 200, 'стажёр newbie заказывает справку');
+  assert.equal((await leave(nb, ymd(100), ymd(102))).statusCode, 200, 'и подаёт заявку на отпуск');
+  assert.equal((await cert(owner)).statusCode, 200, 'администратор-человек (одна роль admin, не служебная запись) заказывает справку');
+  assert.equal((await leave(owner, ymd(110), ymd(111))).statusCode, 200);
+  // служебная запись (встроенный администратор) и внешнее подразделение — нет; признак users.is_system важнее ролей
+  const sys = await login('admin', 'admin-test-1');
+  assert.equal((await cert(sys)).statusCode, 403); assert.equal((await leave(sys, ymd(120), ymd(121))).statusCode, 403);
+  assert.equal((await cert(await login('ext1'))).statusCode, 403);
+  await pool.query(`UPDATE users SET is_system=true WHERE login='newbie1'`);
+  assert.equal((await cert(await login('newbie1'))).statusCode, 403, 'помечен служебным — справка закрыта, хотя роль newbie есть');
+  await pool.query(`UPDATE users SET is_system=false WHERE login='newbie1'`);
+  assert.equal((await cert(await login('newbie1'))).statusCode, 200);
+});
