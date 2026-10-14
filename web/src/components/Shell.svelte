@@ -131,7 +131,8 @@
     {/each}
   </div>
   <Wellness />
-  {#if can('assist')}<AssistChat />{/if}
+  <!-- «Спросить ИИ»: штатным с помощником оператора или базой знаний (HR — по базе), не внешним и не в мессенджере -->
+  {#if !app.user!.external && (can('assist') || can('kb')) && head !== 'chat'}<AssistChat />{/if}
   <Tour />
   <Dialogs />
 </div>

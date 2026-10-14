@@ -9,7 +9,7 @@ const ru: Record<string, string> = {
   // поиск
   sr_cands: 'Кандидаты', sr_open: 'Поиск', sr_ph: 'Поиск по порталу: база знаний, тесты, люди, чаты…', sr_sections: 'Разделы', sr_kb: 'База знаний', sr_tests: 'Тесты', sr_library: 'Библиотека', sr_people: 'Люди', sr_chats: 'Чаты',
   sr_none: 'Ничего не найдено', sr_ask: 'Спросить ИИ по базе знаний', sr_ask_hint: 'Нажмите Enter, чтобы спросить ИИ', sr_asking: 'Ищу ответ в базе знаний…', sr_answer: 'Ответ ИИ', sr_sources: 'Источники',
-  sr_queued: 'Ответа в базе нет. Мы передали вопрос в очередь — руководитель ответит и дополнит базу.', sr_queued_dup: 'Такой вопрос уже в очереди — мы учли ещё один голос.', sr_ai_off: 'ИИ сейчас не подключён.', sr_err: 'Ошибка ИИ',
+  sr_to_leader: 'Задать вопрос руководителю', sr_sent: 'Вопрос передан руководителю. Ответ вы увидите в «Заявках».', sr_ai_off: 'ИИ сейчас не подключён.', sr_err: 'Ошибка ИИ',
   sr_hint: 'Ctrl+K', sr_hint_keys: '↑↓ — выбор, Enter — открыть, Esc — закрыть', sr_person: 'Сотрудник', sr_msg_in: 'в канале',
   // ЗП
   pz_hidden: 'Суммы скрыты. Нажмите «Показать» — каждый просмотр записывается в журнал.', pz_show: 'Показать', pz_hide: 'Скрыть', pz_auto: 'скроются через {n} с', pz_load: 'Загрузка…',
@@ -53,7 +53,7 @@ const ru: Record<string, string> = {
   o_deleg_title: 'Замещение', o_deleg_hint: 'На срок отпуска заместитель получает ваши права и видит вашу ветку.', o_deleg_to: 'Кому', o_deleg_add: 'Делегировать', o_deleg_none: 'Активных замещений нет', o_acting: 'Вы замещаете руководителя',
   o_err: 'Не получилось. Проверьте данные.', o_err_level: 'Такой узел сюда не вкладывается.', o_err_cycle: 'Нельзя перенести узел внутрь самого себя.', o_drop_bad: 'Сюда нельзя',
   // окно-помощник оператора
-  ac_title: 'Помощник', ac_hello: 'Опишите вопрос клиента или свой. Я посмотрю в базе знаний; если там нет — предложу готовый ответ и передам вопрос руководителю.', ac_ph: 'Вопрос или ситуация…', ac_send: 'Отправить',
+  ac_title: 'Спросить ИИ', ac_hello: 'Опишите вопрос клиента или свой. Я посмотрю в базе знаний; если там нет — предложу готовый ответ и передам вопрос руководителю.', ac_ph: 'Вопрос или ситуация…', ac_send: 'Отправить',
   ac_from_kb: 'Из базы знаний', ac_general: 'Не из базы компании — проверьте', ac_reply: 'Готовый ответ клиенту', ac_copy: 'Скопировать', ac_copied: 'Скопировано', ac_busy: 'Ищу ответ…',
   ac_none: 'Точного ответа не нашлось.', ac_queued: 'Вопрос сохранён и передан руководителю — он ответит и дополнит базу.', ac_queued_dup: 'Такой вопрос уже ждёт ответа руководителя — мы учли ещё один голос.',
   ac_limit: 'Дневной лимит вопросов к ИИ исчерпан.', ac_err: 'Не получилось. Попробуйте ещё раз.', ac_priv: 'Телефоны и номера клиентов в ИИ не передаются.',
@@ -84,7 +84,7 @@ const uz: Record<string, string> = {
   nt_today: 'Bugun', nt_earlier: 'Avvalroq', nt_mark: 'O‘qilgan deb belgilash', nt_chat_unread: 'O‘qilmagan xabarlar', nt_close: 'Yopish', nt_unread_n: 'Yangi: {n}',
   sr_cands: 'Nomzodlar', sr_open: 'Qidiruv', sr_ph: 'Portal bo‘yicha qidiruv: bilimlar bazasi, testlar, odamlar, chatlar…', sr_sections: 'Bo‘limlar', sr_kb: 'Bilimlar bazasi', sr_tests: 'Testlar', sr_library: 'Kutubxona', sr_people: 'Odamlar', sr_chats: 'Chatlar',
   sr_none: 'Hech narsa topilmadi', sr_ask: 'Bilimlar bazasi bo‘yicha AIdan so‘rash', sr_ask_hint: 'AIdan so‘rash uchun Enter bosing', sr_asking: 'Bilimlar bazasidan javob qidiryapman…', sr_answer: 'AI javobi', sr_sources: 'Manbalar',
-  sr_queued: 'Bazada javob yo‘q. Savolingiz navbatga yuborildi — rahbar javob beradi va bazani to‘ldiradi.', sr_queued_dup: 'Bunday savol navbatda bor — yana bir ovoz hisobga olindi.', sr_ai_off: 'AI hozir ulanmagan.', sr_err: 'AI xatosi',
+  sr_to_leader: 'Rahbarga savol berish', sr_sent: 'Savol rahbarga yuborildi. Javobni «Arizalar»da ko‘rasiz.', sr_ai_off: 'AI hozir ulanmagan.', sr_err: 'AI xatosi',
   sr_hint: 'Ctrl+K', sr_hint_keys: '↑↓ — tanlash, Enter — ochish, Esc — yopish', sr_person: 'Xodim', sr_msg_in: 'kanalda',
   pz_hidden: 'Summalar yashirilgan. «Ko‘rsatish»ni bosing — har bir ko‘rish jurnalga yoziladi.', pz_show: 'Ko‘rsatish', pz_hide: 'Yashirish', pz_auto: '{n} soniyadan keyin yashiriladi', pz_load: 'Yuklanmoqda…',
   hp_title: 'Portaldan foydalanish', hp_sub: 'Bo‘limlar bo‘yicha qisqa yo‘riqnomalar',
@@ -121,7 +121,7 @@ const uz: Record<string, string> = {
   o_import_pw: 'Yangi xodimlarning vaqtinchalik parollari (bir marta ko‘rsatiladi):', o_import_err: 'Fayldagi xatolar', o_import_hint: 'Fayl eksportdagidek: «Tuzilma» va «Xodimlar» varaqlari.',
   o_deleg_title: 'O‘rinbosarlik', o_deleg_hint: 'Ta’til muddatiga o‘rinbosar sizning huquqlaringizni oladi va shoxobchangizni ko‘radi.', o_deleg_to: 'Kimga', o_deleg_add: 'Topshirish', o_deleg_none: 'Faol o‘rinbosarliklar yo‘q', o_acting: 'Siz rahbar o‘rnini bosyapsiz',
   o_err: 'Bajarib bo‘lmadi. Ma’lumotlarni tekshiring.', o_err_level: 'Bunday bo‘linma bu yerga qo‘yilmaydi.', o_err_cycle: 'Bo‘linmani o‘z ichiga ko‘chirib bo‘lmaydi.', o_drop_bad: 'Bu yerga mumkin emas',
-  ac_title: 'Yordamchi', ac_hello: 'Mijoz yoki o‘z savolingizni yozing. Bilimlar bazasidan qidiraman; topilmasa — tayyor javob taklif qilib, savolni rahbarga yuboraman.', ac_ph: 'Savol yoki vaziyat…', ac_send: 'Yuborish',
+  ac_title: 'AI’dan so‘rash', ac_hello: 'Mijoz yoki o‘z savolingizni yozing. Bilimlar bazasidan qidiraman; topilmasa — tayyor javob taklif qilib, savolni rahbarga yuboraman.', ac_ph: 'Savol yoki vaziyat…', ac_send: 'Yuborish',
   ac_from_kb: 'Bilimlar bazasidan', ac_general: 'Kompaniya bazasidan emas — tekshiring', ac_reply: 'Mijozga tayyor javob', ac_copy: 'Nusxalash', ac_copied: 'Nusxalandi', ac_busy: 'Javob qidiryapman…',
   ac_none: 'Aniq javob topilmadi.', ac_queued: 'Savol saqlandi va rahbarga yuborildi — u javob berib, bazani to‘ldiradi.', ac_queued_dup: 'Bunday savol rahbar javobini kutyapti — yana bir ovoz hisobga olindi.',
   ac_limit: 'AI’ga kunlik savollar limiti tugadi.', ac_err: 'Bajarib bo‘lmadi. Qayta urinib ko‘ring.', ac_priv: 'Mijozlarning telefon va raqamlari AI’ga yuborilmaydi.',

@@ -11,6 +11,7 @@ import { buildPlatform } from '../assist-data.js';
 import { urlAllowed } from '../access.js';
 import { SYSTEM_USER_SQL } from '../org-core.js';
 import { enqueue } from '../jobs.js';
+import { askKb } from '../kb-rag.js';
 
 const like = (s: string) => `%${s.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 const normText = (s: string) => [...new Set(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2))].sort().join(' ');
@@ -132,8 +133,21 @@ export async function searchRoutes(app: FastifyInstance) {
     const [arts, plat] = await Promise.all([searchArticles(last, u.dept_id), buildPlatform(u, users)]);
     const kbIntent = plat.intent === 'kb';            // вопросы о людях и данных — не пробел в базе знаний, в очередь они не идут
     const queue = async () => (kbIntent ? { queued: true, ...(await queueQuestion(u, last, { source: 'search' })) } : { queued: false });
+    // ТЗ №4, E5: ответ по базе знаний берём из RAG (askKb): поиск по словам и по смыслу, ответ только по найденным фрагментам, со ссылками. Вызов стоит ДО проверки, подключён ли ИИ:
+    // без ключа askKb сам отвечает фрагментом статьи (режим extract), а ранний plain() оставил бы без ответа тех, у кого нет помощника оператора, но есть база знаний (HR).
+    // Обоснованный ответ возвращается сразу; необоснованный (grounded=false) идёт дальше как раньше: общий совет ИИ с пометкой «не из базы» и вопрос руководителю в очередь.
+    let kb: { answer: string; grounded: boolean; citations: { n: number; article_id: number; title: string }[] } | null = null;
+    if (kbIntent) {
+      const a = await askKb({ id: u.id, dept_id: u.dept_id, lang: u.lang }, last);
+      kb = { answer: a.answer, grounded: a.grounded, citations: a.citations };
+      if (a.grounded) {
+        await audit(req, 'ai_search', `chat_kb_${a.mode}`);
+        return { mode: 'kb', ai: a.mode === 'ai', answer: a.answer.slice(0, 900), reply: '', sources: a.citations.map((c) => ({ id: c.article_id, title: c.title })), kb, queued: false };
+      }
+    }
+    const withKb = <T extends object>(v: T) => (kb ? { ...v, kb } : v);
     const role = plat.intent === 'team' || plat.intent === 'person' ? 'analyst' : plat.intent === 'self' ? 'mentor' : 'search';
-    const plain = async () => ({ mode: 'none', ai: false, ...(arts.length ? { queued: false } : await queue()) });   // ИИ недоступен: статьи и данные клиент уже показал
+    const plain = async () => withKb({ mode: 'none', ai: false, ...(arts.length ? { queued: false } : await queue()) });   // ИИ недоступен: статьи и данные клиент уже показал
     if (!(await aiStatus(role)).available) return plain();
     const g = await takeAi(u.id);
     if (g !== 'ok') return { ...(await plain()), limit: g === 'limit' };
@@ -152,10 +166,10 @@ export async function searchRoutes(app: FastifyInstance) {
       let mode = out?.source === 'kb' && sources.length ? 'kb' : out?.source === 'data' && !kbIntent ? 'data' : out?.source === 'general' ? 'general' : 'none';
       if (!out?.answer?.trim()) mode = 'none';
       await audit(req, 'ai_search', `chat_${plat.intent}_${mode}`);
-      if (mode === 'none') return { mode, ai: true, ...(await queue()) };
+      if (mode === 'none') return withKb({ mode, ai: true, ...(await queue()) });
       const v: Record<string, unknown> = { mode, ai: true, answer: String(out!.answer).slice(0, 900), reply: String(out!.reply ?? '').slice(0, 600), sources: rows.filter((r) => sources.includes(Number(r.id))).map((r) => ({ id: r.id, title: lang === 'uz' ? r.title_uz || r.title_ru : r.title_ru })) };
       // ответ не из базы — вопрос всё равно фиксируем, чтобы руководитель дополнил базу
-      return mode === 'general' ? { ...v, ...(await queue()) } : { ...v, queued: false };
+      return withKb(mode === 'general' ? { ...v, ...(await queue()) } : { ...v, queued: false });
     } catch (e: any) {
       if (!(e instanceof AiUnavailable)) { req.log.error(e); await audit(req, 'ai_search', 'chat_error', { error: String(e?.message ?? e).slice(0, 200) }); }
       return { ...(await plain()), error: !(e instanceof AiUnavailable) && hasRole(u, 'admin') ? String(e?.message ?? e).slice(0, 300) : undefined };

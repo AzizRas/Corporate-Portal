@@ -83,18 +83,24 @@
     hide(); go(t.route);
     setTimeout(() => pointAt(targets, t.title[app.lang], stepsOf(t.id)[0] ?? '', t.group), 450);
   }
+  let sent = $state(false);        // вопрос руководителю отправлен
   async function ask() {
     const text = q.trim();
     if (text.length < 3 || asking) return;
-    asking = true; ans = null;
+    asking = true; ans = null; sent = false;
     try {
-      // сначала «как это сделать в портале»: подсказка со шагами и подсветкой кнопки; если такой темы нет — ответ по базе знаний
+      // сначала «как это сделать в портале»: подсказка со шагами и подсветкой кнопки; если такой темы нет — ответ по базе знаний (RAG: ответ только по статьям, со ссылками на них)
       const h = await api.post('/api/help/ask', { query: text });
       if (h.topic) { ans = { help: h }; return; }
-      ans = await api.post('/api/search/ask', { query: text });
+      ans = { kb: await api.post('/api/kb/ask', { question: text }) };
     }
-    catch (e) { ans = { found: false, error: e instanceof ApiError ? e.code : 'error' }; }
+    catch (e) { ans = { error: e instanceof ApiError ? e.code : 'error' }; }
     finally { asking = false; }
+  }
+  // ответа в базе нет — человек сам решает, задать ли вопрос руководителю; ответ он увидит в «Заявках»
+  async function toLeader() {
+    try { await api.post('/api/questions', { body: q.trim() }); sent = true; }
+    catch (e) { ans = { error: e instanceof ApiError ? e.code : 'error' }; }
   }
   function key(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open ? hide() : show(); return; }
@@ -157,15 +163,24 @@
           <div class="sr-ans">
             {#if ans.help}
               {@render helpCard(ans.help)}
-            {:else if ans.found}
+            {:else if ans.kb}
+              {@const k = ans.kb}
               <div class="muted xs">{wt('sr_answer')}</div>
-              <p class="u-94badf9">{ans.answer}</p>
-              <div class="muted xs u-fe7b497">{wt('sr_sources')}</div>
-              <div class="row wrap u-c231079">{#each ans.sources as s}<a class="chip" href="#/kb/{s.id}" onclick={hide}>{s.title}</a>{/each}</div>
-              <div class="u-d2c171b"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
+              <p class="u-94badf9">{k.answer}</p>
+              {#if k.mode === 'extract'}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}
+              {#if k.citations?.length}
+                <div class="muted xs u-fe7b497">{wt('sr_sources')}</div>
+                <div class="row wrap u-c231079">{#each k.citations as c}<a class="chip" href="#/kb/{c.article_id}" onclick={hide}>{c.title}</a>{/each}</div>
+              {/if}
+              {#if k.grounded}
+                <div class="u-d2c171b"><AiFeedback role="search" refId={'search:' + qhash(q)} /></div>
+              {:else if sent}
+                <p class="small">{wt('sr_sent')}</p>
+              {:else}
+                <button class="btn sm grad" onclick={toLeader}>{wt('sr_to_leader')}</button>
+              {/if}
             {:else}
-              <p class="small">{ans.queued ? (ans.dup ? wt('sr_queued_dup') : wt('sr_queued')) : wt('sr_none')}</p>
-              {#if ans.ai === false && !ans.error}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}
+              <p class="small">{wt('sr_none')}</p>
               {#if ans.error}<p class="xs u-ae5afff">{wt('sr_err')}: {ans.error}</p>{/if}
             {/if}
           </div>

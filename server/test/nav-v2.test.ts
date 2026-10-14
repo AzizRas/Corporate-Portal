@@ -1333,3 +1333,42 @@ test('E4 «Словарь»: «Больше не используются» — 
   const g = web('lib/glossary.ts');
   assert.doesNotMatch(g, /^import /m); assert.doesNotMatch(g, /[\u{1F300}-\u{1FAFF}✅✨➤⏳⏰]/u);
 });
+
+/* ================= E5. Кнопка «Спросить ИИ» ================= */
+test('E5 «Спросить ИИ»: подпись и значок вместо ✦, показ по разделам assist или kb и не в мессенджере, на телефоне круг 52 px над нижней панелью', async () => {
+  const ac = web('components/AssistChat.svelte'), shell = web('components/Shell.svelte'), d = dictOf(web('lib/w18n.ts'));
+  assert.equal(d.ru.ac_title, 'Спросить ИИ'); assert.equal(d.uz.ac_title, 'AI’dan so‘rash');
+  assert.doesNotMatch(ac, /✦/, 'символ ✦ без подписи заменён значком'); assert.match(ac, /<Icon name="spark" \/>/);
+  assert.match(ac, /<span class="ac-fab-t">\{wt\('ac_title'\)\}<\/span>/, 'на компьютере у кнопки видна подпись');
+  assert.match(ac, /class="ac-fab"[^>]*aria-label=\{wt\('ac_title'\)\}/, 'на телефоне подпись — в aria-label');
+  assert.match(ac, /\.ac-fab-t \{ display: none; \}/); assert.match(ac, /width: 52px; height: 52px;/); assert.match(ac, /bottom: calc\(96px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(ac, /color: var\(--grad-ink\)/, 'надпись в паре grad-ink/grad, которую проверяет contrast.mjs'); assert.doesNotMatch(ac, /style="/);
+  // условия показа: не внешнему, раздел assist ИЛИ kb (HR видит кнопку), не на /chat — и в оболочке, и в самом компоненте
+  assert.match(shell, /\{#if !app\.user!\.external && \(can\('assist'\) \|\| can\('kb'\)\) && head !== 'chat'\}<AssistChat \/>\{\/if\}/);
+  assert.match(ac, /app\.route\.split\('\?'\)\[0\]\.split\('\/'\)\.filter\(Boolean\)\[0\] === 'chat'/); assert.match(ac, /\{#if app\.user && !app\.user\.external && !onChat\}/);
+  const { PAIRS } = await import('../../web/scripts/contrast.mjs');
+  assert.ok((PAIRS as unknown[][]).some((p) => p[0] === 'grad-ink' && p[1] === 'grad' && p[2] === 4.5));
+  // Ctrl+K: после темы справки — ответ по базе знаний (RAG), без ответа — кнопка «Задать вопрос руководителю» → POST /api/questions
+  const search = web('components/Search.svelte');
+  assert.match(search, /api\.post\('\/api\/kb\/ask', \{ question: text \}\)/); assert.match(search, /api\.post\('\/api\/questions', \{ body: q\.trim\(\) \}\)/);
+  assert.doesNotMatch(search, /\/api\/search\/ask/, 'клиент больше не ходит в старый конвейер'); assert.match(search, /wt\('sr_to_leader'\)/); assert.match(search, /\{#if k\.grounded\}/);
+  assert.ok(search.indexOf("api.post('/api/help/ask'") < search.indexOf("api.post('/api/kb/ask'"), 'сначала тема справки');
+  assert.match(fs.readFileSync(serverUrl('modules/search.ts'), 'utf8'), /app\.post\('\/api\/search\/ask'/, 'старый эндпоинт оставлен: на него есть тесты');
+  for (const k of ['sr_to_leader', 'sr_sent']) assert.ok(d.ru[k] && d.uz[k], k);
+  assert.equal(d.ru.sr_to_leader, 'Задать вопрос руководителю'); assert.equal(d.uz.sr_to_leader, 'Rahbarga savol berish');
+  assert.ok(!d.ru.sr_queued && !d.uz.sr_queued && !d.ru.sr_queued_dup, 'ключи старого конвейера удалены');
+});
+
+test('E5 «Спросить ИИ» (сервер): askKb вызывается для вопросов по базе знаний до проверки ИИ; ответ — поле kb { answer, grounded, citations }; необоснованный идёт в очередь', () => {
+  const srv = fs.readFileSync(serverUrl('modules/search.ts'), 'utf8');
+  const chat = srv.slice(srv.indexOf("app.post('/api/search/chat'"));
+  assert.match(srv, /import \{ askKb \} from '\.\.\/kb-rag\.js'/);
+  assert.match(chat, /if \(kbIntent\) \{\s*const a = await askKb\(\{ id: u\.id, dept_id: u\.dept_id, lang: u\.lang \}, last\);/);
+  assert.match(chat, /kb = \{ answer: a\.answer, grounded: a\.grounded, citations: a\.citations \};/);
+  assert.ok(chat.indexOf('await askKb(') > 0 && chat.indexOf('await askKb(') < chat.indexOf('if (!(await aiStatus(role)).available) return plain();'), 'askKb — до строки «ИИ недоступен → plain()»');
+  assert.ok(chat.indexOf('await askKb(') < chat.indexOf('await takeAi(u.id)'));
+  assert.match(chat, /if \(a\.grounded\) \{/); assert.match(chat, /sources: a\.citations\.map\(\(c\) => \(\{ id: c\.article_id, title: c\.title \}\)\)/);
+  assert.match(chat, /const withKb = /, 'поле kb приходит и в необоснованных ответах'); assert.match(chat, /queueQuestion\(u, last, \{ source: 'search' \}\)/, 'очередь вопросов осталась');
+  // вопросы о людях и данных (team, person, self) askKb не трогают: он вызывается только при intent === 'kb'
+  assert.match(chat, /const kbIntent = plat\.intent === 'kb'/); assert.equal((chat.match(/await askKb\(/g) ?? []).length, 1);
+});
