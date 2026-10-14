@@ -81,6 +81,8 @@ test('Стабилизация E1: страницы под вкладкой ме
   assert.match(p, /q_title: 'Вопросы сотрудников'/); assert.match(p, /q_title: 'Xodimlar savollari'/);
   const h = web('hire/Hire.svelte');
   assert.match(h, /import \{ pageTitle \} from '\.\.\/lib\/nav'/); assert.match(h, /<h1>\{pageTitle\(app\.route, ht\('hTitleP'\)\)\}<\/h1>/, 'заголовок Найма — подпись открытой вкладки (Вакансии, Кандидаты, Подбор …)');
+  // «Обзор» команды: заголовок страницы — подпись вкладки, а не второе «Моя команда» под названием раздела
+  assert.match(web('pages/Team.svelte'), /<h1>\{pageTitle\(app\.route, t\('nav_team'\)\)\}<PageHelp topic="panel_team" \/><\/h1>/);
   // слова «ИИ-наставник» и «наставник» про ИИ в подписях интерфейса не используются (глоссарий §3.7); в glossary.ts они остаются как «больше не используются»
   for (const f of ['lib/i18n.ts', 'admin/a18n.ts', 'ai/e18n.ts', 'growth/g18n.ts']) assert.doesNotMatch(web(f), /ИИ-наставник|AI-murabbiy/, f);
   assert.match(web('lib/i18n.ts'), /path_mentor: 'ИИ-советник'/); assert.match(web('lib/i18n.ts'), /path_mentor: 'AI-maslahatchi'/);

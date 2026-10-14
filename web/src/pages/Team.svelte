@@ -1,7 +1,8 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
   import { api } from '../lib/api';
-  import { has } from '../lib/state.svelte';
+  import { app, has } from '../lib/state.svelte';
+  import { pageTitle } from '../lib/nav';
   import { t } from '../lib/i18n';
   import { fmtTime, fmtDate } from '../lib/format';
   import Ring from '../components/Ring.svelte';
@@ -27,7 +28,7 @@
 </script>
 
 {#if id}<Member {id} />{:else}
-<header class="page-head"><div><h1>{t('nav_team')}<PageHelp topic="panel_team" /></h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a><a class="btn" href="#/leaves">{wt('i_leaves')}</a></div></header>
+<header class="page-head"><div><h1>{pageTitle(app.route, t('nav_team'))}<PageHelp topic="panel_team" /></h1></div><div class="head-actions"><a class="btn" href="#/schedule/team">{st('n_schedule')}</a><a class="btn" href="#/leaves">{wt('i_leaves')}</a></div></header>
 <Members />
 <Panel />
 <div class="grid u-e3865e7">
