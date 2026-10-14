@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { has } from '../lib/state.svelte';
+  import { adminHome } from '../lib/nav';
+  import { wt } from '../lib/w18n';
   import Users from './Users.svelte';
   import PayrollAdmin from './PayrollAdmin.svelte';
   import AttendanceAdmin from './AttendanceAdmin.svelte';
@@ -20,32 +21,14 @@
   import DecideAdmin from './DecideAdmin.svelte';
   import PlatformAdmin from './PlatformAdmin.svelte';
 
+  // Режим «Управление» (ТЗ №4, A7): группы и вкладки рисует HubTabs по реестру пунктов (nav.ts → ADMIN_HUBS), подписи ru/uz лежат в w18n.ts (ai_*, m_*),
+  // а видимость задаёт реестр, а не эта страница. Здесь только выбор страницы по первому сегменту после /admin; новые адреса (org, onboarding, leaves, offboarding,
+  // analytics, reviews, reserve, questions, editor) показывает Router, пока эпик J не разнесёт старые многоцелевые страницы.
   let { parts }: { parts: string[] } = $props();
-  const tabs = $derived([
-    has('hr') && { id: 'users', l: 'Сотрудники' },
-    has('accountant') && { id: 'payroll', l: 'Зарплата и KPI' },
-    has('admin') && { id: 'attendance', l: 'Приход' },
-    has('editor', 'hr') && { id: 'kb', l: 'База знаний' },
-    has('editor', 'hr') && { id: 'wiki', l: 'Вики: источники и проверка' },
-    has('hr') && { id: 'growth', l: 'Модель роста' },
-    has('hr', 'editor', 'head') && { id: 'training', l: 'Обучение' },
-    has('hr', 'editor') && { id: 'tests', l: 'Тесты' },
-    has('hr') && { id: 'wellness', l: 'Напоминания' },
-    has('editor') && { id: 'assist', l: 'Помощник оператора' },
-    has('hr', 'accountant') && { id: 'requests', l: 'Заявки' },
-    has('admin') && { id: 'access', l: 'Доступ к разделам' },
-    has('admin') && { id: 'usage', l: 'Использование разделов' },
-    has('admin') && { id: 'ai', l: 'ИИ' },
-    has('admin') && { id: 'decide', l: 'Решения (Jev)' },
-    has('admin', 'hr') && { id: 'platform', l: 'Стикеры и безопасность' },
-    has('admin') && { id: 'tour', l: 'Обучение порталу' },
-    has('admin') && { id: 'audit', l: 'Журнал' },
-  ].filter(Boolean) as { id: string; l: string }[]);
-  const cur = $derived(parts[0] ?? tabs[0]?.id);
+  const cur = $derived(parts[0]);
+  // /admin без вкладки ведёт на первую доступную вкладку режима (обычно это делает REDIRECTS ещё до отрисовки)
+  $effect(() => { if (!cur) { const first = adminHome(); if (first) location.replace('#' + first); } });
 </script>
-
-<header class="page-head"><div><h1>Админка</h1></div></header>
-<nav class="tabs">{#each tabs as tb}<a href="#/admin/{tb.id}" class:on={cur === tb.id}>{tb.l}</a>{/each}</nav>
 
 {#if cur === 'users'}<Users />
 {:else if cur === 'payroll'}<PayrollAdmin />
@@ -65,4 +48,4 @@
 {:else if cur === 'ai'}<AiAdmin />
 {:else if cur === 'tour'}<TourStats />
 {:else if cur === 'audit'}<Audit />
-{:else}<p class="muted">Нет доступных разделов</p>{/if}
+{:else if cur}<section class="card stack"><h2>{wt('na_title')}</h2><p class="muted">{wt('na_text')}</p><div><a class="btn grad" href="#/home">{wt('na_home')}</a></div></section>{/if}
