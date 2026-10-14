@@ -544,3 +544,230 @@ test('A5 «Оболочка»: «Ещё» на телефоне берёт пу�
   assert.match(nv, /export const landing = \(\): string => pickLanding\(\(s\) => \{/); assert.match(nv, /return s === 'inbox' \|\| can\(s\);/);
   assert.match(nv, /if \(ext\) return s !== 'home' && s !== 'inbox' && \(s === 'help' \|\| ext\.includes\(s\)\);/, 'внешнему открывается первый разрешённый узлу раздел, а не «Главная»');
 });
+
+/* ================= A6. Подзаголовок «для кого», один ряд вкладок, Segmented ================= */
+const ROW_FILES = ['training/Training.svelte', 'growth/Growth.svelte', 'pages/Profile.svelte', 'tests/Tests.svelte', 'pages/Schedule.svelte', 'pages/HrHub.svelte', 'admin/Admin.svelte', 'org/Structure.svelte', 'hire/Hire.svelte', 'ai/Assistant.svelte'];
+
+test('A6 «Один ряд»: у страниц раздела нет своих рядов вкладок — вкладки рисует только HubTabs', () => {
+  for (const f of ROW_FILES) {
+    const s = web(f);
+    assert.doesNotMatch(s, /<nav class="tabs"/, `${f}: свой ряд вкладок-ссылок`);
+    assert.doesNotMatch(s, /<div class="tabs" role="tablist"/, `${f}: свой ряд вкладок`);
+    assert.doesNotMatch(s, /style="/, `${f}: встроенных стилей нет`);
+  }
+  // переключатели-фильтры остаются: язык, тема и плотность в профиле — это не навигация
+  assert.match(web('pages/Profile.svelte'), /setLang\('ru'\)/);
+  // ряд вкладок рисует HubTabs, единственный компонент с <nav class="tabs hub-tabs">
+  const hubTabs = web('components/HubTabs.svelte');
+  assert.match(hubTabs, /<nav class="tabs hub-tabs"/);
+  const rows = walk(dirOf(webUrl('src/components/'))).filter((f) => /<nav class="tabs/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.basename(f));
+  assert.deepEqual(rows, ['HubTabs.svelte'], 'среди общих компонентов ряд вкладок только в HubTabs');
+});
+
+test('A6 «Подзаголовок»: HubTabs выводит название раздела, строку «для кого» и значки вкладок; у раздела с одной вкладкой — только заголовок', () => {
+  const t = web('components/HubTabs.svelte');
+  assert.match(t, /sub: string/, 'проп sub');
+  assert.match(t, /<header class="hub-head">\s*<h2>\{title\}<\/h2>\s*\{#if sub\}<p class="muted small">\{sub\}<\/p>\{\/if\}\s*<\/header>/);
+  assert.match(t, /\{#if items\.length > 1\}/, 'ряд вкладок рисуется, только если вкладок больше одной');
+  assert.match(t, /<Icon inline name=\{i\.icon\} \/>/, 'у вкладки значок слева от подписи');
+  assert.match(t, /data-tour=\{'nav-' \+ i\.id\}/); assert.match(t, /aria-current=/);
+  const shell = web('components/Shell.svelte');
+  assert.match(shell, /<HubTabs items=\{curHub\.items\}[^>]*sub=\{/, 'оболочка передаёт sub');
+  assert.match(shell, /wt\('hs_' \+ curHub\.id\)/); assert.doesNotMatch(shell, /curHub\.items\.length > 1/, 'заголовок виден и у раздела с одной вкладкой');
+  assert.match(shell, /key !== 'chat'/, 'мессенджер занимает всю область и свой заголовок рисует сам');
+  // подзаголовок есть у каждого из 7 разделов на двух языках; у групп «Управления» его нет, оболочка передаёт пустую строку
+  assert.match(shell, /curHub\.id\.startsWith\('m_'\) \? ''/);
+  const w = web('lib/w18n.ts'), uz = w.indexOf('const uz');
+  for (const h of nav.HUBS) { assert.match(w.slice(0, uz), new RegExp(`\\bhs_${h.id}: '[^']+'`)); assert.match(w.slice(uz), new RegExp(`\\bhs_${h.id}: '[^']+'`)); }
+  assert.match(web('pages/More.svelte'), /wt\('hs_' \+ g\.id\)/, '«Ещё» показывает ту же строку под названием раздела');
+});
+
+test('A6 «Segmented»: переключатель-фильтр с ролью radiogroup, который не заменяет вкладки раздела', () => {
+  const seg = web('components/Segmented.svelte');
+  assert.match(seg, /role="radiogroup"/); assert.match(seg, /role="radio"/); assert.match(seg, /aria-checked=\{value === o\.id\}/); assert.match(seg, /aria-label=\{label\}/);
+  assert.match(seg, /options: \{ id: string; label: string; badge\?: number \}\[\]; value: string; onchange: \(id: string\) => void; label: string/);
+  assert.match(seg, /min-height: var\(--tap\)/); assert.match(seg, /background: var\(--card-2\)/); assert.match(seg, /border-radius: var\(--r-2\)/);
+  assert.match(seg, /ArrowRight/, 'стрелками меняется выбор'); assert.match(seg, /tabindex=/, 'в группу заходят одной точкой Tab');
+  assert.doesNotMatch(seg, /style="/);
+  // где применён: «Каталог / Мои результаты», «Разбор ситуаций / Чек-лист руководителя», «Профиль / Настройки» и режимы «Структуры»
+  for (const f of ['tests/Tests.svelte', 'ai/Assistant.svelte', 'pages/Profile.svelte', 'org/Structure.svelte']) {
+    const s = web(f);
+    assert.match(s, /import Segmented from '\.\.\/components\/Segmented\.svelte'/, f); assert.match(s, /<Segmented\b/, f);
+  }
+  const tests = web('tests/Tests.svelte');
+  assert.match(tests, /\/tests\?view=history/); assert.doesNotMatch(tests, /TestTeam/, 'результаты команды переехали в «Мою команду»');
+  const w = web('tests/t18n.ts');
+  assert.match(w, /tab_catalog: 'Каталог', tab_history: 'Мои результаты'/); assert.match(w, /tab_catalog: 'Katalog', tab_history: 'Mening natijalarim'/);
+  const ai = web('ai/Assistant.svelte'), e = web('ai/e18n.ts');
+  assert.match(ai, /<Modal onclose=\{\(\) => \(askOpen = false\)\}>/, '«Спросить ИИ» открывается окном');
+  assert.match(e, /a_tab_trainer: 'Разбор ситуаций', a_tab_plan: 'Чек-лист руководителя', a_tab_ask: 'Спросить ИИ'/);
+  assert.match(e, /a_tab_trainer: 'Vaziyatlar tahlili', a_tab_plan: 'Rahbar cheklisti', a_tab_ask: 'AI’dan so‘rash'/);
+  // обучение, рост, график, найм и кадры получают вкладку пропсом/адресом и не тянут чужие страницы
+  assert.doesNotMatch(web('training/Training.svelte'), /import Team from/); assert.doesNotMatch(web('growth/Growth.svelte'), /Reserve|has\(|lead\(/);
+  assert.doesNotMatch(web('pages/Profile.svelte'), /HrRequests/); assert.doesNotMatch(web('pages/HrHub.svelte'), /onclick=\{\(\) => \(tab = /);
+});
+
+test('A6 «Segmented»: пара «выбранный вариант» проходит проверку контраста', async () => {
+  const { PAIRS, themes, ratio } = await import('../../web/scripts/contrast.mjs');
+  assert.ok((PAIRS as unknown[][]).some((p) => p[0] === 'chip-on-ink' && p[1] === 'chip-on-bg' && p[2] === 4.5));
+  const t = themes(web('app.css'));
+  for (const th of ['dark', 'light']) assert.ok(ratio(t[th]['chip-on-ink'], t[th]['chip-on-bg']) >= 4.5, th);
+});
+
+/* ================= A7. «Управление»: вкладки по группам ================= */
+/** Подписи вкладок режима «Управление» по таблице ТЗ №4 §3.5: id → [ru, uz] */
+const ADMIN_LABELS: Record<string, [string, string]> = {
+  a_users: ['Учёт сотрудников', 'Xodimlar hisobi'], a_org: ['Структура', 'Tuzilma'], a_onboarding: ['Адаптация', 'Moslashuv'], a_leaves: ['Отпуска и календарь', 'Ta’tillar va kalendar'],
+  a_attendance: ['Учёт прихода', 'Kelish hisobi'], a_offboarding: ['Увольнения', 'Ishdan bo‘shash'], a_analytics: ['Аналитика', 'Tahlil'],
+  h_vac: ['Вакансии', 'Vakansiyalar'], h_people: ['Кандидаты', 'Nomzodlar'], h_req: ['Заявки на подбор', 'Xodim so‘rovlari'], h_cal: ['Собеседования', 'Suhbatlar'],
+  h_rep: ['Отчёты по найму', 'Yollash hisobotlari'], h_cfg: ['Настройки найма', 'Yollash sozlamalari'],
+  a_reviews: ['Циклы 360°', '360° davralari'], a_reserve: ['Резерв и 9-box', 'Zaxira va 9-box'], a_growth: ['Модель роста', 'O‘sish modeli'],
+  a_training: ['Курсы и уроки', 'Kurslar va darslar'], a_tests: ['Тесты и опросы', 'Testlar va so‘rovnomalar'],
+  a_kb: ['База знаний', 'Bilimlar bazasi'], a_wiki: ['Источники базы', 'Baza manbalari'], a_assist: ['Помощник оператора', 'Operator yordamchisi'],
+  a_questions: ['Вопросы сотрудников', 'Xodimlar savollari'], a_editor: ['ИИ-редактор', 'AI-muharrir'], a_stickers: ['Стикеры', 'Stikerlar'],
+  a_payroll: ['Расчёт и KPI', 'Hisob-kitob va KPI'], a_requests: ['Вопросы по зарплате', 'Maosh bo‘yicha savollar'],
+  a_access: ['Доступ к разделам', 'Bo‘limlarga kirish'], a_security: ['Безопасность и чат', 'Xavfsizlik va chat'], a_ai: ['ИИ', 'AI'], a_decide: ['Решения ИИ (Jev)', 'AI qarorlari (Jev)'],
+  a_wellness: ['Напоминания о паузах', 'Tanaffus eslatmalari'], a_usage: ['Использование портала', 'Portaldan foydalanish'], a_audit: ['Журнал действий', 'Harakatlar jurnali'],
+};
+const GROUP_LABELS: Record<string, [string, string]> = {
+  m_staff: ['Кадры', 'Kadrlar'], m_hire: ['Найм', 'Yollash'], m_talent: ['Оценка и рост', 'Baholash va o‘sish'], m_learn: ['Курсы и тесты', 'Kurslar va testlar'],
+  m_content: ['Контент', 'Kontent'], m_pay: ['Зарплата', 'Maosh'], m_system: ['Система', 'Tizim'],
+};
+
+test('A7 «Управление»: у Admin.svelte нет своих вкладок и русских подписей; подписи ru/uz всех пунктов и 7 групп — по таблице §3.5', () => {
+  const admin = web('admin/Admin.svelte');
+  assert.doesNotMatch(admin, /const tabs/); assert.doesNotMatch(admin, /<nav class="tabs"/);
+  assert.doesNotMatch(admin, /l: '[^']*[А-Яа-яЁё]/, 'подписей вкладок в Admin.svelte нет'); assert.doesNotMatch(admin, /<h1>Админка<\/h1>/, 'заголовок страницы — название группы, его рисует HubTabs');
+  assert.doesNotMatch(admin, /\bhas\(/, 'видимость вкладок задаёт реестр, а не страница');
+  assert.match(admin, /adminHome\(\)/); assert.match(admin, /location\.replace\('#' \+ first\)/, 'при пустой вкладке — переход на первую доступную');
+  // страницы по первому сегменту после /admin сохранены
+  for (const id of ['users', 'payroll', 'attendance', 'kb', 'wiki', 'decide', 'growth', 'training', 'tests', 'wellness', 'assist', 'requests', 'access', 'usage', 'ai', 'audit', 'platform', 'tour']) assert.match(admin, new RegExp(`cur === '${id}'`), id);
+  // подписи
+  const w = web('lib/w18n.ts'), at = w.indexOf('const uz'), ru = w.slice(0, at), uz = w.slice(at);
+  const val = (blk: string, key: string) => new RegExp(`\\b${key}: '([^']*)'`).exec(blk)?.[1];
+  const all = nav.ADMIN_HUBS.flatMap((h: any) => h.items);
+  assert.equal(all.length, 33); assert.deepEqual([...all].sort(), Object.keys(ADMIN_LABELS).sort(), 'таблица ТЗ и реестр описывают одни и те же пункты');
+  for (const [id, [r, u]] of Object.entries(ADMIN_LABELS)) { assert.equal(val(ru, 'ai_' + id), r, `ai_${id} ru`); assert.equal(val(uz, 'ai_' + id), u, `ai_${id} uz`); }
+  for (const [id, [r, u]] of Object.entries(GROUP_LABELS)) { assert.equal(val(ru, id), r, `${id} ru`); assert.equal(val(uz, id), u, `${id} uz`); }
+  // пункт реестра берёт подпись из словаря по ключу ai_<id>
+  for (const r of registry.filter((x) => x.hub.startsWith('m_'))) assert.equal(r.key, 'ai_' + r.id);
+});
+
+test('A7 «Управление»: колонка показывает только группы, где есть видимые пункты — рекрутёр «Найм», бухгалтер «Зарплата», редактор «Курсы и тесты» и «Контент», админ все 7', () => {
+  const groups = (roles: string[]) => nav.ADMIN_HUBS.filter((h: any) => h.items.some((i: string) => nav.adminVisible(i, roles))).map((h: any) => h.id);
+  assert.deepEqual(groups(['admin']), nav.ADMIN_HUBS.map((h: any) => h.id)); assert.deepEqual(groups(['employee', 'recruiter']), ['m_hire']);
+  assert.deepEqual(groups(['employee', 'accountant']), ['m_pay']); assert.deepEqual(groups(['employee', 'editor']), ['m_learn', 'm_content']);
+  assert.deepEqual(groups(['employee', 'hr']), nav.ADMIN_HUBS.map((h: any) => h.id)); assert.deepEqual(groups(['employee', 'manager', 'head']), [], 'head в «Управление» не входит');
+  assert.deepEqual(groups(['employee']), []); assert.equal(nav.adminVisible('нет_такого', ['admin']), false);
+  // чистая функция и реестр дают одно и то же (фикстуры ролей из ТЗ)
+  for (const k of ['admin', 'hr', 'recruiter', 'accountant', 'editor', 'operator', 'lead'] as const) {
+    const byHubs = Object.keys(adminTabsOf(FIX[k])).sort(), byFn = groups(FIX[k].roles).sort();
+    assert.deepEqual(byHubs, byFn, k);
+  }
+  // права на сервере для Admin не менялись: проверка роли остаётся за каждым эндпоинтом, а страница не пускает по адресу без пункта меню
+  assert.equal(nav.isGated('/admin/users'), true);
+});
+
+/* ================= A8. Матрица доступа и GATES (без базы; миграция — в nav-v2-db.test.ts) ================= */
+test('A8 «Матрица доступа»: HR видит kb и path, рекрутёр и бухгалтерия — growth и path; /api/reviews закрыт разделом growth, «Спросить ИИ» — assist или kb', async () => {
+  const acc = await import('../src/access.js');
+  const m = acc.DEFAULT_MATRIX as Record<string, string[]>;
+  for (const s of ['kb', 'path']) assert.ok(m.hr.includes(s), `hr: ${s}`);
+  for (const s of ['assist', 'trainer', 'ready']) assert.ok(!m.hr.includes(s), `hr без ${s}`);
+  for (const p of ['recruiter', 'accounting']) for (const s of ['growth', 'path']) assert.ok(m[p].includes(s), `${p}: ${s}`);
+  for (const p of ['recruiter', 'accounting']) for (const s of ['assist', 'trainer', 'plan', 'kb']) assert.ok(!m[p].includes(s), `${p} без ${s}`);
+  // API анкет 360° закрыт вместе с разделом «Рост»
+  assert.deepEqual(acc.gateOfUrl('/api/reviews/my')?.any, ['growth']); assert.deepEqual(acc.gateOfUrl('/api/reviews/cycles/5/report/7')?.any, ['growth']);
+  assert.equal(acc.urlAllowed('/api/reviews/my', m.recruiter, ['employee', 'recruiter']), true); assert.equal(acc.urlAllowed('/api/reviews/my', m.accounting, ['employee', 'accountant']), true);
+  assert.equal(acc.urlAllowed('/api/reviews/my', m.warehouse.filter((s) => s !== 'growth'), ['employee']), false, 'без раздела «Рост» анкеты закрыты');
+  // окно «Спросить ИИ»: помощник оператора или база знаний; быстрый ответ по базе — так же
+  for (const u of ['/api/search/chat', '/api/search/chat/kb']) {
+    assert.deepEqual(acc.gateOfUrl(u)?.any, ['assist', 'kb'], u);
+    assert.equal(acc.urlAllowed(u, m.hr, ['employee', 'hr']), true, `HR: ${u}`); assert.equal(acc.urlAllowed(u, m.accounting, ['employee', 'accountant']), false, `бухгалтерия: ${u}`);
+  }
+  // «Мой путь» у HR открыт, значит /api/path/me отдаётся
+  assert.equal(acc.urlAllowed('/api/path/me', m.hr, ['employee', 'hr']), true);
+  assert.ok(acc.serverClosedSections().includes('growth'));
+  // миграция 035 лежит рядом с остальными и называется как в ТЗ
+  const sql = fs.readFileSync(new URL('../migrations/035_access_defaults.sql', import.meta.url), 'utf8');
+  assert.match(sql, /key = 'section_access'/); assert.match(sql, /'\["kb","path"\]'::jsonb/); assert.match(sql, /'\["growth","path"\]'::jsonb/);
+  assert.ok(fs.readdirSync(new URL('../migrations/', import.meta.url)).filter((f) => f.endsWith('.sql')).sort().at(-1)! >= '035_access_defaults.sql');
+});
+
+/* ================= A9. Значки ================= */
+test('A9 «Значки»: у разделов свои значки, внутри раздела вкладки не повторяются, каждый значок нарисован в Icon.svelte', () => {
+  const icon = web('components/Icon.svelte');
+  const have = new Set([...icon.matchAll(/['"]?([\w-]+)['"]?: '/g)].map((m) => m[1]));
+  const iconOf: Record<string, string> = Object.fromEntries(registry.map((r) => [r.id, r.icon]));
+  assert.equal(new Set(nav.HUBS.map((h: any) => h.icon)).size, nav.HUBS.length, 'значки разделов попарно различны');
+  assert.equal(new Set(nav.ADMIN_HUBS.map((h: any) => h.icon)).size, nav.ADMIN_HUBS.length, 'значки групп «Управления» попарно различны');
+  for (const h of [...nav.HUBS, ...nav.ADMIN_HUBS]) {
+    const icons = h.items.map((i: string) => iconOf[i]);
+    assert.equal(icons.length, h.items.length); assert.equal(new Set(icons).size, icons.length, `в разделе ${h.id} значки вкладок повторяются: ${icons}`);
+    assert.ok(!icons.includes(undefined), `${h.id}: у пункта нет значка`);
+  }
+  const used = new Set<string>([...nav.HUBS.map((h: any) => h.icon), ...nav.ADMIN_HUBS.map((h: any) => h.icon), ...registry.map((r) => r.icon)]);
+  assert.deepEqual([...used].filter((n) => !have.has(n)), [], 'значок используется, но не нарисован');
+  // значки из ТЗ A9 и прежние
+  for (const n of ['inbox', 'briefcase', 'building', 'sprout', 'tasks', 'user-plus', 'request', 'flag', 'chat-bubbles', 'compass', 'calendar-check', 'target', 'users', 'gear', 'help', 'id-card',
+    'megaphone', 'info', 'archive', 'mute', 'at', 'arrow-down', 'dots-v', 'phone', 'back', 'dnd', 'coffee']) assert.ok(have.has(n), `значок ${n}`);
+  for (const n of ['palm', 'cake', 'thumb-up', 'thumb-down', 'pin', 'hourglass', 'spark', 'lock', 'bot', 'video', 'link', 'file', 'image', 'heart', 'trophy', 'idea', 'send']) assert.ok(have.has(n), `прежний значок ${n} не удалён`);
+  // значки только через Icon: эмодзи в реестре нет
+  assert.doesNotMatch(web('lib/nav.ts'), /[\u{1F300}-\u{1FAFF}✅✨➤⏳⏰]/u);
+  // пункты, которые ТЗ называет в таблице §3.4, получили назначенные значки
+  const spec: Record<string, string> = { today: 'home', inbox: 'inbox', chat: 'chat', team: 'team', team_schedule: 'schedule', team_newbies: 'sprout', team_learning: 'training', team_growth: 'growth', team_tasks: 'tasks',
+    team_hire: 'user-plus', schedule: 'schedule', requests: 'request', pay: 'pay', start: 'flag', courses: 'training', trainer: 'chat-bubbles', tests: 'tests', library: 'library', lead_school: 'compass',
+    path: 'path', talks: 'calendar-check', reviews: 'target', self: 'idea', advisor: 'bot', news: 'news', people: 'users', kb: 'kb', assist: 'assist', surveys: 'heart', profile: 'user', settings: 'gear', help: 'help' };
+  for (const [id, n] of Object.entries(spec)) assert.equal(iconOf[id], n, `значок пункта ${id}`);
+});
+
+/* ================= A10. Удаления и чистка ================= */
+test('A10 «Чистка»: страницы «Отчёты» нет, мёртвого пункта leaves нет, «Задачи» в LANDING_ORDER нет, service worker новой версии', () => {
+  assert.equal(fs.existsSync(webUrl('src/pages/Reports.svelte')), false, 'Reports.svelte удалён');
+  assert.doesNotMatch(web('Router.svelte'), /reportsLoader|Reports\.svelte/);
+  assert.ok(![...nav.HUBS, ...nav.ADMIN_HUBS].some((h: any) => h.items.includes('leaves')), 'мёртвый id leaves');
+  assert.deepEqual([...nav.LANDING_ORDER], ['home', 'chat', 'news', 'inbox', 'library', 'tests', 'help']); assert.ok(!(nav.LANDING_ORDER as readonly string[]).includes('tasks'));
+  assert.match(fs.readFileSync(webUrl('public/sw.js'), 'utf8'), /const VERSION = 'qadam-v2';/);
+  assert.doesNotMatch(fs.readFileSync(webUrl('public/sw.js'), 'utf8'), /qadam-v1/);
+  // комментарий в начале nav.ts описывает реестр, а не «6 групп»
+  const head = web('lib/nav.ts').split('\n').slice(0, 4).join('\n');
+  assert.match(head, /Реестр пунктов меню/); assert.doesNotMatch(head, /6 групп/);
+  // старые адреса страницы и вкладки отчётов ведут на новое место
+  const ctxHr = ctx(FIX.hr);
+  assert.equal(nav.REDIRECTS('/reports', '', ctxHr), '/admin/analytics'); assert.equal(nav.REDIRECTS('/reports', '', ctx(FIX.service)), '/admin/audit');
+  // классы, которыми пользовалась только страница «Отчёты», и её ключи словаря удалены
+  assert.doesNotMatch(web('inline.css'), /\.u-8bffae7 \{/); assert.doesNotMatch(web('lib/w18n.ts'), /\brp_title\b|\brp_sub\b/);
+  // учёт посещений: клиент и сервер знают новые страницы меню
+  const tour = web('lib/tour.svelte.ts'), srv = fs.readFileSync(serverUrl('modules/onboarding.ts'), 'utf8');
+  const idsOf = (src: string, name: string) => [...(new RegExp(`const ${name} = new Set\\(\\[(.*?)\\]\\);`, 's').exec(src)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const client = idsOf(tour, 'PAGE_IDS'), server = idsOf(srv, 'PAGES');
+  const fresh = ['inbox', 'requests', 'people', 'surveys', 'pay', 'team', 'team/schedule', 'team/newbies', 'team/learning', 'team/growth', 'team/tasks', 'team/hire', 'training/courses', 'training/lead',
+    'growth/self', 'growth/reviews', 'growth/talk', 'growth/mentor', 'att', 'hire', 'admin'];
+  for (const id of fresh) { assert.ok(client.includes(id), `PAGE_IDS: ${id}`); assert.ok(server.includes(id), `PAGES: ${id}`); }
+  for (const id of ['reports', 'queue', 'assistant', 'editor', 'structure']) { assert.ok(client.includes(id), `PAGE_IDS не теряет ${id}`); assert.ok(server.includes(id), `PAGES не теряет ${id}`); }
+  for (const id of client) assert.ok(server.includes(id), `клиент шлёт «${id}», сервер обязан его принимать`);
+  // visit(): для адреса /team/newbies клиент отправляет и два сегмента, и первый
+  assert.match(tour, /const two = parts\.slice\(0, 2\)\.join\('\/'\), one = parts\[0\] \?\? 'chat';/);
+});
+
+/* ================= A11. Сводно: персоны и меню ================= */
+test('A11 «Каркас»: оператор не видит «Мою команду» и «Управление», руководитель видит команду, HR — «Управление», новичок не видит «Рост»; у любой персоны не больше 7 разделов', () => {
+  const hubsOf = (u: U) => Object.keys(tabsOf(u));
+  const manage = (u: U) => nav.firstAdminHref(u.roles) !== null;
+  assert.ok(!hubsOf(FIX.operator).includes('team') && !manage(FIX.operator));
+  assert.ok(hubsOf(FIX.lead).includes('team') && !manage(FIX.lead));
+  assert.ok(manage(FIX.hr) && !hubsOf(FIX.hr).includes('team'));
+  assert.ok(!hubsOf(FIX.newbie).includes('grow') && hubsOf(FIX.newbie).includes('learn'));
+  assert.ok(manage(FIX.admin) && manage(FIX.recruiter) && manage(FIX.accountant) && manage(FIX.editor));
+  for (const [name, u] of Object.entries(FIX)) assert.ok(hubsOf(u).length <= 7, name);
+  // порядок разделов фиксирован у каждой персоны
+  const order = nav.HUBS.map((h: any) => h.id);
+  for (const [name, u] of Object.entries(FIX)) assert.deepEqual(hubsOf(u), order.filter((h: string) => hubsOf(u).includes(h)), name);
+  // каждая вкладка видимой персоны ведёт на существующий адрес с веткой роутера
+  const heads = new Set([...web('Router.svelte').matchAll(/head === '([\w-]+)'/g)].map((m) => m[1]));
+  for (const [name, u] of Object.entries(FIX)) for (const id of visibleIds(u)) {
+    const r = registry.find((x) => x.id === id)!;
+    const to = nav.REDIRECTS(r.href, '', ctx(u)) ?? r.href;
+    assert.ok(heads.has(to.split('?')[0].split('/').filter(Boolean)[0]), `${name}: пункт ${id} (${r.href} → ${to}) не открывается`);
+  }
+});
