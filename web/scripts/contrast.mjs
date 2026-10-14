@@ -27,6 +27,8 @@ export const PAIRS = [
   ['grad-ink', 'grad', 4.5], ['pink-tag', 'bg', 4.5],
   // шапка режима «Управление» (колонка и верхняя панель телефона)
   ['mode-admin-ink', 'mode-admin', 4.5],
+  // выбранный вариант переключателя Segmented и выбранный чип
+  ['chip-on-ink', 'chip-on-bg', 4.5],
 ];
 
 if (process.argv[1] && process.argv[1].endsWith('contrast.mjs')) {

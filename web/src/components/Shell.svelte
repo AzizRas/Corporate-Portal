@@ -113,7 +113,8 @@
       </div>
     </div>
     {#if head !== 'chat'}<CheckIn />{/if}
-    {#if curHub && curHub.items.length > 1}<HubTabs items={curHub.items} active={active ?? undefined} title={hubLabel(curHub.id)} />{/if}
+    <!-- заголовок раздела, строка «для кого» и единственный ряд вкладок; у группы режима «Управление» подзаголовка нет; мессенджер занимает всю область и свой заголовок рисует сам -->
+    {#if curHub && key !== 'chat'}<HubTabs items={curHub.items} active={active ?? undefined} title={hubLabel(curHub.id)} sub={curHub.id.startsWith('m_') ? '' : wt('hs_' + curHub.id)} />{/if}
     {@render children()}
   </main>
 

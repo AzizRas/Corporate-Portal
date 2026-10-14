@@ -44,7 +44,7 @@ const ru: Record<string, string> = {
   /* ---- помощник ---- */
   a_title: 'Помощник руководителя', a_sub: 'Мягкие и профессиональные навыки руководителя: тренажёр, план развития, вопросы помощнику',
   a_builtin: 'встроенный режим проверки', a_ai_reason: 'Причина (видно только администратору)',
-  a_tab_trainer: 'Тренажёр', a_tab_plan: 'План развития', a_tab_ask: 'Спросить помощника',
+  a_tab_trainer: 'Разбор ситуаций', a_tab_plan: 'Чек-лист руководителя', a_tab_ask: 'Спросить ИИ', a_close: 'Закрыть',
   a_soft: 'Мягкие навыки', a_soft_d: 'Обратная связь, конфликты, беседы 1:1', a_hard: 'Профессиональные навыки', a_hard_d: 'Планирование, отчёты, работа с порталом и CRM',
   a_best: 'Лучший результат', a_attempts: 'Попыток', a_not_tried: 'Не пройден', a_open: 'Открыть', a_back: 'К сценариям',
   a_situation: 'Ситуация', a_your_answer: 'Ваш ответ', a_answer_ph: 'Напишите, что и как вы скажете или сделаете. Минимум 20 знаков.', a_chars: '{n} знаков', a_min20: 'Нужно хотя бы 20 знаков',
@@ -98,7 +98,7 @@ const uz: Record<string, string> = {
   e_f422_users: 'Xodimlarni tanlang.', e_f422_out_of_scope: 'Tanlanganlar orasida sizning hududingizdan tashqaridagi xodimlar bor.', e_f422_test: 'Test topilmadi.', e_f422_instruction: 'Nima qilish kerakligini yozing.', e_f422_payload: 'Topshiriq ma’lumotlarini to‘ldiring.', e_f422_target: 'Tanlangan test yoki maqola topilmadi.',
   a_title: 'Rahbar yordamchisi', a_sub: 'Rahbarning yumshoq va kasbiy ko‘nikmalari: trenajyor, rivojlanish rejasi, yordamchiga savollar',
   a_builtin: 'o‘rnatilgan tekshiruv rejimi', a_ai_reason: 'Sabab (faqat administratorga ko‘rinadi)',
-  a_tab_trainer: 'Trenajyor', a_tab_plan: 'Rivojlanish rejasi', a_tab_ask: 'Yordamchidan so‘rash',
+  a_tab_trainer: 'Vaziyatlar tahlili', a_tab_plan: 'Rahbar cheklisti', a_tab_ask: 'AI’dan so‘rash', a_close: 'Yopish',
   a_soft: 'Yumshoq ko‘nikmalar', a_soft_d: 'Fikr-mulohaza, nizolar, 1:1 suhbatlar', a_hard: 'Kasbiy ko‘nikmalar', a_hard_d: 'Rejalashtirish, hisobotlar, portal va CRM bilan ishlash',
   a_best: 'Eng yaxshi natija', a_attempts: 'Urinishlar', a_not_tried: 'Topshirilmagan', a_open: 'Ochish', a_back: 'Stsenariylarga',
   a_situation: 'Vaziyat', a_your_answer: 'Sizning javobingiz', a_answer_ph: 'Nima deysiz yoki nima qilasiz — yozing. Kamida 20 belgi.', a_chars: '{n} belgi', a_min20: 'Kamida 20 belgi kerak',

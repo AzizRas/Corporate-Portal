@@ -15,10 +15,10 @@
   import ErrorState from '../components/ErrorState.svelte';
   import { friendlyError } from '../lib/errors';
 
-  // view задаёт вкладку адресом (/team/schedule → «Команда»); без него — как раньше: /schedule/team
+  // view задаёт вид адресом: /schedule — «Мой график» (раздел «Моя работа»), /team/schedule и /admin/leaves?view=schedule — график команды.
+  // Своего ряда вкладок у страницы нет: вкладки раздела рисует HubTabs, а старый адрес /schedule/team перенаправляется (REDIRECTS).
   let { view = undefined }: { view?: 'my' | 'team' } = $props();
-  const parts = $derived(app.route.split('?')[0].split('/').filter(Boolean));
-  const tab = $derived(view ?? (parts[1] === 'team' ? 'team' : 'my'));
+  const tab = $derived(view ?? 'my');
   const tz = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   let ym = $state(tz().slice(0, 7));
   let my: any = $state(null), team: any = $state(null), err = $state(''), msg = $state(''), loadErr: unknown = $state(null);
@@ -210,10 +210,6 @@
   </div>
 </header>
 
-<nav class="tabs">
-  <a href="#/schedule" class:on={tab === 'my'}>{st('s_my')}</a>
-  {#if my?.can_team}<a href="#/schedule/team" class:on={tab === 'team'}>{st('s_team')}</a>{/if}
-</nav>
 {#if msg}<div class="alert ok row wrap flash-bar" role="status"><span class="u-97445a8">{msg}</span>{#if undoFn}<button type="button" class="btn sm" onclick={doUndo}>{sc('undo')}</button>{/if}</div>{/if}
 
 {#if tab === 'my' && my}

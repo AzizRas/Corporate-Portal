@@ -1,17 +1,20 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
   import { api, ApiError } from '../lib/api';
-  import { app, has, lead } from '../lib/state.svelte';
+  import { app, has, lead, go } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
   import { fmtDate, fmtDateTime } from '../lib/format';
   import Avatar from '../components/Avatar.svelte';
   import Modal from '../components/Modal.svelte';
   import Icon from '../components/Icon.svelte';
+  import Segmented from '../components/Segmented.svelte';
   import OrgChart from './OrgChart.svelte';
   import { ot } from './oc18n';
 
   let tree: any = $state(null), selected: number | null = $state(null), people: any[] = $state([]), noAccess = $state(false), loadingP = $state(false);
-  // tab задаёт вкладку адресом (/people → схема, /admin/org → дерево); щелчок по вкладке временно её меняет
+  // tab задаёт страницу адресом (/people → схема, /admin/org → дерево); внутри страницы режимы переключает Segmented (ниже), вкладок раздела у неё нет:
+  // вкладки «Компании» и «Управления» рисует HubTabs. Архив, журнал и замещение остаются режимами этой страницы, пока эпики H и J не разнесут их по карточке человека,
+  // странице «Увольнения» и блоку «Замещение» на «Моей команде». /admin/org?node=<номер> открывает дерево на выбранном узле (так работает кнопка из схемы).
   let { tab: tabProp = undefined }: { tab?: 'chart' | 'tree' | 'archive' | 'log' | 'deleg' } = $props();
   let tab = $derived<'chart' | 'tree' | 'archive' | 'log' | 'deleg'>(tabProp ?? 'chart');
   let allPeople: any[] = $state([]), open: Record<number, boolean> = $state({});
@@ -31,12 +34,19 @@
   const sel = $derived(selected != null ? byId.get(selected) : null);
   const canEdit = $derived(!!tree?.can_edit), canLife = $derived(!!tree?.can_lifecycle);
   const isLead = $derived(lead());
+  // режимы одной страницы: на /people — схема, а руководителю ещё и «Замещение»; на /admin/org — дерево, архив, журнал и замещение
+  const modes = $derived.by(() => {
+    const deleg = { id: 'deleg', label: wt('o_tab_deleg') };
+    if ((tabProp ?? 'chart') === 'chart') return isLead ? [{ id: 'chart', label: ot('tabChart') }, deleg] : [];
+    return [{ id: 'tree', label: wt('o_tab_tree') }, ...(canLife ? [{ id: 'archive', label: wt('o_tab_archive') }, { id: 'log', label: wt('o_tab_log') }] : []), ...(isLead || canEdit ? [deleg] : [])];
+  });
 
   const flash = (m: string) => { toast = m; setTimeout(() => (toast = ''), 3500); };
+  const nodeFromUrl = () => Number(new URLSearchParams(app.route.split('?')[1] ?? '').get('node')) || null;
   async function loadTree() {
     tree = await api.get('/api/org/tree');
     if (selected == null || !byId.has(selected)) {
-      const mine = nodes.find((n: any) => n.mine) ?? nodes.find((n: any) => n.can_open && n.kind !== 'root') ?? nodes[0];
+      const want = nodeFromUrl(), mine = (want != null ? byId.get(want) : null) ?? nodes.find((n: any) => n.mine) ?? nodes.find((n: any) => n.can_open && n.kind !== 'root') ?? nodes[0];
       if (mine) await pick(mine);
     }
   }
@@ -151,12 +161,7 @@
 {#if app.user?.acting}<div class="alert info u-2b583d7">{wt('o_acting')}</div>{/if}
 {#if toast}<div class="alert u-2b583d7">{toast}</div>{/if}
 
-<nav class="tabs">
-  <button class:on={tab === 'chart'} onclick={() => (tab = 'chart')}>{ot('tabChart')}</button>
-  <button class:on={tab === 'tree'} onclick={() => (tab = 'tree')}>{ot('tabList')}</button>
-  {#if canLife}<button class:on={tab === 'archive'} onclick={() => (tab = 'archive')}>{wt('o_tab_archive')}</button><button class:on={tab === 'log'} onclick={() => (tab = 'log')}>{wt('o_tab_log')}</button>{/if}
-  {#if isLead || canEdit}<button class:on={tab === 'deleg'} onclick={() => (tab = 'deleg')}>{wt('o_tab_deleg')}</button>{/if}
-</nav>
+{#if modes.length}<div class="mb-4"><Segmented label={wt('o_title')} value={tab} options={modes} onchange={(id) => (tab = id as typeof tab)} /></div>{/if}
 
 {#if imp}
   <section class="card stack u-87c136d">
@@ -177,7 +182,7 @@
 {/if}
 
 {#if tab === 'chart'}
-  <OrgChart canManage={canLife || canEdit || isLead} onmanage={(id) => { tab = 'tree'; const n = byId.get(id); if (n) pick(n); }} />
+  <OrgChart canManage={canLife || canEdit} onmanage={(id) => go(`/admin/org?node=${id}`)} />
 {:else if tab === 'tree'}
   {#if !tree}<span class="spin"></span>{:else}
   <div class="org-grid">

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
-  import { app, has } from '../lib/state.svelte';
+  import { app } from '../lib/state.svelte';
   import { fmtDate } from '../lib/format';
   import Avatar from '../components/Avatar.svelte';
   import Skeleton from '../components/Skeleton.svelte';
@@ -13,10 +13,9 @@
   const L = $derived(uz
     ? { title: 'Kadrlar', prob: 'Sinov muddati', an: 'Tahlil', exit: 'Chiqish suhbati', left: 'kun qoldi', over: 'muddati o‘tgan', pass: 'O‘tdi', ext: 'Uzaytirish', fail: 'O‘tmadi', none: 'Sinov muddatidagi xodimlar yo‘q', active: 'jarayonda', passed: 'o‘tdi', failed: 'o‘tmadi', extended: 'uzaytirildi', newEnd: 'Yangi tugash sanasi (YYYY-MM-DD)', head: 'Xodimlar soni', turn: 'Kadrlar almashinuvi (12 oy)', tth: 'Vakansiyani yopish (o‘rtacha kun)', units: 'Bo‘linmalar', flow: 'Qabul / bo‘shatish', src: 'Nomzod manbalari', why: 'Ketish sabablari', probS: 'Sinov muddati', who: 'Xodim', reason: 'Asosiy sabab', q1: 'Ishda nima yoqardi?', q2: 'Nima ketishga sabab bo‘ldi?', q3: 'Nimani o‘zgartirish kerak?', q4: 'Qaytishni xohlaysizmi?', save: 'Saqlash', saved: 'Saqlandi' }
     : { title: 'Кадры', prob: 'Испытательный срок', an: 'Аналитика', exit: 'Выходное интервью', left: 'дн. осталось', over: 'срок прошёл', pass: 'Прошёл', ext: 'Продлить', fail: 'Не прошёл', none: 'Сотрудников на испытательном сроке нет', active: 'идёт', passed: 'пройден', failed: 'не пройден', extended: 'продлён', newEnd: 'Новая дата окончания (ГГГГ-ММ-ДД)', head: 'Численность', turn: 'Текучесть (12 мес.)', tth: 'Закрытие вакансии (в среднем, дн.)', units: 'Подразделения', flow: 'Приём / увольнения', src: 'Источники кандидатов', why: 'Причины ухода', probS: 'Испытательный срок', who: 'Сотрудник', reason: 'Главная причина', q1: 'Что нравилось в работе?', q2: 'Что стало причиной ухода?', q3: 'Что стоит изменить?', q4: 'Хотели бы вернуться?', save: 'Сохранить', saved: 'Сохранено' });
-  const isHr = $derived(has('hr'));
-  // tab задаёт вкладку адресом (/admin/onboarding → prob, /admin/analytics → an, /admin/offboarding → exit); щелчок по вкладке временно её меняет
+  // tab задаёт страницу адресом (/admin/onboarding → prob, /admin/analytics → an, /admin/offboarding → exit); вкладки режима «Управление» рисует HubTabs, своего ряда у страницы нет
   let { tab: tabProp = undefined }: { tab?: 'prob' | 'an' | 'exit' | 'rev' } = $props();
-  let tab = $derived<'prob' | 'an' | 'exit' | 'rev'>(tabProp ?? 'prob');
+  const tab = $derived<'prob' | 'an' | 'exit' | 'rev'>(tabProp ?? 'prob');
   let probs: any[] | null = $state(null), an: any = $state(null), msg = $state('');
   const loadProbs = () => api.get('/api/hr/probations').then((r) => (probs = r.items)).catch(() => (probs = []));
   $effect(() => { if (tab === 'prob') loadProbs(); if (tab === 'an' && !an) api.get('/api/hr/analytics').then((r) => (an = r)).catch(() => {}); if (tab === 'exit' && !archive) api.get('/api/org/archive').then((r) => (archive = r.people ?? [])).catch(() => (archive = [])); });
@@ -34,12 +33,7 @@
   const max = (a: any[], k: string) => Math.max(1, ...a.map((x) => x[k] ?? 0));
 </script>
 
-<header class="page-head"><div><h1>{L.title}</h1></div></header>
-<nav class="tabs">
-  <button class:on={tab === 'prob'} onclick={() => (tab = 'prob')}>{L.prob}</button>
-  <button class:on={tab === 'rev'} onclick={() => (tab = 'rev')}>{uz ? '360° baholash' : 'Оценка 360°'}</button>
-  {#if isHr}<button class:on={tab === 'an'} onclick={() => (tab = 'an')}>{L.an}</button><button class:on={tab === 'exit'} onclick={() => (tab = 'exit')}>{L.exit}</button>{/if}
-</nav>
+<header class="page-head"><div><h1>{tab === 'rev' ? (uz ? '360° baholash' : 'Оценка 360°') : L[tab]}</h1></div></header>
 
 {#if msg}<div class="alert">{msg}</div>{/if}
 {#if tab === 'rev'}<ReviewAdmin />
