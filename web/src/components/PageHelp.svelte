@@ -2,6 +2,7 @@
   import { app } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
   import { HELP } from '../lib/help-content';
+  import { fillPaths } from '../lib/nav';
   import { pointAt } from '../lib/tour.svelte';
   import { topics, loadTopics } from '../lib/help.svelte';
   import Modal from './Modal.svelte';
@@ -11,12 +12,11 @@
   let open = $state(false);
   loadTopics();
   const meta = $derived(topics.list.find((t) => t.id === topic));
-  const text = $derived(HELP[topic]?.[app.lang] ?? HELP[topic]?.ru ?? []);
+  const text = $derived((HELP[topic]?.[app.lang] ?? HELP[topic]?.ru ?? []).map(fillPaths));
   function show() {
     if (!meta?.target) return;
     open = false;
-    const g: Record<string, string> = { main: 'main', learn: 'learn', know: 'know', people: 'people', profile: 'profile', manage: 'manage' };
-    pointAt([meta.target, 'tab-' + meta.target.replace(/^nav-/, ''), 'tab-more'], meta.title[app.lang], text[0] ?? '', g[meta.group]);
+    pointAt([meta.target, 'tab-' + meta.target.replace(/^nav-/, ''), 'tab-more'], meta.title[app.lang], text[0] ?? '', meta.group);
   }
 </script>
 

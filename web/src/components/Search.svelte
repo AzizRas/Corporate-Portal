@@ -7,7 +7,7 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
-  import { visibleItems, hubLabel } from '../lib/nav';
+  import { visibleItems, hubLabel, fillPaths } from '../lib/nav';
   import { hubOfItem } from '../lib/nav-core';
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
@@ -76,10 +76,12 @@
     if (r.person) { personOpen = personOpen?.id === r.person.id ? null : r.person; return; }
     if (r.href) { hide(); go(r.href); }
   }
+  // шаги справки с путями из реестра меню ({path:<пункт>} → «Раздел → вкладка»)
+  const stepsOf = (id: string): string[] => (HELP[id]?.[app.lang] ?? HELP[id]?.ru ?? []).map(fillPaths);
   function showHelp(t: any) {
     const targets = t.target ? [t.target, 'tab-' + t.target.replace(/^nav-/, ''), 'tab-more'] : [];
     hide(); go(t.route);
-    setTimeout(() => pointAt(targets, t.title[app.lang], (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? [])[0] ?? '', t.group), 450);
+    setTimeout(() => pointAt(targets, t.title[app.lang], stepsOf(t.id)[0] ?? '', t.group), 450);
   }
   async function ask() {
     const text = q.trim();
@@ -114,7 +116,7 @@
   {@const t = h.topic}
   {#if h.answer}<p class="small">{h.ai ? '' : ''}{h.answer}</p>{/if}
   <b>{t.title[app.lang]}</b>
-  <ol class="u-ba31dbb">{#each (HELP[t.id]?.[app.lang] ?? HELP[t.id]?.ru ?? []) as step}<li>{step}</li>{/each}</ol>
+  <ol class="u-ba31dbb">{#each stepsOf(t.id) as step}<li>{step}</li>{/each}</ol>
   <div class="row wrap u-f6c3b0c">
     <button class="btn grad sm" onclick={() => showHelp(t)}>{wt('hp_show')}</button>
     <a class="btn sm" href={'#' + t.route} onclick={hide}>{wt('hp_where')}</a>

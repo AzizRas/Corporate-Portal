@@ -110,6 +110,12 @@ export function moreSections<H extends { id: string; items: IdLike[] }>(hubs: H[
   return hubs.map((h) => ({ ...h, items: h.items.filter((i) => !shown.has(idOf(i))) }) as H).filter((h) => h.items.length);
 }
 
+/* ---------- Пути в текстах справки (E2): сборка без состояния приложения, чтобы её проверял тест ---------- */
+/** «Раздел → вкладка»: пустые части и подряд идущие повторы («Чаты → Чаты») отбрасываются. */
+export const joinPath = (parts: string[]): string => parts.filter((p, i) => p && p !== parts[i - 1]).join(' → ');
+/** Заменяет метки {path:<id пункта>} путём, который вернёт resolve, и берёт его в кавычки-ёлочки (в узбекском за кавычкой идёт окончание: {path:chat}ni → «Chatlar»ni). */
+export const fillPathTags = (s: string, resolve: (itemId: string) => string): string => s.replace(/\{path:(\w+)\}/g, (_, id: string) => `«${resolve(id)}»`);
+
 /* ---------- Персона ---------- */
 export interface PersonaUser { roles: string[]; external: string[] | null; team_nodes?: number; onboarding?: { active: boolean } | null }
 /** Кто перед нами: роли проверяются строго, по собственным ролям (админ не становится «руководителем»). Порядок проверок важен. */

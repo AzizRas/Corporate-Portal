@@ -3,16 +3,18 @@
   import { app, go } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
   import { HELP } from '../lib/help-content';
+  import { fillPaths, hubLabel } from '../lib/nav';
   import { pointAt } from '../lib/tour.svelte';
   import { topics, loadTopics, type TopicMeta } from '../lib/help.svelte';
   import AskLeader from '../team/AskLeader.svelte';
 
   loadTopics();
   let q = $state(''), asking = $state(false), res: any = $state(null), openId = $state(''), asked = $state('');
-  const GROUPS = ['main', 'learn', 'know', 'people', 'profile', 'manage'];
-  const gname = (g: string) => wt(`g_${g}`);
+  // темы сгруппированы по разделам меню; режим «Управление» и утилиты внизу колонки — отдельные группы (hubLabel знает manage и util)
+  const GROUPS = ['home', 'chat', 'work', 'learn', 'grow', 'company', 'team', 'manage', 'util'];
+  const gname = (g: string) => hubLabel(g);
   const title = (t: TopicMeta) => t.title[app.lang];
-  const steps = (id: string) => HELP[id]?.[app.lang] ?? HELP[id]?.ru ?? [];
+  const steps = (id: string) => (HELP[id]?.[app.lang] ?? HELP[id]?.ru ?? []).map(fillPaths);
   const filtered = $derived(topics.list.filter((t) => !q.trim() || `${t.title.ru} ${t.title.uz} ${steps(t.id).join(' ')}`.toLowerCase().includes(q.trim().toLowerCase())));
   const groupOf = (g: string) => filtered.filter((t) => t.group === g);
 

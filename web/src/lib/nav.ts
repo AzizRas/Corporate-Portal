@@ -5,7 +5,7 @@ import { app, can, hasOwn } from './state.svelte';
 import { wt } from './w18n';
 import { notif } from './notify.svelte';
 import {
-  HUBS, ADMIN_HUBS, UTIL, MANAGE_ROLES, TAB_ITEMS, pickLanding, normPath, buildHubs, itemVisible, pickActive, pathOpen, personaOf, navCtxOf, visCtxOf, ROUTE_ALIASES, mobileTabs, moreSections, tabHref,
+  HUBS, ADMIN_HUBS, UTIL, MANAGE_ROLES, TAB_ITEMS, pickLanding, normPath, buildHubs, itemVisible, pickActive, pathOpen, personaOf, navCtxOf, visCtxOf, ROUTE_ALIASES, mobileTabs, moreSections, tabHref, hubOfItem, joinPath, fillPathTags,
   type Hub, type HubItem, type VisCtx, type NavCtx, type Persona,
 } from './nav-core';
 
@@ -145,6 +145,16 @@ export const moreHubs = (): Hub[] => moreSections(navHubs(), mobileTabIds());
 /** Названия разделов меню на языке пользователя: n2_<id> для разделов, m_<id> для групп «Управления», «Профиль и настройки» для утилит. */
 export const hubLabel = (id: string): string =>
   HUBS.some((h) => h.id === id) ? wt('n2_' + id) : ADMIN_HUBS.some((h) => h.id === id) ? wt(id) : id === 'util' ? wt('ut_profile_settings') : id === 'manage' ? wt('am_enter') : id;
+
+/* ---------- Пути в тексте справки (ТЗ №4, E2) ---------- */
+/** Путь к пункту меню: «Раздел → вкладка» из реестра, а не набранный руками. Пункты режима «Управление» начинаются со слова «Управление»; повтор подряд («Чаты → Чаты») схлопывается,
+ *  «Помощь» — это кнопка «?», а не часть «Профиля и настроек». */
+export const navPath = (itemId: string): string => {
+  const hub = hubOfItem(itemId) ?? '', label = ITEMS.find((i) => i.id === itemId)?.label() ?? itemId;
+  return joinPath(ADMIN_HUBS.some((h) => h.id === hub) ? [wt('am_enter'), hubLabel(hub), label] : itemId === 'help' ? [label] : [hubLabel(hub), label]);
+};
+/** Подставляет в шаг справки пути вместо меток {path:<id пункта>}: «Откройте {path:chat}.» → «Откройте «Чаты».» (кавычки добавляются здесь). */
+export const fillPaths = (s: string): string => fillPathTags(s, navPath);
 
 /* ---------- Адреса ---------- */
 /** Что открывает адрес «/»: главная; если её закрыли для подразделения — первый доступный из списка. «Входящие» в матрице разделов не значатся: они открыты всем штатным.

@@ -83,9 +83,9 @@
     </nav>
     <div class="side-foot">
       {#if !adminMode && manageHref && canManage()}
-        <a class="nv am-enter" href={'#' + manageHref} data-tour="nav-manage" title={collapsed ? wt('am_enter') : undefined}><i><Icon name="gear" /></i><span class="lbl">{wt('am_enter')}</span></a>
+        <a class="nv am-enter" href={'#' + manageHref} data-tour="am-enter" title={collapsed ? wt('am_enter') : undefined}><i><Icon name="gear" /></i><span class="lbl">{wt('am_enter')}</span></a>
       {/if}
-      <a class="me-card" class:on={onProfile} href="#/profile" data-tour="nav-profile" title={app.user!.name} aria-current={onProfile ? 'page' : undefined}>
+      <a class="me-card" class:on={onProfile} href="#/profile" data-tour="me-card" title={app.user!.name} aria-current={onProfile ? 'page' : undefined}>
         <Avatar u={{ ...app.user!, bday: false }} size={44} />
         <div class="lbl me-text">
           <div class="me-name clip1">{app.user!.name}</div>
@@ -108,7 +108,7 @@
         <button class="tb-btn" data-tour="search" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={openSearch}><Icon name="search" /></button>
         <span class="tr-wrap" data-tour="bell"><NotifyBell /></span>
         <a class="tb-btn" href="#/help" aria-label={wt('ut_help')} title={wt('ut_help')}><Icon name="help" /></a>
-        <a href="#/profile" aria-label={wt('ut_profile_settings')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a>
+        <a href="#/profile" data-tour="me-card" aria-label={wt('ut_profile_settings')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a>
       </div>
     </div>
     {#if head !== 'chat'}<CheckIn />{/if}

@@ -179,3 +179,39 @@ test('«Как это сделать» с ИИ: выбирает тему из �
   assert.equal((await send(op, 'POST', '/api/help/ask', { query: 'как построить космический корабль' })).json().topic, null);
   delete process.env.ANTHROPIC_API_KEY;
 });
+
+test('ТЗ №4, E2: темы справки по разделам матрицы и по узлу структуры; группы — разделы меню, адреса новые', async () => {
+  const GROUPS = ['home', 'chat', 'team', 'work', 'learn', 'grow', 'company', 'manage', 'util'];
+  type Topic = { id: string; group: string; route: string; target: string | null };
+  const topics = async (who: any) => (await get(who, '/api/help/topics')).json().topics as Topic[];
+  // HR: помощника оператора и тренажёра в его наборе нет, а база знаний и карьера открыты (A8) — темы следуют за разделами, а не только за ролями
+  const hr = await topics(await login('hr')), hrIds = hr.map((t) => t.id);
+  assert.ok(!hrIds.includes('assist'), 'у HR помощника оператора нет — темы про него тоже');
+  assert.ok(hrIds.includes('kb_search') && hrIds.includes('path'));
+  assert.ok(!hrIds.includes('trainer') && !hrIds.includes('readiness'));
+  assert.ok(hrIds.includes('structure_edit') && hrIds.includes('sv_assistant') && hrIds.includes('ai_editor'), 'темы HR по ролям остались');
+  assert.deepEqual(hr.filter((t) => !GROUPS.includes(t.group)), [], 'группа каждой темы — раздел меню, режим «Управление» или утилиты');
+  // руководитель по структуре видит темы руководителя; оператор — нет
+  const rustam = await topics(await login('rustam')), op1 = await topics(await login('op1'));
+  for (const id of ['panel_team', 'give_task', 'assign_test', 'queue', 'sv_assistant', 'dayoff_approve']) {
+    assert.ok(rustam.some((t) => t.id === id), `руководитель: ${id}`); assert.ok(!op1.some((t) => t.id === id), `оператор: ${id}`);
+  }
+  const give = rustam.find((t) => t.id === 'give_task')!;
+  assert.deepEqual([give.group, give.route, give.target], ['team', '/team/tasks', 'nav-team_tasks']);
+  const sv = rustam.find((t) => t.id === 'sv_assistant')!;
+  assert.deepEqual([sv.group, sv.route, sv.target], ['learn', '/training/lead', 'nav-lead_school']);
+  assert.ok(!rustam.some((t) => t.id === 'reports') && !op1.some((t) => ['structure_edit', 'admin_ai', 'ai_editor'].includes(t.id)));
+  assert.deepEqual(op1.filter((t) => !GROUPS.includes(t.group)), []);
+  // админ закрыл колл-центру раздел «График»: тем про график нет, и ответ «как попросить выходной» их не предлагает
+  const adm = await login('admin', 'admin-test-1');
+  try {
+    assert.ok(op1.some((t) => t.id === 'dayoff_request') && op1.some((t) => t.id === 'checkin'));
+    assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { call: ['home', 'chat', 'plan', 'trainer', 'ready', 'growth', 'path', 'kb', 'assist', 'news', 'help', 'tasks', 'team', 'structure', 'pay'] } })).statusCode, 200);
+    const closed = await topics(await login('op1')), ids = closed.map((t) => t.id);
+    for (const id of ['schedule_view', 'dayoff_request', 'checkin']) assert.ok(!ids.includes(id), `раздел «График» закрыт — темы ${id} нет`);
+    assert.ok(ids.includes('chat_write') && ids.includes('training_plan'));
+    const ans = (await send(await login('op1'), 'POST', '/api/help/ask', { query: 'как попросить выходной на пятницу' })).json();
+    assert.notEqual(ans.topic?.id, 'dayoff_request');
+  } finally { await send(adm, 'DELETE', '/api/admin/access'); }
+  assert.ok((await topics(await login('op1'))).some((t) => t.id === 'dayoff_request'), 'сброс матрицы вернул тему');
+});

@@ -1043,3 +1043,144 @@ test('E1 «Словари»: ключи g_*, i_*, n_*, на которые не�
     assert.equal(s.ru[k], undefined, `ru: ${k}`); assert.equal(s.uz[k], undefined, `uz: ${k}`);
   }
 });
+
+/* ================= E2. Пути в справке и темы по разделам ================= */
+const HELP_GROUP_IDS = ['home', 'chat', 'team', 'work', 'learn', 'grow', 'company', 'manage', 'util'];
+
+test('E2 «Справка»: путей, набранных руками, нет; каждая метка {path:x} — пункт меню; тексты есть на двух языках; navPath и fillPaths стоят в nav.ts и вызываются из справки, поиска и «?»', async () => {
+  const src = web('lib/help-content.ts').split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n');      // комментарий в начале файла объясняет метки и сам содержит «Раздел → вкладка»
+  for (const bad of ['«Люди →', '«Знания →', '«Работа →', '«Управление → Очередь', 'Обучение → Развитие', 'Главная → Мой путь', 'Профиль → ЗП', 'Профиль → Мои данные', 'Профиль → Настройки',
+    '«Главная →', '«Обучение →', '«Управление →', 'Админка →', 'Знания → ЧАВО', 'Задать вопрос или предложить']) assert.ok(!src.includes(bad), `путь или старая кнопка набраны руками: ${bad}`);
+  assert.deepEqual([...src.matchAll(/«[^»]*→[^»]*»/g)].map((m) => m[0]), [], 'внутри «…» нет стрелок-путей');
+  const ids = new Set(registry.map((r) => r.id));
+  const tags = [...src.matchAll(/\{path:(\w+)\}/g)].map((m) => m[1]);
+  assert.ok(tags.length >= 50, `меток в текстах: ${tags.length}`);
+  assert.deepEqual([...new Set(tags)].filter((x) => !ids.has(x)), [], 'метка ссылается на несуществующий пункт меню');
+  const { HELP } = await import('../../web/src/lib/help-content.ts') as { HELP: Record<string, { ru: string[]; uz: string[] }> };
+  const { HELP_TOPICS } = await import('../src/help-topics.js');
+  assert.deepEqual(Object.keys(HELP).sort(), HELP_TOPICS.map((t) => t.id).sort(), 'тексты есть у каждой темы и только у них (тема «reports» удалена вместе со страницей «Отчёты»)');
+  assert.ok(!('reports' in HELP) && !HELP_TOPICS.some((t) => t.id === 'reports'));
+  const tagsOf = (a: string[]) => (a.join(' ').match(/\{path:\w+\}/g) ?? []).sort().join();
+  for (const [id, h] of Object.entries(HELP)) {
+    assert.equal(h.ru.length, h.uz.length, `${id}: шагов на русском и узбекском поровну`);
+    assert.equal(tagsOf(h.ru), tagsOf(h.uz), `${id}: в русском и узбекском тексте одни и те же пункты меню`);
+    assert.doesNotMatch(h.uz.join(' '), /[А-Яа-яЁё]/, `${id}: в узбекском тексте остался русский`);
+  }
+  // тексты, описывавшие устаревшие кнопки, переписаны (E2, п. 5)
+  assert.match(HELP.library.ru.join(' '), /«Читаю» или «Изучено»/); assert.doesNotMatch(HELP.growth_survey.ru.join(' '), /Опрос»|вкладка/i);
+  assert.match(HELP.ask_leader.ru.join(' '), /Новая заявка» → «Вопрос руководству/); assert.match(HELP.readiness.ru.join(' '), /руководитель группы или HR/);
+  // сборка путей: чистые функции в nav-core.ts, обёртки с реестром — в nav.ts
+  assert.equal(nav.joinPath(['Чаты', 'Чаты']), 'Чаты'); assert.equal(nav.joinPath(['Моя работа', 'График']), 'Моя работа → График'); assert.equal(nav.joinPath(['', 'Управление', 'Контент', 'Контент']), 'Управление → Контент');
+  assert.equal(nav.fillPathTags('Откройте {path:chat}.', (id: string) => `Раздел ${id}`), 'Откройте «Раздел chat».');
+  assert.equal(nav.fillPathTags('{path:chat}ni oching, {path:pay}.', (id: string) => id), '«chat»ni oching, «pay».'); assert.equal(nav.fillPathTags('без меток', () => 'x'), 'без меток');
+  const navTs = web('lib/nav.ts');
+  assert.match(navTs, /export const navPath = \(itemId: string\): string =>/); assert.match(navTs, /hubLabel\(hub\), label\]/, 'путь = подпись раздела + подпись вкладки');
+  assert.match(navTs, /export const fillPaths = \(s: string\): string => fillPathTags\(s, navPath\)/);
+  for (const f of ['pages/Help.svelte', 'components/Search.svelte', 'components/PageHelp.svelte']) assert.match(web(f), /\.map\(fillPaths\)/, `${f} подставляет пути`);
+  assert.doesNotMatch(web('components/PageHelp.svelte'), /know: 'know'/, 'группы тем — разделы меню');
+});
+
+test('E2 «Справка»: темы сгруппированы по разделам меню, маршрут каждой уже новый и ведёт на существующую ветку роутера, цель и раздел матрицы согласованы со страницей', async () => {
+  const { HELP_TOPICS, HELP_GROUPS } = await import('../src/help-topics.js');
+  const { SECTIONS } = await import('../src/access.js');
+  assert.deepEqual([...HELP_GROUPS].sort(), [...HELP_GROUP_IDS].sort());
+  assert.deepEqual(HELP_GROUPS, ['home', 'chat', 'work', 'learn', 'grow', 'company', 'team', 'manage', 'util'], 'порядок групп на странице «Помощь»');
+  const help = web('pages/Help.svelte');
+  assert.match(help, /const GROUPS = \['home', 'chat', 'work', 'learn', 'grow', 'company', 'team', 'manage', 'util'\]/); assert.match(help, /const gname = \(g: string\) => hubLabel\(g\)/);
+  assert.doesNotMatch(help, /g_\$\{g\}|'know'|'people'|'profile'/);
+  const heads = new Set([...web('Router.svelte').matchAll(/head === '([\w-]+)'/g)].map((m) => m[1]));
+  const ctxs = [opCtx, nwCtx, leadCtx, hrCtx, admCtx, edCtx, recCtx, accCtx, seniorCtx, mentorCtx, ctx(FIX.external)];
+  const targets = new Set([...nav.HUBS.map((h: any) => 'nav-hub-' + h.id), ...registry.map((r) => 'nav-' + r.id), 'chat-new', 'checkin', 'search']);
+  // страница, которую закрывает раздел матрицы: если раздел закрыт, роутер показывает «Раздел недоступен»; тема этого раздела не должна показываться
+  const ROUTE_SECTION: Record<string, string> = { '/chat': 'chat', '/news': 'news', '/schedule': 'schedule', '/training': 'plan', '/training/trainer': 'trainer', '/training/ready': 'ready', '/path': 'path',
+    '/growth/reviews': 'growth', '/growth/talk': 'growth', '/pay': 'pay', '/kb': 'kb', '/assist': 'assist' };
+  const bad: string[] = [];
+  for (const t of HELP_TOPICS) {
+    const [p, q = ''] = t.route.split('?');
+    if (!HELP_GROUP_IDS.includes(t.group)) bad.push(`${t.id}: группа «${t.group}»`);
+    if (!heads.has(p.split('/').filter(Boolean)[0])) bad.push(`${t.id}: в роутере нет ветки ${p}`);
+    for (const c of ctxs) {
+      const to = nav.REDIRECTS(p, q, c);
+      if (t.route === '/training' && !c.onboarding) { if (to !== '/training/courses') bad.push(`${t.id}: /training должен вести на курсы (${c.persona})`); } else if (to) bad.push(`${t.id}: маршрут ${t.route} старый, REDIRECTS ведёт в ${to} (${c.persona})`);
+    }
+    if (t.target && !targets.has(t.target)) bad.push(`${t.id}: цель подсветки «${t.target}» не существует`);
+    if (t.target?.startsWith('nav-')) {
+      const hub = t.target.startsWith('nav-hub-') ? t.target.slice(8) : nav.hubOfItem(t.target.slice(4));
+      if (hub !== t.group) bad.push(`${t.id}: цель ${t.target} лежит в разделе «${hub}», а тема — в «${t.group}»`);
+    }
+    if (t.section && !(SECTIONS as readonly string[]).includes(t.section)) bad.push(`${t.id}: раздел матрицы «${t.section}»`);
+    if (t.section !== undefined || p in ROUTE_SECTION) if (ROUTE_SECTION[p] !== t.section) bad.push(`${t.id}: страница ${p} закрывается разделом «${ROUTE_SECTION[p]}», а у темы «${t.section}»`);
+    // пункт меню под маршрутом существует (или это главная)
+    if (!nav.pickActive(p, registry.map((r) => ({ id: r.id, href: r.href })), nav.ROUTE_ALIASES(p, opCtx)) && p !== '/home') bad.push(`${t.id}: под ${p} нет пункта меню`);
+  }
+  assert.deepEqual(bad, []);
+  // таблица переноса из ТЗ: адрес, цель, раздел
+  const row = (id: string) => HELP_TOPICS.find((t) => t.id === id)!;
+  for (const id of ['chat_write', 'chat_dm', 'chat_group', 'chat_mention', 'chat_file']) { assert.equal(row(id).group, 'chat', id); assert.equal(row(id).route, '/chat'); assert.equal(row(id).section, 'chat'); }
+  assert.equal(row('chat_group').target, 'chat-new'); assert.equal(row('chat_write').target, 'nav-hub-chat');
+  for (const id of ['notifications', 'profile_photo', 'language_theme', 'password']) { assert.equal(row(id).group, 'util', id); assert.equal(row(id).target, 'nav-settings'); assert.equal(row(id).section, undefined); }
+  assert.equal(row('profile_photo').route, '/profile'); assert.equal(row('notifications').route, '/profile/settings');
+  assert.deepEqual([row('training_plan').route, row('training_plan').target, row('training_plan').section], ['/training', 'nav-start', 'plan']);
+  assert.deepEqual([row('readiness').route, row('readiness').target, row('readiness').section], ['/training/ready', 'nav-start', 'ready']);
+  assert.deepEqual([row('growth_survey').route, row('growth_survey').target, row('growth_survey').section], ['/growth/reviews', 'nav-reviews', 'growth']);
+  assert.deepEqual([row('goal').route, row('goal').target, row('goal').section], ['/growth/talk', 'nav-talks', 'growth']);
+  assert.deepEqual([row('pay_show').route, row('pay_show').target, row('pay_show').section], ['/pay', 'nav-pay', 'pay']);
+  assert.deepEqual([row('search_ai').group, row('search_ai').route, row('search_ai').target], ['util', '/home', 'search']);
+  assert.deepEqual([row('ask_leader').group, row('ask_leader').route, row('ask_leader').target], ['work', '/requests', 'nav-requests']);
+  assert.deepEqual([row('tasks').group, row('tasks').route, row('queue').group, row('queue').route], ['home', '/inbox', 'home', '/inbox']);
+  assert.deepEqual([row('panel_team').route, row('give_task').route, row('assign_test').route, row('dayoff_approve').route], ['/team', '/team/tasks', '/team/learning', '/team/schedule']);
+  assert.deepEqual([row('sv_assistant').group, row('sv_assistant').route, row('sv_assistant').target], ['learn', '/training/lead', 'nav-lead_school']);
+  assert.deepEqual([row('structure').group, row('structure').route, row('structure').target], ['company', '/people?view=chart', 'nav-people']);
+  assert.deepEqual(['structure_edit', 'ai_editor', 'admin_ai'].map((id) => row(id).route), ['/admin/org', '/admin/editor', '/admin/ai']); assert.ok(['structure_edit', 'ai_editor', 'admin_ai'].every((id) => row(id).group === 'manage'));
+  assert.equal(row('sv_assistant').title.ru, 'Школа руководителя'); assert.equal(row('sv_assistant').title.uz, 'Rahbarlar maktabi');
+  assert.equal(row('growth_survey').title.ru, 'Пройти оценку 360°'); assert.equal(row('growth_survey').title.uz, '360° baholashdan o‘tish');
+  // названия и слова для поиска: старые названия остаются среди слов, чтобы тему находили по привычке
+  assert.match(row('kb_search').kw.ru, /чаво/); assert.match(row('sv_assistant').kw.ru, /помощник супервайзера/); assert.match(row('path').kw.ru, /путь/);
+});
+
+test('E2 «Справка»: topicsFor учитывает закрытые разделы матрицы и тех, кто возглавляет узел; внешним — только их разделы', async () => {
+  const { topicsFor, HELP_TOPICS } = await import('../src/help-topics.js');
+  const { SECTIONS, DEFAULT_MATRIX } = await import('../src/access.js');
+  const ids = (roles: string[], ext: string[] | null, sections?: string[], team = false) => topicsFor(roles, ext, sections, team).map((t) => t.id);
+  const all = [...SECTIONS] as string[];
+  // раздел закрыт — темы нет; раздел открыт — есть (HR: помощник оператора закрыт, база знаний открыта после A8)
+  const hr = ids(['employee', 'hr'], null, DEFAULT_MATRIX.hr as string[]);
+  assert.ok(!hr.includes('assist') && hr.includes('kb_search') && hr.includes('path') && !hr.includes('trainer') && !hr.includes('readiness'));
+  assert.ok(ids(['employee'], null, all).includes('assist'));
+  const noSchedule = ids(['employee'], null, all.filter((s) => s !== 'schedule'));
+  for (const t of ['schedule_view', 'dayoff_request', 'checkin']) assert.ok(!noSchedule.includes(t), t);
+  assert.ok(!ids(['employee'], null, all.filter((s) => s !== 'chat')).includes('chat_write'));
+  assert.ok(ids(['employee'], null).includes('assist'), 'без списка разделов раздел не проверяется');
+  // руководитель по структуре видит темы руководителя без ролей manager и head; без узла и без ролей — нет
+  const leadTopics = ['panel_team', 'give_task', 'assign_test', 'queue', 'sv_assistant', 'dayoff_approve'];
+  const noTeam = ids(['employee'], null, all), withTeam = ids(['employee'], null, all, true);
+  for (const t of leadTopics) { assert.ok(!noTeam.includes(t), `без узла: ${t}`); assert.ok(withTeam.includes(t), `с узлом: ${t}`); }
+  for (const t of leadTopics.filter((x) => x !== 'dayoff_approve')) assert.ok(ids(['employee', 'manager'], null, all).includes(t), `роль manager: ${t}`);
+  assert.ok(!withTeam.includes('admin_ai') && !withTeam.includes('structure_edit') && !withTeam.includes('ai_editor'), 'узел не даёт тем администратора и редактора');
+  assert.ok(ids(['admin'], null, all).length === HELP_TOPICS.length, 'администратору доступны все темы');
+  // внешнее подразделение: только свои разделы, темы закрытых разделов тоже отсечены
+  const ext = ids(['employee'], ['chat', 'training'], all);
+  assert.deepEqual(ext.sort(), ['chat_dm', 'chat_file', 'chat_mention', 'chat_write', 'language_theme', 'notifications', 'password', 'profile_photo', 'readiness', 'trainer', 'training_plan']);
+  assert.ok(!ids(['employee'], ['chat'], all).includes('training_plan') && !ids(['employee'], ['training'], all).includes('chat_write'));
+  assert.ok(!ids(['employee'], ['chat', 'training'], all.filter((s) => s !== 'ready')).includes('readiness'));
+});
+
+test('E2 «Справка»: темы, которые человек видит, открываются без «Нет доступа» — для оператора, новичка, руководителя, HR, редактора, рекрутёра и внешнего', async () => {
+  const { topicsFor } = await import('../src/help-topics.js');
+  const { DEFAULT_MATRIX, SECTIONS } = await import('../src/access.js');
+  const items = registry.map((r) => ({ id: r.id, href: r.href }));
+  const personas: [string, U, string[]][] = [['оператор', FIX.operator, [...SECTIONS]], ['новичок', FIX.newbie, [...SECTIONS]], ['руководитель', FIX.lead, [...SECTIONS]], ['HR', FIX.hr, DEFAULT_MATRIX.hr as string[]],
+    ['редактор', FIX.editor, [...SECTIONS]], ['рекрутёр', FIX.recruiter, DEFAULT_MATRIX.recruiter as string[]], ['внешний', FIX.external, [...SECTIONS]]];
+  const bad: string[] = [];
+  for (const [name, u, sections] of personas) {
+    const c = ctx(u), vis = nav.visCtxOf(u, (s: string) => sections.includes(s));
+    for (const t of topicsFor(u.roles, u.external, sections, u.team_nodes > 0)) {
+      const [p, q = ''] = t.route.split('?');
+      // темы группы «Моя команда» по ролям видны и HR без узла (так в ТЗ); страница «Моя команда» у него по-прежнему только для тех, кто возглавляет узел
+      if (t.group === 'team' && !u.team_nodes) continue;
+      const path = nav.REDIRECTS(p, q, c)?.split('?')[0] ?? p;
+      if (nav.isGated(path) && !nav.pathOpen(path, items, c, vis)) bad.push(`${name}: тема ${t.id} ведёт на ${path}, а там «Нет доступа»`);
+    }
+  }
+  assert.deepEqual(bad, []);
+});

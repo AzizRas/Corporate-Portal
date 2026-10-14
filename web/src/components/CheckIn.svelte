@@ -16,7 +16,7 @@
 </script>
 
 {#if s && !hidden && (s.needs || done)}
-  <div class="ci card" role="status">
+  <div class="ci card" role="status" data-tour="checkin">
     {#if done}<span class="pill-ok">✓ {st('ci_ok')}</span>
     {:else}
       <span class="ci-ic"></span>

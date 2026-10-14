@@ -99,11 +99,13 @@ export async function onboardingRoutes(app: FastifyInstance) {
   });
 
   /* ----- справочник и ответы «как это сделать» ----- */
-  app.get('/api/help/topics', auth, async (req) => ({ topics: topicsFor(req.user!.roles, req.user!.external).map(meta) }));
+  // темы закрытых подразделению разделов не показываются (u.sections); руководителю по структуре — темы руководителя, даже без роли manager/head
+  const topicsOf = (u: AuthUser) => topicsFor(u.roles, u.external, u.sections, u.branch_nodes.length > 0);
+  app.get('/api/help/topics', auth, async (req) => ({ topics: topicsOf(req.user!).map(meta) }));
 
   app.post('/api/help/ask', auth, async (req) => {
     const u = req.user!, query = String((req.body as any)?.query ?? '').trim().slice(0, 300);
-    const topics = topicsFor(u.roles, u.external);
+    const topics = topicsOf(u);
     if (query.length < 3) return { topic: null, alternatives: [], answer: null, ai: false };
     const lang = u.lang === 'uz' ? 'uz' : 'ru';
     const local = matchTopics(query, topics);
