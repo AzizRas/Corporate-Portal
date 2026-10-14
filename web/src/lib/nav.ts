@@ -1,94 +1,151 @@
-// Меню портала: 6 групп, видимость по ролям. Один источник для боковой колонки, нижней панели телефона, поиска и «Ещё».
-import { app, has, can, lead } from './state.svelte';
-import { st } from './s18n';
+// Реестр пунктов меню (ТЗ №4, A1): один плоский список ITEMS. На нём стоят боковая колонка, режим «Управление», нижняя панель телефона, «Ещё»,
+// поиск Ctrl+K и справка. Разделы (HUBS, ADMIN_HUBS, UTIL), правила видимости и старые адреса — в nav-core.ts (чистые функции, их проверяет тест).
+// Каждый id встречается ровно один раз и входит ровно в один раздел; двух пунктов с одинаковым адресом нет.
+import { app, can, hasOwn } from './state.svelte';
 import { wt } from './w18n';
-import { pickLanding, normPath, buildHubs, HUBS, PROFILE_HUB, type Hub } from './nav-core';
+import { notif } from './notify.svelte';
+import {
+  HUBS, ADMIN_HUBS, UTIL, MANAGE_ROLES, pickLanding, normPath, buildHubs, itemVisible, pickActive, pathOpen, personaOf, navCtxOf, visCtxOf, ROUTE_ALIASES,
+  type Hub, type HubItem, type VisCtx, type NavCtx, type Persona,
+} from './nav-core';
 
-export interface NavItem { id: string; label: string; href: string; icon: string; badge?: number; section?: string }
-export interface NavGroup { id: string; label: string; icon: string; items: NavItem[] }
+export interface NavItemDef { id: string; hub: string; href: string; icon: string; label: () => string; visible: (c: VisCtx) => boolean; badge?: () => number }
+/** Пункт видит тот, для кого его правило (nav-core.ts → itemVisible) даёт «да». */
+const vis = (id: string) => (c: VisCtx) => itemVisible(id, c);
 
-/** Пункт меню → раздел из набора подразделения (см. server/src/access.ts). Пунктов вне набора это не касается. */
-const ITEM_SECTION: Record<string, string> = { home: 'home', news: 'news', path: 'path', tasks: 'tasks', growth: 'growth', plan: 'plan', trainer: 'trainer', ready: 'ready', tests: 'tests', library: 'library', kb: 'kb', assist: 'assist', help: 'help', chat: 'chat', team: 'team', structure: 'structure', schedule: 'schedule', pay: 'pay' };
-/** Что открывает адрес «/»: главная; если её закрыли для подразделения — первый доступный из списка. */
-export const landing = (): string => pickLanding(can);
-/** Первый сегмент маршрута → раздел (для закрытия страницы, если открыли по ссылке). */
+export const ITEMS: NavItemDef[] = [
+  // Главная
+  { id: 'today', hub: 'home', href: '/home', icon: 'home', label: () => wt('i2_today'), visible: vis('today') },
+  { id: 'inbox', hub: 'home', href: '/inbox', icon: 'inbox', label: () => wt('i2_inbox'), visible: vis('inbox'), badge: () => notif.inbox_todo },
+  // Чаты
+  { id: 'chat', hub: 'chat', href: '/chat', icon: 'chat', label: () => wt('i2_chat'), visible: vis('chat'), badge: () => notif.chat_total },
+  // Моя команда
+  { id: 'team', hub: 'team', href: '/team', icon: 'team', label: () => wt('i2_team'), visible: vis('team') },
+  { id: 'team_schedule', hub: 'team', href: '/team/schedule', icon: 'schedule', label: () => wt('i2_team_schedule'), visible: vis('team_schedule') },
+  { id: 'team_newbies', hub: 'team', href: '/team/newbies', icon: 'sprout', label: () => wt('i2_team_newbies'), visible: vis('team_newbies') },
+  { id: 'team_learning', hub: 'team', href: '/team/learning', icon: 'training', label: () => wt('i2_team_learning'), visible: vis('team_learning') },
+  { id: 'team_growth', hub: 'team', href: '/team/growth', icon: 'growth', label: () => wt('i2_team_growth'), visible: vis('team_growth') },
+  { id: 'team_tasks', hub: 'team', href: '/team/tasks', icon: 'tasks', label: () => wt('i2_team_tasks'), visible: vis('team_tasks') },
+  { id: 'team_hire', hub: 'team', href: '/team/hire', icon: 'user-plus', label: () => wt('i2_team_hire'), visible: vis('team_hire') },
+  // Моя работа
+  { id: 'schedule', hub: 'work', href: '/schedule', icon: 'schedule', label: () => wt('i2_schedule'), visible: vis('schedule') },
+  { id: 'requests', hub: 'work', href: '/requests', icon: 'request', label: () => wt('i2_requests'), visible: vis('requests') },
+  { id: 'pay', hub: 'work', href: '/pay', icon: 'pay', label: () => wt('i2_pay'), visible: vis('pay') },
+  // Обучение
+  { id: 'start', hub: 'learn', href: '/training', icon: 'flag', label: () => wt('i2_start'), visible: vis('start') },
+  { id: 'courses', hub: 'learn', href: '/training/courses', icon: 'training', label: () => wt('i2_courses'), visible: vis('courses') },
+  { id: 'trainer', hub: 'learn', href: '/training/trainer', icon: 'chat-bubbles', label: () => wt('i2_trainer'), visible: vis('trainer') },
+  { id: 'tests', hub: 'learn', href: '/tests', icon: 'tests', label: () => wt('i2_tests'), visible: vis('tests') },
+  { id: 'library', hub: 'learn', href: '/library', icon: 'library', label: () => wt('i2_library'), visible: vis('library') },
+  { id: 'lead_school', hub: 'learn', href: '/training/lead', icon: 'compass', label: () => wt('i2_lead_school'), visible: vis('lead_school') },
+  // Рост
+  { id: 'path', hub: 'grow', href: '/path', icon: 'path', label: () => wt('i2_path'), visible: vis('path') },
+  { id: 'talks', hub: 'grow', href: '/growth/talk', icon: 'calendar-check', label: () => wt('i2_talks'), visible: vis('talks') },
+  { id: 'reviews', hub: 'grow', href: '/growth/reviews', icon: 'target', label: () => wt('i2_reviews'), visible: vis('reviews') },
+  { id: 'self', hub: 'grow', href: '/growth/self', icon: 'idea', label: () => wt('i2_self'), visible: vis('self') },
+  { id: 'advisor', hub: 'grow', href: '/growth/mentor', icon: 'bot', label: () => wt('i2_advisor'), visible: vis('advisor') },
+  // Компания
+  { id: 'news', hub: 'company', href: '/news', icon: 'news', label: () => wt('i2_news'), visible: vis('news') },
+  { id: 'people', hub: 'company', href: '/people', icon: 'users', label: () => wt('i2_people'), visible: vis('people') },
+  { id: 'kb', hub: 'company', href: '/kb', icon: 'kb', label: () => wt('i2_kb'), visible: vis('kb') },
+  { id: 'assist', hub: 'company', href: '/assist', icon: 'assist', label: () => wt('i2_assist'), visible: vis('assist') },
+  { id: 'surveys', hub: 'company', href: '/surveys', icon: 'heart', label: () => wt('i2_surveys'), visible: vis('surveys') },
+  // Утилиты (внизу колонки)
+  { id: 'profile', hub: 'util', href: '/profile', icon: 'user', label: () => wt('i2_profile'), visible: vis('profile') },
+  { id: 'settings', hub: 'util', href: '/profile/settings', icon: 'gear', label: () => wt('i2_settings'), visible: vis('settings') },
+  { id: 'help', hub: 'util', href: '/help', icon: 'help', label: () => wt('i2_help'), visible: vis('help') },
+  // Управление → Кадры
+  { id: 'a_users', hub: 'm_staff', href: '/admin/users', icon: 'users', label: () => wt('ai_a_users'), visible: vis('a_users') },
+  { id: 'a_org', hub: 'm_staff', href: '/admin/org', icon: 'building', label: () => wt('ai_a_org'), visible: vis('a_org') },
+  { id: 'a_onboarding', hub: 'm_staff', href: '/admin/onboarding', icon: 'sprout', label: () => wt('ai_a_onboarding'), visible: vis('a_onboarding') },
+  { id: 'a_leaves', hub: 'm_staff', href: '/admin/leaves', icon: 'palm', label: () => wt('ai_a_leaves'), visible: vis('a_leaves') },
+  { id: 'a_attendance', hub: 'm_staff', href: '/admin/attendance', icon: 'att', label: () => wt('ai_a_attendance'), visible: vis('a_attendance') },
+  { id: 'a_offboarding', hub: 'm_staff', href: '/admin/offboarding', icon: 'logout', label: () => wt('ai_a_offboarding'), visible: vis('a_offboarding') },
+  { id: 'a_analytics', hub: 'm_staff', href: '/admin/analytics', icon: 'path', label: () => wt('ai_a_analytics'), visible: vis('a_analytics') },
+  // Управление → Найм
+  { id: 'h_vac', hub: 'm_hire', href: '/hire', icon: 'briefcase', label: () => wt('ai_h_vac'), visible: vis('h_vac') },
+  { id: 'h_people', hub: 'm_hire', href: '/hire/people', icon: 'users', label: () => wt('ai_h_people'), visible: vis('h_people') },
+  { id: 'h_req', hub: 'm_hire', href: '/hire/req', icon: 'request', label: () => wt('ai_h_req'), visible: vis('h_req') },
+  { id: 'h_cal', hub: 'm_hire', href: '/hire/cal', icon: 'calendar-check', label: () => wt('ai_h_cal'), visible: vis('h_cal') },
+  { id: 'h_rep', hub: 'm_hire', href: '/hire/rep', icon: 'path', label: () => wt('ai_h_rep'), visible: vis('h_rep') },
+  { id: 'h_cfg', hub: 'm_hire', href: '/hire/cfg', icon: 'gear', label: () => wt('ai_h_cfg'), visible: vis('h_cfg') },
+  // Управление → Оценка и рост
+  { id: 'a_reviews', hub: 'm_talent', href: '/admin/reviews', icon: 'target', label: () => wt('ai_a_reviews'), visible: vis('a_reviews') },
+  { id: 'a_reserve', hub: 'm_talent', href: '/admin/reserve', icon: 'trophy', label: () => wt('ai_a_reserve'), visible: vis('a_reserve') },
+  { id: 'a_growth', hub: 'm_talent', href: '/admin/growth', icon: 'growth', label: () => wt('ai_a_growth'), visible: vis('a_growth') },
+  // Управление → Курсы и тесты
+  { id: 'a_training', hub: 'm_learn', href: '/admin/training', icon: 'training', label: () => wt('ai_a_training'), visible: vis('a_training') },
+  { id: 'a_tests', hub: 'm_learn', href: '/admin/tests', icon: 'tests', label: () => wt('ai_a_tests'), visible: vis('a_tests') },
+  // Управление → Контент
+  { id: 'a_kb', hub: 'm_content', href: '/admin/kb', icon: 'kb', label: () => wt('ai_a_kb'), visible: vis('a_kb') },
+  { id: 'a_wiki', hub: 'm_content', href: '/admin/wiki', icon: 'library', label: () => wt('ai_a_wiki'), visible: vis('a_wiki') },
+  { id: 'a_assist', hub: 'm_content', href: '/admin/assist', icon: 'assist', label: () => wt('ai_a_assist'), visible: vis('a_assist') },
+  { id: 'a_questions', hub: 'm_content', href: '/admin/questions', icon: 'help', label: () => wt('ai_a_questions'), visible: vis('a_questions') },
+  { id: 'a_editor', hub: 'm_content', href: '/admin/editor', icon: 'spark', label: () => wt('ai_a_editor'), visible: vis('a_editor') },
+  { id: 'a_stickers', hub: 'm_content', href: '/admin/stickers', icon: 'heart', label: () => wt('ai_a_stickers'), visible: vis('a_stickers') },
+  // Управление → Зарплата
+  { id: 'a_payroll', hub: 'm_pay', href: '/admin/payroll', icon: 'pay', label: () => wt('ai_a_payroll'), visible: vis('a_payroll') },
+  { id: 'a_requests', hub: 'm_pay', href: '/admin/requests', icon: 'request', label: () => wt('ai_a_requests'), visible: vis('a_requests') },
+  // Управление → Система
+  { id: 'a_access', hub: 'm_system', href: '/admin/access', icon: 'lock', label: () => wt('ai_a_access'), visible: vis('a_access') },
+  { id: 'a_security', hub: 'm_system', href: '/admin/security', icon: 'admin', label: () => wt('ai_a_security'), visible: vis('a_security') },
+  { id: 'a_ai', hub: 'm_system', href: '/admin/ai', icon: 'bot', label: () => wt('ai_a_ai'), visible: vis('a_ai') },
+  { id: 'a_decide', hub: 'm_system', href: '/admin/decide', icon: 'compass', label: () => wt('ai_a_decide'), visible: vis('a_decide') },
+  { id: 'a_wellness', hub: 'm_system', href: '/admin/wellness', icon: 'coffee', label: () => wt('ai_a_wellness'), visible: vis('a_wellness') },
+  { id: 'a_usage', hub: 'm_system', href: '/admin/usage', icon: 'info', label: () => wt('ai_a_usage'), visible: vis('a_usage') },
+  { id: 'a_audit', hub: 'm_system', href: '/admin/audit', icon: 'file', label: () => wt('ai_a_audit'), visible: vis('a_audit') },
+];
+
+/* ---------- Кто смотрит ---------- */
+const closed: VisCtx = { can: () => false, own: () => false, any: () => false, hasTeam: false, onboarding: false, external: null, intern: false, staff: false };
+/** Всё, что нужно правилам видимости: разделы подразделения, собственные роли, команда, новичок, внешний, стажёр, «служебная учётная запись». */
+export const visCtx = (): VisCtx => (app.user ? visCtxOf(app.user, can) : closed);
+export const visibleItems = (c: VisCtx = visCtx()): NavItemDef[] => ITEMS.filter((i) => i.visible(c));
+/** Персона: оператор, новичок, руководитель, HR, админ, офисная роль или внешний. Роли — строго собственные. */
+export const persona = (): Persona => (app.user ? personaOf(app.user) : 'operator');
+/** Контекст для старых адресов (REDIRECTS) и подсветки (ROUTE_ALIASES). */
+export const navCtx = (): NavCtx => (app.user ? navCtxOf(app.user) : { persona: 'operator', me: 0, roles: [], hasTeam: false, onboarding: false });
+
+const toHubItem = (i: NavItemDef): HubItem => ({ id: i.id, label: i.label(), href: i.href, icon: i.icon, badge: i.badge?.() || undefined });
+/** Разделы боковой колонки и вкладок: только видимые пункты, пустые разделы пропускаются (7 пунктов первого уровня). */
+export const navHubs = (): Hub[] => buildHubs(visibleItems().map(toHubItem), HUBS);
+/** Группы режима «Управление»: у рекрутёра — «Найм», у бухгалтера — «Зарплата», у админа — все. */
+export const adminHubs = (): Hub[] => buildHubs(visibleItems().map(toHubItem), ADMIN_HUBS);
+/** Утилиты внизу колонки: профиль, настройки, помощь. */
+export const utilItems = (): NavItemDef[] => visibleItems().filter((i) => UTIL.includes(i.id));
+/** Кнопка «Управление» видна только тем, у кого есть собственная роль admin, hr, recruiter, accountant или editor (не через has()). */
+export const canManage = (): boolean => hasOwn(...MANAGE_ROLES);
+/** Куда ведёт кнопка «Управление»: первая видимая вкладка режима. */
+export const adminHome = (): string | null => adminHubs()[0]?.items[0]?.href ?? null;
+
+/** Названия разделов меню на языке пользователя: n2_<id> для разделов, m_<id> для групп «Управления», «Профиль и настройки» для утилит. */
+export const hubLabel = (id: string): string =>
+  HUBS.some((h) => h.id === id) ? wt('n2_' + id) : ADMIN_HUBS.some((h) => h.id === id) ? wt(id) : id === 'util' ? wt('ut_profile_settings') : id === 'manage' ? wt('am_enter') : id;
+
+/* ---------- Адреса ---------- */
+/** Что открывает адрес «/»: главная; если её закрыли для подразделения — первый доступный из списка. «Входящие» в матрице разделов не значатся: они открыты всем штатным.
+ *  Внешнему подразделению «Главной» и «Входящих» нет — ему открывается первый из разрешённых узлу разделов. */
+export const landing = (): string => pickLanding((s) => {
+  const ext = app.user?.external;
+  if (ext) return s !== 'home' && s !== 'inbox' && (s === 'help' || ext.includes(s));
+  return s === 'inbox' || can(s);
+});
+/** Первый сегмент маршрута → раздел из матрицы доступа (для закрытия страницы, если открыли по ссылке). Адреса, где доступ решают роли, раздел не имеют. */
 export function routeSection(parts: string[]): string | null {
   const h = parts[0] || landing();
-  if (h === 'training') return parts[1] === 'trainer' ? 'trainer' : parts[1] === 'ready' ? 'ready' : 'plan';
-  if (h === 'profile' && parts[1] === 'pay') return 'pay';
+  if (h === 'training') return parts[1] === 'trainer' ? 'trainer' : parts[1] === 'ready' ? 'ready' : parts[1] === 'lead' ? null : 'plan';
+  if (h === 'growth') return parts[1] === 'self' ? null : 'growth';
+  if (h === 'path') return can('path') || !can('growth') ? 'path' : 'growth';          // «Карьера» открыта, если открыт любой из разделов «path» и «growth» (у HR только второй)
   if (h === 'pay') return 'pay';
-  return ['home', 'news', 'path', 'tasks', 'growth', 'tests', 'library', 'kb', 'assist', 'help', 'chat', 'team', 'structure', 'schedule'].includes(h) ? h : null;
-}
-
-export function navGroups(chatBadge = 0): NavGroup[] {
-  const it = (id: string, label: string, href: string, icon: string, badge?: number, section?: string): NavItem => ({ id, label, href, icon, badge, section });
-  const groups: NavGroup[] = [
-    { id: 'main', label: wt('g_main'), icon: 'home', items: [
-      it('home', wt('i_summary'), '/home', 'home', undefined, 'internal'), it('news', st('n_news'), '/news', 'news', undefined, 'news'), it('path', st('n_path'), '/path', 'path', undefined, 'internal'), it('tasks', wt('i_tasks'), '/tasks', 'tests', undefined, 'internal'),
-    ] },
-    { id: 'learn', label: wt('g_learn'), icon: 'training', items: [
-      it('plan', wt('i_plan'), '/training', 'training', undefined, 'training'), it('trainer', wt('i_trainer'), '/training/trainer', 'chat', undefined, 'training'), it('tests', st('n_tests'), '/tests', 'tests', undefined, 'tests'),
-      it('library', st('n_library'), '/library', 'library', undefined, 'library'), it('ready', wt('i_ready'), '/training/ready', 'att', undefined, 'training'), it('growth', wt('i_growth'), '/growth', 'growth', undefined, 'internal'),
-    ] },
-    { id: 'know', label: wt('g_know'), icon: 'kb', items: [
-      it('kb', st('n_kb'), '/kb', 'kb', undefined, 'kb'), it('assist', st('n_assist'), '/assist', 'assist', undefined, 'internal'), it('help', wt('i_help'), '/help', 'more'),
-      // руководителям: помощник и очередь вопросов — рядом с базой знаний, а не в «Управлении»
-      ...(lead() || has('hr') ? [it('assistant', wt('i_assistant'), '/assistant', 'assist', undefined, 'internal'), it('queue', wt('i_queue'), '/queue', 'kb', undefined, 'internal')] : []),
-    ] },
-    { id: 'people', label: wt('g_people'), icon: 'team', items: [
-      it('chat', st('n_chat'), '/chat', 'chat', chatBadge, 'chat'),
-      ...(lead() || has('hr', 'senior') ? [it('team', st('n_team'), '/team', 'team', undefined, 'internal')] : []),
-      it('structure', wt('i_structure'), '/structure', 'admin', undefined, 'internal'),
-      ...(lead() || has('hr') ? [it('hr', app.lang === 'uz' ? 'Kadrlar' : 'Кадры', '/hr', 'team', undefined, 'internal')] : []),
-      ...(lead() || has('hr', 'recruiter') ? [it('hire', app.lang === 'uz' ? 'Yollash' : 'Найм', '/hire', 'team', undefined, 'internal')] : []),
-      it('schedule', st('n_schedule'), '/schedule', 'schedule', undefined, 'schedule'),
-    ] },
-    { id: 'profile', label: wt('g_profile'), icon: 'user', items: [
-      it('profile', wt('i_mydata'), '/profile', 'user'), it('pay', st('n_pay'), '/profile/pay', 'pay', undefined, 'staff'), it('settings', wt('i_settings'), '/profile/settings', 'more'),
-    ] },
-  ];
-  const manage: NavItem[] = [
-    ...(has('admin', 'hr', 'accountant', 'editor', 'head') ? [it('admin', st('n_admin'), '/admin', 'admin')] : []),
-    ...(lead() || has('hr') ? [it('reports', wt('i_reports'), '/reports', 'path')] : []),
-    ...(lead() || has('hr', 'editor') ? [it('editor', wt('i_editor'), '/editor', 'news')] : []),
-  ];
-  if (manage.length) groups.push({ id: 'manage', label: wt('g_manage'), icon: 'admin', items: manage });
-  // внешнее подразделение видит только разрешённые разделы; стажёр — без ЗП и KPI (то же закрыто на сервере)
-  const ext = app.user?.external, intern = app.user?.employment === 'intern';
-  return groups.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => {
-      if (ITEM_SECTION[i.id] && !can(ITEM_SECTION[i.id])) return false;
-      if (i.section === 'staff') return !ext && !intern;
-      if (!ext) return true;
-      if (g.id === 'manage') return false;
-      return !i.section || (i.section !== 'internal' && ext.includes(i.section));
-    }),
-  })).filter((g) => g.items.length);
+  return ['home', 'news', 'tests', 'library', 'kb', 'assist', 'help', 'chat', 'schedule'].includes(h) ? h : null;
 }
 
 /** Текущий маршрут → путь для сравнения (пустой маршрут — это главная). */
 export const normRoute = (route: string) => normPath(route, landing());
-/** Активный пункт — с самым длинным совпавшим префиксом пути. */
-export function activeItem(groups: NavGroup[], route: string): { group: string; item: string } | null {
-  const r = normRoute(route);
-  let best: { group: string; item: string; len: number } | null = null;
-  for (const g of groups) for (const i of g.items) {
-    if ((r === i.href || r.startsWith(i.href + '/')) && (!best || i.href.length > best.len)) best = { group: g.id, item: i.id, len: i.href.length };
-  }
-  return best;
+/** Активный пункт (его id): сначала служебные адреса (ROUTE_ALIASES), затем самый длинный совпавший адрес среди видимых пунктов, включая «Управление» и утилиты. */
+export function activeItem(route: string, extra?: { testArea?: 'learn' | 'self' | 'pulse' }): string | null {
+  const path = normRoute(route);
+  return pickActive(path, visibleItems(), ROUTE_ALIASES(path, navCtx(), extra));
 }
-
-/** Разделы боковой колонки и вкладок (7 пунктов первого уровня). Видимость и бейджи те же, что у navGroups. */
-export function navHubs(chatBadge = 0): Hub[] {
-  const items = navGroups(chatBadge).flatMap((g) => g.items);
-  return buildHubs(items, HUBS);
-}
-/** Раздел «Профиль» (ЗП, настройки): в боковое меню не входит, но вкладки на его страницах нужны. */
-export function profileHub(chatBadge = 0): Hub | null {
-  return buildHubs(navGroups(chatBadge).flatMap((g) => g.items), [PROFILE_HUB])[0] ?? null;
-}
-
-/** Названия разделов меню на языке пользователя. */
-export const hubLabel = (id: string): string =>
-  ({ home: st('n_home'), chat: st('n_chat'), know: wt('g_know'), learn: wt('g_learn'), grow: st('n_growth'), work: wt('g_work'), manage: wt('g_manage'), profile: wt('g_profile') } as Record<string, string>)[id] ?? id;
+/** Можно ли открыть адрес, где доступ решают роли (/team, /admin, /hire, /training/lead, /inbox, /requests): за него отвечает пункт меню, он должен быть виден. */
+export const routeOpen = (route: string): boolean => pathOpen(normRoute(route), ITEMS, navCtx(), visCtx());

@@ -1,20 +1,20 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
-  import { app, has, logout, go, can } from '../lib/state.svelte';
+  import { app, logout, go, can } from '../lib/state.svelte';
   import { st } from '../lib/s18n';
-  import { stripEmoji } from '../lib/format';
+  import { wt } from '../lib/w18n';
   import { enhanceTables } from '../lib/table-cards';
   import { notif, startNotify } from '../lib/notify.svelte';
-  import { navGroups, activeItem, landing, navHubs, profileHub, hubLabel } from '../lib/nav';
+  import { activeItem, landing, navHubs, adminHubs, adminHome, canManage, hubLabel } from '../lib/nav';
   import { hubOfActive } from '../lib/nav-core';
   import HubTabs from './HubTabs.svelte';
   import { MOBILE_TABS, MOBILE_TAB_IDS } from '../lib/nav-core';
-  import Search from './Search.svelte';
+  import Search, { openSearch } from './Search.svelte';
   import AssistChat from './AssistChat.svelte';
   import Tour from './Tour.svelte';
   import Dialogs from './Dialogs.svelte';
-  import { tour, maybeAutoStart, visit, visitSearch } from '../lib/tour.svelte';
+  import { maybeAutoStart, visit } from '../lib/tour.svelte';
   import Icon from './Icon.svelte';
   import Avatar from './Avatar.svelte';
   import NotifyBell from './NotifyBell.svelte';
@@ -43,12 +43,14 @@
   // посещённые разделы — для чек-листа «Первые шаги» и статистики
   $effect(() => { if (app.user) visit(app.route); });
 
-  const groups = $derived(navGroups(notif.chat_total));
-  const active = $derived(activeItem(groups, app.route));
-  const hubs = $derived(navHubs(notif.chat_total));
-  const pHub = $derived(profileHub(notif.chat_total));
-  const curHub = $derived(hubOfActive(pHub ? [...hubs, pHub] : hubs, active?.item));
+  // Режим «Управление»: первый сегмент адреса admin или hire. У человека без нужных ролей колонка остаётся обычной — страницу закроет роутер («Нет доступа»).
+  const adminMode = $derived(['admin', 'hire'].includes(head) && canManage());
+  const hubs = $derived(adminMode ? adminHubs() : navHubs());
+  const active = $derived(activeItem(app.route));
+  const curHub = $derived(hubOfActive(hubs, active));
   const hubBadge = (h: { items: { badge?: number }[] }) => h.items.reduce((n, i) => n + (i.badge ?? 0), 0);
+  const manageHref = $derived(adminHome());
+  const onProfile = $derived(active === 'profile' || active === 'settings');
 
   // нижняя панель телефона: Главная, Чат, Обучение, График и «Ещё» (всё остальное — в «Ещё»)
   const tabLabel: Record<string, string> = $derived({ home: st('n_home'), chat: st('n_chat'), training: st('n_training'), schedule: st('n_schedule'), more: st('n_more') });
@@ -56,19 +58,23 @@
   const tabIds = MOBILE_TAB_IDS;
 </script>
 
-<svelte:window onkeydown={(e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && visitSearch()} />
-
-<div class="shell">
+<div class="shell" class:app--admin={adminMode}>
   <aside class="side" class:collapsed>
     <div class="side-top">
       <div class="logo"><i></i><span class="lbl">Qadam</span></div>
-      <button class="collapse" onclick={toggle} aria-label={collapsed ? st('n_expand') : st('n_collapse')} title={collapsed ? st('n_expand') : st('n_collapse')}>
-        <svg viewBox="0 0 24 24" style:transform="rotate({collapsed ? 0 : 180}deg)"><path d="M9 6l6 6-6 6" /></svg>
-      </button>
+      <div class="side-btns">
+        <a class="side-help" href="#/help" data-tour="help" aria-label={wt('ut_help')} title={wt('ut_help')}><Icon name="help" /></a>
+        <button class="collapse" onclick={toggle} aria-label={collapsed ? st('n_expand') : st('n_collapse')} title={collapsed ? st('n_expand') : st('n_collapse')}>
+          <svg viewBox="0 0 24 24" style:transform="rotate({collapsed ? 0 : 180}deg)"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+      </div>
     </div>
-    <div class="side-tools"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search row /></span><span class="tr-wrap" data-tour="bell"><NotifyBell row /></span></div>
+    {#if adminMode}
+      <a class="nv am-back" href="#/home" title={collapsed ? wt('am_back') : undefined}><i><Icon name="back" /></i><span class="lbl">{wt('am_back')}</span></a>
+    {/if}
+    <div class="side-tools"><span class="tr-wrap" data-tour="search"><Search /></span><span class="tr-wrap" data-tour="bell"><NotifyBell row /></span></div>
     <nav class="nvs" aria-label="menu">
-      <!-- 7 разделов; внутри раздела — вкладки наверху страницы -->
+      <!-- в обычном режиме 7 разделов, в режиме «Управление» — его группы; внутри раздела вкладки наверху страницы -->
       {#each hubs as h (h.id)}
         {@const first = h.items[0]}
         <a class="nv" class:on={curHub?.id === h.id} href={'#' + first.href} data-tour={'nav-hub-' + h.id} title={collapsed ? hubLabel(h.id) : undefined} aria-current={curHub?.id === h.id ? 'page' : undefined}>
@@ -77,23 +83,38 @@
         </a>
       {/each}
     </nav>
-    <a class="me-card" href="#/profile" title={app.user!.name}>
-      <Avatar u={{ ...app.user!, bday: false }} size={44} />
-      <div class="lbl u-3922d32">
-        <div class="u-e3ec02a">{app.user!.name}</div>
-        <div class="muted xs clip1">{app.user!.status || app.user!.position}</div>
-      </div>
-    </a>
-    <button class="nv" onclick={logout} title={st('n_logout')}><i><Icon name="logout" /></i><span class="lbl">{st('n_logout')}</span></button>
+    <div class="side-foot">
+      {#if !adminMode && manageHref && canManage()}
+        <a class="nv am-enter" href={'#' + manageHref} data-tour="nav-manage" title={collapsed ? wt('am_enter') : undefined}><i><Icon name="gear" /></i><span class="lbl">{wt('am_enter')}</span></a>
+      {/if}
+      <a class="me-card" class:on={onProfile} href="#/profile" data-tour="nav-profile" title={app.user!.name} aria-current={onProfile ? 'page' : undefined}>
+        <Avatar u={{ ...app.user!, bday: false }} size={44} />
+        <div class="lbl me-text">
+          <div class="me-name clip1">{app.user!.name}</div>
+          <div class="muted xs clip1">{wt('ut_profile_settings')}</div>
+        </div>
+      </a>
+      <a class="nv" class:on={active === 'help'} href="#/help" title={collapsed ? wt('ut_help') : undefined}><i><Icon name="help" /></i><span class="lbl">{wt('ut_help')}</span></a>
+      <button class="nv" onclick={logout} title={st('n_logout')}><i><Icon name="logout" /></i><span class="lbl">{st('n_logout')}</span></button>
+    </div>
   </aside>
 
   <main class="main">
     <div class="topbar">
-      <div class="logo sm"><i></i>Qadam</div>
-      <div class="row"><span class="tr-wrap" data-tour="search" onclickcapture={visitSearch} role="presentation"><Search /></span><span class="tr-wrap" data-tour="bell"><NotifyBell /></span><a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a></div>
+      {#if adminMode}
+        <a class="am-back-m" href="#/home">{wt('am_back')}</a>
+      {:else}
+        <div class="logo sm"><i></i>Qadam</div>
+      {/if}
+      <div class="row">
+        <button class="tb-btn" data-tour="search" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={openSearch}><Icon name="search" /></button>
+        <span class="tr-wrap" data-tour="bell"><NotifyBell /></span>
+        <a class="tb-btn" href="#/help" aria-label={wt('ut_help')} title={wt('ut_help')}><Icon name="help" /></a>
+        <a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a>
+      </div>
     </div>
-    <CheckIn />
-    {#if curHub && curHub.items.length > 1}<HubTabs items={curHub.items} active={active?.item} title={hubLabel(curHub.id)} />{/if}
+    {#if head !== 'chat'}<CheckIn />{/if}
+    {#if curHub && curHub.items.length > 1}<HubTabs items={curHub.items} active={active ?? undefined} title={hubLabel(curHub.id)} />{/if}
     {@render children()}
   </main>
 

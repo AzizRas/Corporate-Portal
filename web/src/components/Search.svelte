@@ -1,26 +1,40 @@
+<script module lang="ts">
+  // Поиск смонтирован один раз (в боковой колонке). Открывают его три способа: кнопка в колонке, лупа в верхней панели телефона и Ctrl+K — состояние общее.
+  const ui = $state({ open: false });
+  export function openSearch() { ui.open = true; }
+</script>
+
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import { app, go } from '../lib/state.svelte';
-  import { navGroups, hubLabel } from '../lib/nav';
+  import { visibleItems, hubLabel } from '../lib/nav';
   import { hubOfItem } from '../lib/nav-core';
   import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
   import { portal } from '../lib/portal';
   import Icon from './Icon.svelte';
   import { HELP } from '../lib/help-content';
-  import { pointAt } from '../lib/tour.svelte';
+  import { pointAt, visitSearch } from '../lib/tour.svelte';
   import Avatar from './Avatar.svelte';
   import AiFeedback from './AiFeedback.svelte';
 
-  let { row = false }: { row?: boolean } = $props();
-  let open = $state(false), q = $state(''), sel = $state(0), res: any = $state(null), busy = $state(false);
+  let q = $state(''), sel = $state(0), res: any = $state(null), busy = $state(false);
+  const open = $derived(ui.open);
   let asking = $state(false), helpHit: any = $state(null), ans: any = $state(null), input: HTMLInputElement | undefined = $state();
   let seq = 0, timer: ReturnType<typeof setTimeout> | undefined;
   const lang = $derived(app.lang);
   const tr = (r: any, k: string) => (lang === 'uz' && r[`${k}_uz`]) || r[`${k}_ru`];
 
-  function show() { open = true; q = ''; res = null; ans = null; sel = 0; setTimeout(() => input?.focus(), 30); }
-  function hide() { open = false; clearTimeout(timer); }
+  const show = () => { ui.open = true; };
+  const hide = () => { ui.open = false; };
+  // при открытии поле очищается и получает фокус (откуда бы ни открыли), при закрытии отложенный запрос отменяется
+  let wasOpen = false;
+  $effect(() => {
+    if (ui.open === wasOpen) return;
+    wasOpen = ui.open;
+    if (ui.open) { q = ''; res = null; ans = null; sel = 0; visitSearch(); setTimeout(() => input?.focus(), 30); }
+    else clearTimeout(timer);
+  });
 
   // поиск с задержкой; устаревшие ответы отбрасываем
   $effect(() => {
@@ -44,7 +58,7 @@
     const text = q.trim().toLowerCase();
     if (text.length < 2) return [];
     const out: Row[] = [];
-    for (const g of navGroups(0)) for (const i of g.items) if (i.label.toLowerCase().includes(text)) out.push({ key: `s${i.id}`, group: wt('sr_sections'), label: i.label, sub: hubLabel(hubOfItem(i.id) ?? g.id), href: i.href });
+    for (const i of visibleItems()) if (i.label().toLowerCase().includes(text)) out.push({ key: `s${i.id}`, group: wt('sr_sections'), label: i.label(), sub: hubLabel(hubOfItem(i.id) ?? i.hub), href: i.href });
     if (res) {
       for (const a of res.kb) out.push({ key: `k${a.id}`, group: wt('sr_kb'), label: tr(a, 'title'), sub: (lang === 'uz' && a.snippet_uz ? a.snippet_uz : a.snippet_ru)?.slice(0, 90), href: `/kb/${a.id}` });
       for (const x of res.tests) out.push({ key: `t${x.slug}`, group: wt('sr_tests'), label: tr(x, 'title'), href: `/tests/${x.slug}` });
@@ -94,11 +108,7 @@
 
 <svelte:window onkeydown={key} />
 
-{#if row}
-  <button class="nv" title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i><span class="lbl">{wt('sr_open')}</span></button>
-{:else}
-  <button class="srch-btn" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i></button>
-{/if}
+<button class="nv" title="{wt('sr_open')} (Ctrl+K)" onclick={show}><i><Icon name="search" /></i><span class="lbl">{wt('sr_open')}</span></button>
 
 {#snippet helpCard(h: any)}
   {@const t = h.topic}
@@ -165,9 +175,7 @@
 {/if}
 
 <style>
-  .srch-btn { border: 1px solid var(--border); background: var(--card); width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text); flex: none; }
-  .srch-btn i { display: block; width: 22px; height: 22px; }
-  .srch-btn :global(svg), .sr-in :global(svg), .sr-x :global(svg) { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sr-in :global(svg), .sr-x :global(svg) { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   :global(.sr-layer) { position: fixed; inset: 0; z-index: 2100; }
   :global(.sr-back) { position: absolute; inset: 0; background: rgba(0, 0, 0, .45); backdrop-filter: blur(3px); }
   :global(.sr-box) { position: absolute; top: 12vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 24px)); max-height: 76vh; display: flex; flex-direction: column; padding: 10px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); overflow: hidden; }

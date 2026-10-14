@@ -25,6 +25,8 @@ export const PAIRS = [
   ['accent-ink', 'bg', 4.5], ['accent-ink', 'card', 4.5],
   ['good', 'bg', 4.5], ['good', 'card', 4.5], ['warn', 'bg', 4.5], ['warn', 'card', 4.5], ['bad', 'bg', 4.5], ['bad', 'card', 4.5],
   ['grad-ink', 'grad', 4.5], ['pink-tag', 'bg', 4.5],
+  // шапка режима «Управление» (колонка и верхняя панель телефона)
+  ['mode-admin-ink', 'mode-admin', 4.5],
 ];
 
 if (process.argv[1] && process.argv[1].endsWith('contrast.mjs')) {
