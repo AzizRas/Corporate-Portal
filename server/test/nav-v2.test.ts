@@ -1271,3 +1271,65 @@ test('E3 «Тур»: «Что изменилось» — 5 шагов, запу�
   assert.match(srv, /\(u\.branch_nodes\?\.length \?\? 0\) > 0 \? 'lead'/); assert.doesNotMatch(srv.slice(srv.indexOf('export const tourKind'), srv.indexOf('interface Item')), /'manager'|'head'/, 'роли manager и head без узла руководителем не делают');
   assert.match(srv, /\['hr', 'admin', 'editor', 'accountant', 'recruiter'\]\.includes\(r\)/);
 });
+
+/* ================= E4. «Словарь портала» в справке ================= */
+const GLOSSARY_TERMS = ['Главная', 'Сегодня', 'Входящие', 'Уведомления (колокольчик)', 'Чаты', 'Личный чат', 'Группа', 'Группа команды', 'Канал', 'Папка', 'Архив', 'В сети', 'Отошёл', 'Был(а) …', 'Статус',
+  'Моя команда', 'Обзор', 'Новички', 'Обучение команды', 'Рост команды', 'Поручения', 'Подбор', 'Моя работа', 'График', 'Заявки', 'Зарплата и KPI',
+  'Обучение', 'Мой старт', 'Курсы', 'Тренажёр', 'Проверка знаний', 'Допуск на линию', 'Библиотека', 'Школа руководителя',
+  'Рост', 'Карьера', 'Встречи и цели', 'ИПР', 'Оценка 360°', 'Самопознание', 'ИИ-советник', 'Наставник',
+  'Компания', 'Люди', 'База знаний', 'Помощник оператора', 'Спросить ИИ', 'Опросы', 'Управление', 'Профиль и настройки', 'Помощь'];
+
+test('E4 «Словарь»: все строки таблицы §3.7 на двух языках (не меньше 45 терминов), у каждой есть название и определение; звёздочка у названий на проверку носителю', async () => {
+  const { GLOSSARY } = await import('../../web/src/lib/glossary.ts') as { GLOSSARY: { term: { ru: string; uz: string }; def: { ru: string; uz: string }; hub?: string; href?: string }[] };
+  assert.ok(GLOSSARY.length >= 45, `терминов: ${GLOSSARY.length}`);
+  assert.deepEqual(GLOSSARY.map((g) => g.term.ru), GLOSSARY_TERMS, 'все строки таблицы §3.7 в порядке таблицы');
+  for (const g of GLOSSARY) {
+    for (const v of [g.term.ru, g.term.uz, g.def.ru, g.def.uz]) assert.ok(v.trim().length >= 2, `пустое поле у «${g.term.ru}»`);
+    assert.match(g.term.ru + g.def.ru, /[А-Яа-яЁё]/); assert.doesNotMatch(g.term.uz + g.def.uz, /[А-Яа-яЁё]/, `«${g.term.ru}»: узбекский — латиница`);
+    assert.doesNotMatch(g.def.uz, /'/, 'апострофы узбекского — ‘ и ’, как в остальных словарях');
+    if (g.hub) assert.ok([...nav.HUBS.map((h: any) => h.id), 'manage', 'util'].includes(g.hub), `«${g.term.ru}»: раздел ${g.hub}`);
+  }
+  const by = (ru: string) => GLOSSARY.find((g) => g.term.ru === ru)!;
+  for (const t of ['Обучение', 'Рост', 'Входящие', 'Группа команды']) assert.ok(by(t), t);
+  assert.deepEqual(['Входящие', 'Папка', 'Подбор', 'Школа руководителя', 'Самопознание', 'ИИ-советник'].map((t) => by(t).term.uz), ['Kiruvchi*', 'Jild*', 'Xodim tanlash*', 'Rahbarlar maktabi*', 'O‘zini anglash*', 'AI-maslahatchi*']);
+  assert.equal(GLOSSARY.filter((g) => g.term.uz.endsWith('*')).length, 6, 'звёздочка только у названий, помеченных в §3.7');
+  // тексты определений — из таблицы
+  assert.equal(by('Входящие').def.ru, 'Дела, которые ждут вашего действия; пункт исчезает только после действия.');
+  assert.equal(by('Обучение').def.ru, 'То, что компания назначает и проверяет для текущей работы; есть срок и зачёт.'); assert.equal(by('Рост').def.ru, 'То, куда сотрудник растёт вместе с руководителем; результат — план, а не зачёт.');
+  assert.equal(by('Группа команды').def.ru, 'Группа, которую портал сам создаёт для узла структуры; состав меняется вместе со структурой.');
+  assert.match(by('ИИ-советник').def.ru, /Слово «наставник» про ИИ не используется/); assert.match(by('База знаний').def.ru, /бывшее «ЧАВО»/);
+  // названия совпадают с подписями меню (w18n.ts): glossary.ts не расходится со словарями
+  const d = dictOf(web('lib/w18n.ts'));
+  const menu = Object.keys(d.ru).filter((k) => /^(n2_|i2_)/.test(k));
+  const diff: string[] = [];
+  for (const k of menu) { const g = GLOSSARY.find((x) => x.term.ru === d.ru[k]); if (g && g.term.uz.replace(/\*$/, '') !== d.uz[k]) diff.push(`${k}: словарь «${g.term.uz}», меню «${d.uz[k]}»`); }
+  assert.deepEqual(diff, [], 'узбекские названия в словаре и в меню разные');
+  for (const k of ['n2_home', 'n2_chat', 'n2_team', 'n2_work', 'n2_learn', 'n2_grow', 'n2_company', 'i2_today', 'i2_inbox', 'i2_tests', 'i2_start', 'i2_advisor', 'i2_lead_school', 'i2_people', 'i2_kb', 'i2_assist']) assert.ok(GLOSSARY.some((g) => g.term.ru === d.ru[k]), `в словаре нет «${d.ru[k]}»`);
+});
+
+test('E4 «Словарь»: «Больше не используются» — старые названия и то, что их заменило; фильтр находит «Развитие»; блок стоит в справке', async () => {
+  const { RETIRED, GL_TEXT, filterGlossary, filterRetired } = await import('../../web/src/lib/glossary.ts') as any;
+  const old = RETIRED.map((r: any) => r.old.ru);
+  for (const w of ['Развитие', 'Знания', 'Работа', 'Админка', 'Отчёты', 'ЧАВО', 'Сводка', 'ИИ-наставник', 'Кадровый резерв', 'Очередь вопросов', 'Помощник руководителя', 'План обучения', 'Готовность к линии']) assert.ok(old.includes(w), `нет «${w}»`);
+  for (const r of RETIRED) { assert.ok(r.old.ru && r.old.uz && r.now.ru && r.now.uz); assert.doesNotMatch(r.old.uz + r.now.uz, /[А-Яа-яЁё]/, `«${r.old.ru}»: узбекский — латиница`); }
+  // «Развитие → теперь «Рост»»
+  const hit = filterRetired('Развитие');
+  assert.equal(hit.length, 1); assert.equal(`${hit[0].old.ru} → ${GL_TEXT.now.ru} ${hit[0].now.ru}`, 'Развитие → теперь «Рост»');
+  assert.equal(`${hit[0].old.uz} → ${GL_TEXT.now.uz} ${hit[0].now.uz}`, 'Rivojlanish → endi «O‘sish»');
+  assert.equal(filterRetired('чаво')[0].old.ru, 'ЧАВО'); assert.equal(filterRetired('').length, RETIRED.length); assert.equal(filterRetired('такого слова нет').length, 0);
+  // фильтр термина: без учёта регистра и «ё», по названию и определению, на двух языках
+  assert.ok(filterGlossary('входящие').some((g: any) => g.term.ru === 'Входящие')); assert.ok(filterGlossary('ОТОШЕЛ').some((g: any) => g.term.ru === 'Отошёл'));
+  assert.ok(filterGlossary('kiruvchi').some((g: any) => g.term.ru === 'Входящие')); assert.ok(filterGlossary('наставник').some((g: any) => g.term.ru === 'ИИ-советник'), 'ищет и по определению');
+  assert.equal(filterGlossary('').length, filterGlossary('   ').length); assert.deepEqual(filterGlossary('квантовая физика'), []);
+  assert.equal(GL_TEXT.title.ru, 'Словарь портала'); assert.equal(GL_TEXT.title.uz, 'Portal lug‘ati*');
+  // блок в справке: после карточки «спросить», до списка тем; поле фильтра, список «термин — определение», ссылка на раздел и строка «Больше не используются»
+  const help = web('pages/Help.svelte');
+  assert.match(help, /import \{ GL_TEXT, filterGlossary, filterRetired, type GlossaryEntry \} from '\.\.\/lib\/glossary'/);
+  assert.ok(help.indexOf('<details class="card gl"') > help.indexOf('hp_q_title') && help.indexOf('<details class="card gl"') < help.indexOf("wt('hp_topics')"));
+  assert.match(help, /<input type="search" bind:value=\{gq\}/); assert.match(help, /<dt>\{g\.term\[app\.lang\]\}<\/dt>/); assert.match(help, /<dd>\{g\.def\[app\.lang\]\}/);
+  assert.match(help, /\{gl\('retired'\)\}:/); assert.match(help, /\{r\.old\[app\.lang\]\} → \{gl\('now'\)\} \{r\.now\[app\.lang\]\}/);
+  assert.match(help, /href=\{'#' \+ href\}/); assert.doesNotMatch(help, /style="/);
+  // файл словаря не тянет состояние приложения и не содержит эмодзи
+  const g = web('lib/glossary.ts');
+  assert.doesNotMatch(g, /^import /m); assert.doesNotMatch(g, /[\u{1F300}-\u{1FAFF}✅✨➤⏳⏰]/u);
+});

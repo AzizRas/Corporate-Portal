@@ -3,7 +3,8 @@
   import { app, go } from '../lib/state.svelte';
   import { wt } from '../lib/w18n';
   import { HELP } from '../lib/help-content';
-  import { fillPaths, hubLabel } from '../lib/nav';
+  import { fillPaths, hubLabel, navHubs, adminHome } from '../lib/nav';
+  import { GL_TEXT, filterGlossary, filterRetired, type GlossaryEntry } from '../lib/glossary';
   import { pointAt } from '../lib/tour.svelte';
   import { topics, loadTopics, type TopicMeta } from '../lib/help.svelte';
   import AskLeader from '../team/AskLeader.svelte';
@@ -33,6 +34,14 @@
     setTimeout(() => pointAt(targets, title(t), steps(t.id)[0] ?? '', t.group), 450);
   }
   const topicById = (id: string) => topics.list.find((t) => t.id === id);
+
+  // «Словарь портала» (ТЗ №4, E4): единственное значение каждого названия. Поле фильтра ищет по названию и определению на обоих языках
+  // и по старым названиям: «Развитие» находит строку «Развитие → теперь «Рост»».
+  let gq = $state(''), glOpen = $state(false);
+  const gl = (k: keyof typeof GL_TEXT) => GL_TEXT[k][app.lang];
+  const glossary = $derived(filterGlossary(gq)), retired = $derived(filterRetired(gq));
+  // ссылка на раздел: первая видимая вкладка раздела; режим «Управление» — его первая вкладка; утилиты — свой адрес; раздела нет у человека — ссылки нет
+  const hubHref = (g: GlossaryEntry): string | null => (g.href ?? (g.hub === 'manage' ? adminHome() : navHubs().find((h) => h.id === g.hub)?.items[0]?.href ?? null));
 </script>
 
 <header class="page-head"><div><h1>{wt('hp_title')}</h1><p class="sub">{wt('hp_sub')}</p></div><div class="head-actions"><AskLeader /></div></header>
@@ -57,6 +66,27 @@
     {:else}<p class="muted small">{wt('hp_none')}</p>{/if}
   {/if}
 </section>
+
+<details class="card gl" bind:open={glOpen}>
+  <summary>{gl('title')}</summary>
+  <div class="stack gl-body">
+    <input type="search" bind:value={gq} placeholder={gl('ph')} aria-label={gl('title')} />
+    {#if glossary.length}
+      <dl class="gl-list">
+        {#each glossary as g (g.term.ru)}
+          {@const href = g.hub ? hubHref(g) : null}
+          <div class="gl-row">
+            <dt>{g.term[app.lang]}</dt>
+            <dd>{g.def[app.lang]}{#if href} <a class="gl-go" href={'#' + href}>{gl('go')} →</a>{/if}</dd>
+          </div>
+        {/each}
+      </dl>
+    {/if}
+    {#if retired.length}
+      <p class="small gl-old"><b>{gl('retired')}:</b> {#each retired as r, i}{#if i}; {/if}<span>{r.old[app.lang]} → {gl('now')} {r.now[app.lang]}</span>{/each}.</p>
+    {:else if !glossary.length}<p class="muted small">{gl('none')}</p>{/if}
+  </div>
+</details>
 
 <div class="row u-0fb9216"><h3 class="card-title u-1169661">{wt('hp_topics')}</h3><span class="sp"></span></div>
 <input class="u-87c136d" placeholder={wt('hp_search_ph')} bind:value={q} />
@@ -90,4 +120,15 @@
   .hp-item:last-child { border-bottom: 0; }
   .hp-q { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; padding: 12px 4px; cursor: pointer; text-align: left; gap: 12px; }
   .hp-c { color: var(--muted); font-size: 20px; line-height: 1; }
+  .gl { margin-top: var(--sp-4); }
+  .gl summary { cursor: pointer; font-weight: 600; font-size: var(--fs-3); }
+  .gl-body { margin-top: var(--sp-3); }
+  .gl-list { margin: 0; display: grid; }
+  .gl-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: var(--sp-1) var(--sp-4); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+  .gl-row:last-child { border-bottom: 0; }
+  .gl-row dt { font-weight: 600; }
+  .gl-row dd { margin: 0; line-height: var(--lh-body); }
+  .gl-go { white-space: nowrap; }
+  .gl-old { line-height: var(--lh-body); }
+  @media (max-width: 640px) { .gl-row { grid-template-columns: 1fr; } }
 </style>
