@@ -16,8 +16,8 @@ const walk = (dir: string, out: string[] = []) => {
 const dirOf = (u: URL) => decodeURIComponent(u.pathname).replace(/^\/([A-Za-z]:)/, '$1');
 
 /* ---------- фикстуры: десять людей из ТЗ (§3.2 п. 7 и §3.6) ---------- */
-interface U { id: number; roles: string[]; external: string[] | null; team_nodes: number; onboarding: { active: boolean } | null; employment: string }
-const user = (roles: string[], o: Partial<U> = {}): U => ({ id: 5, roles, external: null, team_nodes: 0, onboarding: { active: false }, employment: 'staff', ...o });
+interface U { id: number; roles: string[]; external: string[] | null; team_nodes: number; onboarding: { active: boolean } | null; employment: string; is_system: boolean }
+const user = (roles: string[], o: Partial<U> = {}): U => ({ id: 5, roles, external: null, team_nodes: 0, onboarding: { active: false }, employment: 'staff', is_system: false, ...o });
 const FIX = {
   operator: user(['employee']),
   newbie: user(['employee', 'newbie'], { onboarding: { active: true }, employment: 'intern' }),
@@ -25,11 +25,14 @@ const FIX = {
   senior: user(['employee', 'senior']),
   mentor: user(['employee', 'mentor']),
   hr: user(['employee', 'hr']),
+  // админ-человек: владелец заходит администратором, роли employee у него может не быть, но это не служебная учётная запись
   admin: user(['admin']),
   recruiter: user(['employee', 'recruiter']),
   accountant: user(['employee', 'accountant']),
   editor: user(['employee', 'editor']),
   external: user(['employee'], { external: ['chat', 'training'] }),
+  // служебная учётная запись (users.is_system): техническая учётка встроенного администратора
+  service: user(['admin'], { is_system: true }),
 };
 const ALL_IDS: string[] = [...nav.HUBS, ...nav.ADMIN_HUBS].flatMap((h: any) => h.items).concat(nav.UTIL);
 const yes = () => true;
@@ -175,9 +178,13 @@ test('A1 «Меню по персонам»: HR, админ и офисные р
   assert.deepEqual(hr.company, ['news', 'people', 'kb', 'surveys']);
   assert.ok(!('team' in hr), '«Моя команда» у HR — только если он возглавляет узел');
   assert.ok('team' in tabsOf(user(['employee', 'hr'], { team_nodes: 1 }), hrCan));
-  // админ без роли сотрудника (служебная учётная запись): только Главная, Чаты, Компания
-  assert.deepEqual(Object.keys(tabsOf(FIX.admin)), ['home', 'chat', 'company']);
+  // админ-человек видит все личные разделы, даже без роли employee: владелец заходит администратором и обязан увидеть всё; «Моя команда» — только если возглавляет узел
+  assert.deepEqual(Object.keys(tabsOf(FIX.admin)), ['home', 'chat', 'work', 'learn', 'grow', 'company']);
   assert.deepEqual(Object.keys(tabsOf(user(['admin', 'employee']))), ['home', 'chat', 'work', 'learn', 'grow', 'company']);
+  assert.deepEqual(Object.keys(tabsOf(user(['admin'], { team_nodes: 2 }))), ['home', 'chat', 'team', 'work', 'learn', 'grow', 'company'], 'админ, возглавляющий узел, видит все 7 разделов');
+  // служебная учётная запись (users.is_system): только Главная, Чаты, Компания — даже если ей выдали роль employee
+  assert.deepEqual(Object.keys(tabsOf(FIX.service)), ['home', 'chat', 'company']);
+  assert.deepEqual(Object.keys(tabsOf(user(['admin', 'employee'], { is_system: true }))), ['home', 'chat', 'company']);
   for (const k of ['recruiter', 'accountant', 'editor'] as const) assert.deepEqual(Object.keys(tabsOf(FIX[k])), ['home', 'chat', 'work', 'learn', 'grow', 'company'], k);
   // кнопка «Управление»: по собственным ролям
   const manage = (u: U) => u.roles.some((r) => (nav.MANAGE_ROLES as readonly string[]).includes(r));
@@ -203,14 +210,27 @@ test('A1 «Меню по персонам»: внешнее подразделе
   assert.equal(nav.personaOf(odd), 'external');
 });
 
-test('A1 «Меню по персонам»: у любой персоны не больше 7 разделов; «Служебная» учётная запись не видит «Моя работа», «Обучение», «Рост»', () => {
+test('A1 «Меню по персонам»: у любой персоны не больше 7 разделов; «Моя работа», «Обучение», «Рост» скрыты только у служебной учётной записи (is_system)', () => {
   for (const [name, u] of Object.entries(FIX)) assert.ok(Object.keys(tabsOf(u)).length <= 7, name);
-  const service = tabsOf(user(['admin']));
+  const service = tabsOf(FIX.service);
   for (const h of ['work', 'learn', 'grow', 'team']) assert.ok(!(h in service), h);
-  // роль newbie без employee тоже считается «сотрудником» для правила 8
+  // правило 8 привязано к признаку users.is_system, а не к ролям employee/newbie: администратор-человек без роли сотрудника, офисные роли без employee и стажёр с одной ролью newbie — в штате
+  for (const roles of [['admin'], ['hr'], ['recruiter'], ['accountant'], ['editor'], ['newbie'], ['manager']]) {
+    const t = tabsOf(user(roles, { team_nodes: roles[0] === 'manager' ? 1 : 0 }));
+    for (const h of ['work', 'learn', 'grow']) assert.ok(h in t, `${roles}: раздел ${h}`);
+  }
   assert.ok('learn' in tabsOf(user(['newbie'], { onboarding: { active: true } })));
+  // а признак важнее ролей: служебная запись с ролью employee по-прежнему не видит личных разделов
+  for (const roles of [['employee'], ['employee', 'newbie'], ['admin', 'employee']]) assert.deepEqual(Object.keys(tabsOf(user(roles, { is_system: true }))), ['home', 'chat', 'company'], `${roles}`);
   // стажёр без роли newbie и без признака onboarding — обычный сотрудник без «Зарплаты и KPI»
   assert.deepEqual(tabsOf(user(['employee'], { employment: 'intern' })).work, ['schedule', 'requests']);
+  // служебной записи недоступны и заявки: те же условия, что у личных разделов (сервер: isStaffUser)
+  const items = registry.map((r) => ({ id: r.id, href: r.href }));
+  const open = (p: string, u: U) => nav.pathOpen(p, items, ctx(u), nav.visCtxOf(u, yes));
+  assert.equal(open('/requests', FIX.admin), true, 'администратор-человек подаёт заявки'); assert.equal(open('/requests', FIX.service), false);
+  assert.equal(open('/schedule', FIX.admin), true); assert.equal(open('/training/courses', FIX.admin), true); assert.equal(open('/growth/talk', FIX.admin), true);
+  // персона администратора не зависит от роли employee: он остаётся «админом» (а не оператором и не руководителем)
+  assert.equal(nav.personaOf(FIX.admin), 'admin'); assert.equal(nav.personaOf(user(['admin', 'employee'])), 'admin');
 });
 
 test('A1 «Управление»: группы и вкладки режима по ролям (§3.5, §3.6)', () => {
@@ -472,7 +492,8 @@ test('A4 «Роутер»: оператору на #/team, #/admin/users, #/hire
   assert.equal(open('/hire/a/9', FIX.recruiter), true); assert.equal(open('/admin/assist/codes', FIX.editor), true); assert.equal(open('/admin/assist/codes', FIX.hr), false);
   assert.equal(open('/admin/users', FIX.lead), false); assert.equal(open('/admin/users', FIX.admin), true); assert.equal(open('/admin/audit', FIX.hr), false);
   assert.equal(open('/inbox', FIX.operator), true); assert.equal(open('/inbox', FIX.external), false); assert.equal(open('/requests', FIX.external), false);
-  assert.equal(open('/requests', FIX.admin), false, 'у служебной учётной записи нет заявок (правило 8)'); assert.equal(open('/requests', FIX.operator), true);
+  assert.equal(open('/requests', FIX.service), false, 'у служебной учётной записи нет заявок (правило 8)'); assert.equal(open('/requests', FIX.operator), true);
+  assert.equal(open('/requests', FIX.admin), true, 'у администратора-человека заявки есть: он не служебная запись');
   assert.equal(open('/admin/unknown-tab', FIX.admin), false, 'неизвестная вкладка режима не открывается как чужая');
   // не закрытые адреса «Нет доступа» не показывают
   for (const p of ['/teamwork', '/training/courses', '/people', '/hiring', '/administration']) assert.equal(nav.isGated(p), false, p);

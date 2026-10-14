@@ -4,6 +4,8 @@ import { applyDensity } from './density';
 export type Role = 'employee' | 'newbie' | 'senior' | 'mentor' | 'manager' | 'head' | 'hr' | 'recruiter' | 'accountant' | 'editor' | 'admin';
 export interface User {
   is_lead?: boolean; team_nodes?: number;
+  /** Служебная учётная запись (техническая учётка администратора, не человек в штате): ей не показываются «Моя работа», «Обучение», «Рост». */
+  is_system?: boolean;
   /** Признак «новичок» (GET /api/me): пока не выдан допуск на линию; day / days_total — день плана «Мой старт». */
   onboarding?: { active: boolean; day: number; days_total: number; cleared: boolean };
   totp_enabled?: boolean; must_setup_2fa?: boolean;

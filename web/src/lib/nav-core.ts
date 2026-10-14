@@ -91,14 +91,16 @@ export interface VisCtx {
   can: (section: string) => boolean; own: (...roles: string[]) => boolean; any: (...roles: string[]) => boolean;
   hasTeam: boolean; onboarding: boolean; external: string[] | null; intern: boolean; staff: boolean;
 }
-export interface CtxUser extends PersonaUser { employment?: string }
+export interface CtxUser extends PersonaUser { employment?: string; is_system?: boolean }
 export function visCtxOf(u: CtxUser, can: (section: string) => boolean): VisCtx {
   const own = (...r: string[]) => r.some((x) => u.roles.includes(x));
   return {
     can, own, any: (...r) => u.roles.includes('admin') || own(...r),
     hasTeam: (u.team_nodes ?? 0) > 0, onboarding: !!u.onboarding?.active, external: u.external,
     intern: u.employment === 'intern',
-    staff: own('employee', 'newbie'),                  // служебная учётная запись (без роли сотрудника) не видит «Моя работа», «Обучение», «Рост»
+    // «Моя работа», «Обучение», «Рост» видит каждый, кто не служебная учётная запись (users.is_system). Роль employee для этого не нужна: владелец заходит администратором,
+    // и стажёр с одной ролью newbie тоже в штате. Право на заявки и справки на сервере считается тем же признаком (server/src/auth.ts → isStaffUser).
+    staff: !u.is_system,
   };
 }
 
