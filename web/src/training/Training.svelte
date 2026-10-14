@@ -1,6 +1,8 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
   import { app } from '../lib/state.svelte';
+  import { pageTitle } from '../lib/nav';
+  import { wt } from '../lib/w18n';
   import { tt } from './tr18n';
   import { T, loadMe } from './store.svelte';
   import Plan from './Plan.svelte';
@@ -18,7 +20,7 @@
 
 <div class="tr">
   <header class="page-head">
-    <div><h1>{tt('title')}<PageHelp topic="training_plan" /></h1><p class="sub">{tt('sub')}</p></div>
+    <div><h1>{pageTitle(app.route, wt('n2_learn'))}<PageHelp topic="training_plan" /></h1></div>
   </header>
 
   {#if T.status === 'error' && !T.me}

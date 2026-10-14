@@ -1,7 +1,8 @@
 <script lang="ts">
   import PageHelp from '../components/PageHelp.svelte';
   import { app } from '../lib/state.svelte';
-  import { gt } from './g18n';
+  import { pageTitle } from '../lib/nav';
+  import { wt } from '../lib/w18n';
   import Survey from './Survey.svelte';
   import Reviews from './Reviews.svelte';
   import Talk from './Talk.svelte';
@@ -16,7 +17,7 @@
 </script>
 
 <header class="page-head">
-  <div><h1>{gt('title')}<PageHelp topic="growth_survey" /></h1><p class="sub">{gt('sub')}</p></div>
+  <div><h1>{pageTitle(app.route, wt('n2_grow'))}<PageHelp topic="growth_survey" /></h1></div>
 </header>
 
 {#if tab === 'reviews'}<Reviews />

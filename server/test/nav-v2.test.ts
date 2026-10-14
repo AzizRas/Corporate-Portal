@@ -954,3 +954,92 @@ test('G2 «Ещё»: страница — карточка профиля све
   assert.match(navTs, /export const moreHubs = \(\): Hub\[\] => moreSections\(navHubs\(\), mobileTabIds\(\)\)/);
   assert.match(navTs, /export const mobileTabIds = \(\): string\[\] =>/);
 });
+
+/* ================= E1. Словари: разделы, вкладки, подзаголовки ================= */
+/** слова, которые больше не называют ни раздел, ни вкладку, ни группу «Управления» (§3.7, «Больше не используются как названия меню») */
+const RETIRED_RU = ['Развитие', 'Знания', 'Работа', 'Админка', 'Отчёты', 'ЧАВО', 'Сводка', 'ИИ-наставник', 'Очередь вопросов', 'Помощник руководителя'];
+const RETIRED_UZ = ['Rivojlanish', 'Bilimlar', 'Ish', 'Hisobotlar', 'Xulosa', 'AI-murabbiy', 'Savollar navbati', 'Rahbar yordamchisi', 'O‘qitish'];
+const menuKey = (k: string) => /^(n2_|i2_|hs_|ai_|mt_)/.test(k) || /^m_(staff|hire|talent|learn|content|pay|system)$/.test(k);
+
+test('E1 «Словари»: у каждого раздела, вкладки, группы «Управления», утилиты и вкладки панели есть подпись на русском и узбекском (латиница)', () => {
+  const d = dictOf(web('lib/w18n.ts'));
+  const keys: string[] = [];
+  for (const h of nav.HUBS) { keys.push(`n2_${h.id}`, `hs_${h.id}`); for (const i of h.items) keys.push(`i2_${i}`); }
+  for (const h of nav.ADMIN_HUBS) { keys.push(h.id); for (const i of h.items) keys.push(`ai_${i}`); }
+  for (const u of nav.UTIL) keys.push(`i2_${u}`);
+  for (const t of [...Object.keys(nav.TAB_ITEMS), 'more']) keys.push(`mt_${t}`);
+  keys.push('am_enter', 'am_back', 'ut_profile_settings', 'ut_help', 'ut_logout', 'na_title', 'na_text', 'na_home', 'no_node');
+  assert.equal(keys.length, 108, 'разделы (7 × 2) + вкладки (29) + группы «Управления» (7) + их вкладки (33) + утилиты (3) + панель телефона (13) + 9 общих ключей');
+  assert.deepEqual(keys.filter((k) => !d.ru[k] || !d.uz[k]), [], 'нет ключа в блоке ru или uz');
+  assert.deepEqual(keys.filter((k) => /[А-Яа-яЁё]/.test(d.uz[k])), [], 'узбекский — латиница, без кириллицы');
+  assert.deepEqual(keys.filter((k) => /[A-Za-z]/.test(d.ru[k].replace(/KPI|9-box|Jev|HR/g, ''))), [], 'русские подписи без латиницы (кроме KPI, 9-box, Jev, HR)');
+  // тексты из таблиц ТЗ (§3.4, §3.6, E1)
+  assert.equal(d.ru.n2_learn, 'Обучение'); assert.equal(d.uz.n2_learn, 'O‘qish'); assert.equal(d.ru.n2_grow, 'Рост'); assert.equal(d.uz.n2_grow, 'O‘sish');
+  assert.equal(d.ru.n2_team, 'Моя команда'); assert.equal(d.uz.n2_team, 'Mening jamoam'); assert.equal(d.ru.n2_work, 'Моя работа'); assert.equal(d.uz.n2_work, 'Mening ishim');
+  assert.equal(d.ru.n2_company, 'Компания'); assert.equal(d.uz.n2_company, 'Kompaniya'); assert.equal(d.ru.n2_chat, 'Чаты'); assert.equal(d.ru.n2_home, 'Главная');
+  assert.equal(d.ru.i2_pay, 'Зарплата и KPI'); assert.equal(d.uz.i2_pay, 'Maosh va KPI'); assert.equal(d.ru.i2_tests, 'Проверка знаний'); assert.equal(d.uz.i2_tests, 'Bilimni tekshirish');
+  assert.equal(d.ru.i2_start, 'Мой старт'); assert.equal(d.uz.i2_start, 'Moslashuv'); assert.equal(d.ru.i2_advisor, 'ИИ-советник'); assert.equal(d.ru.i2_lead_school, 'Школа руководителя');
+  assert.equal(d.ru.am_enter, 'Управление'); assert.equal(d.uz.am_enter, 'Boshqaruv');
+  assert.equal(d.ru.na_title, 'Нет доступа'); assert.equal(d.uz.na_title, 'Ruxsat yo‘q');
+  assert.equal(d.ru.na_text, 'Этот раздел для другой роли. Если он нужен вам для работы, обратитесь к руководителю или в HR.');
+  assert.equal(d.uz.na_text, 'Bu bo‘lim boshqa rol uchun. Ish uchun kerak bo‘lsa, rahbaringizga yoki HR ga murojaat qiling.');
+  assert.equal(d.ru.no_node, 'В структуре вы не указаны руководителем узла — обратитесь в HR');
+  assert.equal(d.uz.no_node, 'Tuzilmada siz bo‘lim rahbari sifatida ko‘rsatilmagansiz — HR ga murojaat qiling');
+  assert.equal(d.ru.hs_home, 'Что сделать сегодня'); assert.equal(d.uz.hs_company, 'Yangiliklar, xodimlar, bilimlar bazasi va so‘rovnomalar');
+  // hubLabel берёт n2_<id> для разделов, m_<id> для групп «Управления» и «Профиль и настройки» для утилит
+  assert.match(web('lib/nav.ts'), /HUBS\.some\(\(h\) => h\.id === id\) \? wt\('n2_' \+ id\) : ADMIN_HUBS\.some\(\(h\) => h\.id === id\) \? wt\(id\) : id === 'util' \? wt\('ut_profile_settings'\)/);
+});
+
+test('E1 «Словари»: запрещённые слова не называют ни раздел, ни вкладку, ни группу, ни вкладку нижней панели; «O‘qitish» нигде в словарях меню', () => {
+  const src = web('lib/w18n.ts'), d = dictOf(src);
+  const family = (blk: Record<string, string>) => Object.keys(blk).filter(menuKey);
+  assert.equal(family(d.ru).length, 99, 'n2_ 7 + hs_ 7 + i2_ 32 + ai_ 33 + m_ 7 + mt_ 13'); assert.equal(family(d.uz).length, 99);
+  assert.deepEqual(family(d.ru).filter((k) => RETIRED_RU.includes(d.ru[k])), [], 'ru: старое название среди подписей меню');
+  assert.deepEqual(family(d.uz).filter((k) => RETIRED_UZ.includes(d.uz[k])), [], 'uz: старое название среди подписей меню');
+  assert.deepEqual(family(d.ru).filter((k) => /ЧАВО|Админк|ИИ-наставник|Очередь вопросов|Помощник руководителя|Развити|Сводк/.test(d.ru[k])), [], 'ru: старое название внутри подписи');
+  // раздел «Обучение» по-узбекски везде «O‘qish»
+  for (const f of ['lib/w18n.ts', 'lib/s18n.ts', 'team/p18n.ts', 'training/tr18n.ts']) assert.doesNotMatch(web(f), /qitish/i, `${f}: «O‘qitish»`);
+  assert.equal(dictOf(web('team/p18n.ts')).uz.p_learning, 'O‘qish');
+  assert.equal(d.uz.ck_training, 'O‘qishni oching'); assert.equal(d.uz.o_s_training, 'O‘qish');
+  // обе формы апострофа: ‘ (в «o‘», «g‘») и ’ (в «ta’til») — как в остальных словарях; ASCII-апострофа в значениях узбекских подписей меню нет
+  assert.deepEqual(family(d.uz).filter((k) => /'/.test(d.uz[k])), []);
+});
+
+test('E1 «Словари»: заголовок страницы — подпись открытой вкладки; kb_title и nav_path переименованы; тесты — «Проверка знаний»', () => {
+  const navTs = web('lib/nav.ts');
+  assert.match(navTs, /export function pageTitle\(route: string, fallback = ''\): string \{/); assert.match(navTs, /ITEMS\.find\(\(i\) => i\.id === id\)\?\.label\(\)/);
+  // Рост: h1 = подпись вкладки, а не «Развитие»; Обучение: «Мой старт» / «Курсы» / «Тренажёр», а не «Обучение»
+  const growth = web('growth/Growth.svelte'), training = web('training/Training.svelte');
+  assert.match(growth, /<h1>\{pageTitle\(app\.route, wt\('n2_grow'\)\)\}/); assert.doesNotMatch(growth, /gt\('title'\)|gt\('sub'\)/);
+  assert.match(training, /<h1>\{pageTitle\(app\.route, wt\('n2_learn'\)\)\}/); assert.doesNotMatch(training, /tt\('title'\)|tt\('sub'\)/);
+  for (const [f, k] of [['growth/g18n.ts', 'title'], ['training/tr18n.ts', 'title']]) { const g = dictOf(web(f)); assert.equal(g.ru[k], undefined, `${f}: ключ ${k} не нужен`); assert.equal(g.uz[k], undefined); }
+  assert.doesNotMatch(web('growth/g18n.ts'), /nav_growth|Развитие/);
+  // «Проверка знаний»
+  const t = dictOf(web('tests/t18n.ts'));
+  assert.equal(t.ru.title, 'Проверка знаний'); assert.equal(t.uz.title, 'Bilimni tekshirish');
+  assert.equal(t.ru.sub, 'Тесты по работе вашего подразделения и назначенные вам'); assert.equal(t.uz.sub, 'Bo‘linmangiz ishi bo‘yicha va sizga tayinlangan testlar');
+  // «База знаний» и «Карьера»
+  const i = dictOf(web('lib/i18n.ts'));
+  assert.equal(i.ru.kb_title, 'База знаний'); assert.equal(i.uz.kb_title, 'Bilimlar bazasi');
+  assert.equal(i.ru.nav_path, 'Карьера'); assert.equal(i.uz.nav_path, 'Martaba');
+  for (const k of ['nav_att', 'nav_kb', 'nav_admin', 'tab_kb', 'tab_pay']) assert.equal(i.ru[k], undefined, `старый ключ ${k} удалён`);
+});
+
+test('E1 «Словари»: ключи g_*, i_*, n_*, на которые нет ссылок в web/src, удалены из обоих объектов', () => {
+  const files = walk(dirOf(webUrl('src/'))).filter((f) => /\.(svelte|ts)$/.test(f) && !/lib[\\/](w18n|s18n)\.ts$/.test(f));
+  const code = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+  const stale: string[] = [];
+  for (const f of ['lib/w18n.ts', 'lib/s18n.ts']) {
+    const d = dictOf(web(f));
+    for (const blk of [d.ru, d.uz]) for (const k of Object.keys(blk).filter((x) => /^(g|i|n)_\w+$/.test(x))) if (!new RegExp(`['"\`]${k}['"\`]`).test(code)) stale.push(`${f}: ${k}`);
+  }
+  assert.deepEqual(stale, [], 'в словарях остались ключи меню старой раскладки без единой ссылки');
+  const w = dictOf(web('lib/w18n.ts'));
+  for (const k of ['g_work', 'g_main', 'g_learn', 'g_know', 'g_people', 'g_profile', 'g_manage', 'i_summary', 'i_plan', 'i_trainer', 'i_ready', 'i_help', 'i_structure', 'i_tasks', 'i_assistant', 'i_queue', 'i_editor', 'i_mydata', 'i_settings', 'i_reports', 'i_growth']) {
+    assert.equal(w.ru[k], undefined, `ru: ${k}`); assert.equal(w.uz[k], undefined, `uz: ${k}`);
+  }
+  const s = dictOf(web('lib/s18n.ts'));
+  for (const k of ['n_chat', 'n_news', 'n_home', 'n_path', 'n_growth', 'n_training', 'n_tests', 'n_library', 'n_pay', 'n_kb', 'n_assist', 'n_team', 'n_admin', 'n_more', 'n_logout', 'n_profile']) {
+    assert.equal(s.ru[k], undefined, `ru: ${k}`); assert.equal(s.uz[k], undefined, `uz: ${k}`);
+  }
+});

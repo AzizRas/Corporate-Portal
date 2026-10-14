@@ -2,7 +2,7 @@
 import { app } from '../lib/state.svelte';
 
 const ru: Record<string, string> = {
-  title: 'Тесты', sub: 'Психологические и профессиональные тесты: чтобы лучше узнать себя и вырасти',
+  title: 'Проверка знаний', sub: 'Тесты по работе вашего подразделения и назначенные вам',
   tab_catalog: 'Каталог', tab_history: 'Мои результаты',
   fair: 'Результаты нужны для развития, а не для оценки или наказания.',
   who_sees: 'Результат видят: вы, ваш супервайзер, руководитель отдела и HR. Старшие операторы чужие результаты не видят.',
@@ -27,7 +27,7 @@ const ru: Record<string, string> = {
   tm_you_have: 'В команде', tm_and: 'и', close: 'Закрыть', cancel: 'Отмена',
 };
 const uz: Record<string, string> = {
-  title: 'Testlar', sub: 'Psixologik va kasbiy testlar: o‘zingizni yaxshiroq bilish va o‘sish uchun',
+  title: 'Bilimni tekshirish', sub: 'Bo‘linmangiz ishi bo‘yicha va sizga tayinlangan testlar',
   tab_catalog: 'Katalog', tab_history: 'Mening natijalarim',
   fair: 'Natijalar rivojlanish uchun kerak, baholash yoki jazolash uchun emas.',
   who_sees: 'Natijani ko‘radi: siz, supervayzeringiz, bo‘lim rahbari va HR. Katta operatorlar boshqalarning natijasini ko‘rmaydi.',

@@ -171,5 +171,10 @@ export function activeItem(route: string, extra?: { testArea?: 'learn' | 'self' 
   const path = normRoute(route);
   return pickActive(path, visibleItems(), ROUTE_ALIASES(path, navCtx(), extra));
 }
+/** Заголовок страницы h1 — подпись открытой вкладки (название раздела над ней показывает HubTabs). Адрес без пункта меню получает запасной текст. */
+export function pageTitle(route: string, fallback = ''): string {
+  const id = activeItem(route);
+  return (id && ITEMS.find((i) => i.id === id)?.label()) || fallback;
+}
 /** Можно ли открыть адрес, где доступ решают роли (/team, /admin, /hire, /training/lead, /inbox, /requests): за него отвечает пункт меню, он должен быть виден. */
 export const routeOpen = (route: string): boolean => pathOpen(normRoute(route), ITEMS, navCtx(), visCtx());

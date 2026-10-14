@@ -93,7 +93,7 @@
         </div>
       </a>
       <a class="nv" class:on={active === 'help'} href="#/help" title={collapsed ? wt('ut_help') : undefined}><i><Icon name="help" /></i><span class="lbl">{wt('ut_help')}</span></a>
-      <button class="nv" onclick={logout} title={st('n_logout')}><i><Icon name="logout" /></i><span class="lbl">{st('n_logout')}</span></button>
+      <button class="nv" onclick={logout} title={wt('ut_logout')}><i><Icon name="logout" /></i><span class="lbl">{wt('ut_logout')}</span></button>
     </div>
   </aside>
 
@@ -108,7 +108,7 @@
         <button class="tb-btn" data-tour="search" aria-label={wt('sr_open')} title="{wt('sr_open')} (Ctrl+K)" onclick={openSearch}><Icon name="search" /></button>
         <span class="tr-wrap" data-tour="bell"><NotifyBell /></span>
         <a class="tb-btn" href="#/help" aria-label={wt('ut_help')} title={wt('ut_help')}><Icon name="help" /></a>
-        <a href="#/profile" aria-label={st('n_profile')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a>
+        <a href="#/profile" aria-label={wt('ut_profile_settings')}><Avatar u={{ ...app.user!, bday: false }} size={36} /></a>
       </div>
     </div>
     {#if head !== 'chat'}<CheckIn />{/if}

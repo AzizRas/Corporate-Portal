@@ -2,7 +2,6 @@
 import { app } from '../lib/state.svelte';
 
 const ru: Record<string, string> = {
-  title: 'Обучение', sub: 'План на 10 дней, тренажёр диалогов и проверка готовности к линии', nav: 'Обучение',
   tab_plan: 'Мой план', tab_trainer: 'Тренажёр', tab_ready: 'Готовность', tab_team: 'Команда',
   back_plan: 'К плану', loading: 'Загрузка…', error: 'Не получилось. Попробуйте ещё раз.', retry: 'Ещё раз', next: 'Дальше', prev: 'Назад', open: 'Открыть', save: 'Сохранить', close: 'Закрыть',
   // план
@@ -48,7 +47,6 @@ const ru: Record<string, string> = {
 };
 
 const uz: Record<string, string> = {
-  title: 'O‘qish', sub: '10 kunlik reja, dialog trenajyori va liniyaga tayyorlikni tekshirish', nav: 'O‘qish',
   tab_plan: 'Mening rejam', tab_trainer: 'Trenajyor', tab_ready: 'Tayyorlik', tab_team: 'Jamoa',
   back_plan: 'Rejaga', loading: 'Yuklanmoqda…', error: 'Bajarilmadi. Qayta urinib ko‘ring.', retry: 'Qayta', next: 'Keyingi', prev: 'Orqaga', open: 'Ochish', save: 'Saqlash', close: 'Yopish',
   progress: 'Jarayon', day_of: '{m} kundan {n}-kun', lessons_done: 'o‘tilgan darslar: {m} tadan {n}', day: '{n}-kun', day_short: 'k.', next_step: 'Keyingi qadam', continue: 'Davom etish', start: 'Boshlash',
