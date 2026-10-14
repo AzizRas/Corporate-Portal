@@ -52,9 +52,10 @@
             {@const ai = m.ai}
             {@const pf = kb?.platform}
             <div class="bot">
-              {#if kb?.articles?.length}
+              <!-- быстрый список статей — пока ИИ или поиск по базе готовят ответ; когда ответ пришёл из базы, его метка «Из базы знаний» стоит над ответом, повторять её не нужно -->
+              {#if kb?.articles?.length && ai?.mode !== 'kb'}
                 <span class="tag">{wt('ac_from_kb')}</span>
-                {#each kb.articles.slice(0, ai?.mode === 'kb' ? 0 : 3) as a}<p class="art"><a href="#/kb/{a.id}"><b>{a.title}</b></a><br /><span class="small muted">{a.snippet}</span></p>{/each}
+                {#each kb.articles.slice(0, 3) as a}<p class="art"><a href="#/kb/{a.id}"><b>{a.title}</b></a><br /><span class="small muted">{a.snippet}</span></p>{/each}
               {/if}
               {#if pf}
                 {#if pf.intent === 'denied'}<p class="note small">{wt('ac_denied')}</p>{/if}
@@ -76,7 +77,7 @@
               {:else if ai}
                 {#if ai.mode === 'kb' || ai.mode === 'general' || ai.mode === 'data'}
                   <span class="tag" class:warn={ai.mode === 'general'} class:data={ai.mode === 'data'}>{wt(ai.mode === 'kb' ? 'ac_from_kb' : ai.mode === 'data' ? 'ac_from_data' : 'ac_general')}</span>
-                  <p>{ai.answer}</p>
+                  <p class="ans">{ai.answer}</p>
                   {#if ai.reply}
                     <div class="rep"><span class="small muted">{wt('ac_reply')}</span><p>{ai.reply}</p>
                       <button class="btn sm" onclick={() => copy(ai.reply, i)}>{copied === i ? wt('ac_copied') : wt('ac_copy')}</button></div>
@@ -117,6 +118,7 @@
   .me { align-self: flex-end; background: var(--grad-soft); color: #fff; padding: 8px 12px; border-radius: 14px 14px 4px 14px; max-width: 85%; white-space: pre-wrap; word-break: break-word; font-size: 14px; }
   .bot { align-self: flex-start; background: var(--card-2); padding: 8px 12px; border-radius: 14px 14px 14px 4px; max-width: 94%; font-size: 14px; }
   .bot p { margin: 4px 0; word-break: break-word; }
+  .bot .ans { white-space: pre-line; }
   .tag { font-size: 11px; font-weight: 700; color: var(--good); }
   .tag.warn { color: var(--warn); }
   .tag.data { color: var(--accent-ink); }

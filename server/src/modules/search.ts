@@ -32,6 +32,10 @@ export async function queueQuestion(u: AuthUser, body: string, o: { anonymous?: 
   return { id: Number(r.rows[0].id), dup: false };
 }
 
+/** Ответ по базе для окна «Спросить ИИ» показывается простым текстом: без маркеров заголовков, жирного, кода и ссылок (в режиме extract это кусок статьи в markdown). */
+export const plainMd = (s: string) => s.replace(/\r/g, '').replace(/^#{1,6}\s+/gm, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/!?\[([^\]]*)\]\([^)\s]*\)/g, '$1')
+  .replace(/^\s*[-*]\s+(?:\[[ x]\]\s+)?/gm, '• ').replace(/^>\s?/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+
 /** Телефоны, карты и длинные номера клиента в модель не уходят. */
 const mask = (s: string) => s.replace(/\+?\d[\d\s().-]{7,}\d/g, '[номер]');
 
@@ -142,7 +146,7 @@ export async function searchRoutes(app: FastifyInstance) {
       kb = { answer: a.answer, grounded: a.grounded, citations: a.citations };
       if (a.grounded) {
         await audit(req, 'ai_search', `chat_kb_${a.mode}`);
-        return { mode: 'kb', ai: a.mode === 'ai', answer: a.answer.slice(0, 900), reply: '', sources: a.citations.map((c) => ({ id: c.article_id, title: c.title })), kb, queued: false };
+        return { mode: 'kb', ai: a.mode === 'ai', answer: plainMd(a.answer).slice(0, 900), reply: '', sources: a.citations.map((c) => ({ id: c.article_id, title: c.title })), kb, queued: false };
       }
     }
     const withKb = <T extends object>(v: T) => (kb ? { ...v, kb } : v);

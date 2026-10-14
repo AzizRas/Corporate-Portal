@@ -84,6 +84,8 @@
     setTimeout(() => pointAt(targets, t.title[app.lang], stepsOf(t.id)[0] ?? '', t.group), 450);
   }
   let sent = $state(false);        // вопрос руководителю отправлен
+  // ответ базы знаний показываем простым текстом (в режиме extract это кусок статьи в markdown): без маркеров заголовков, жирного и ссылок
+  const plain = (s: string) => s.replace(/^#{1,6}\s+/gm, '').replace(/\*\*|`/g, '').replace(/!?\[([^\]]*)\]\([^)\s]*\)/g, '$1').replace(/^\s*[-*]\s+/gm, '• ').trim();
   async function ask() {
     const text = q.trim();
     if (text.length < 3 || asking) return;
@@ -166,7 +168,7 @@
             {:else if ans.kb}
               {@const k = ans.kb}
               <div class="muted xs">{wt('sr_answer')}</div>
-              <p class="u-94badf9">{k.answer}</p>
+              <p class="u-94badf9 sr-txt">{plain(k.answer)}</p>
               {#if k.mode === 'extract'}<p class="muted xs">{wt('sr_ai_off')}</p>{/if}
               {#if k.citations?.length}
                 <div class="muted xs u-fe7b497">{wt('sr_sources')}</div>
@@ -208,6 +210,7 @@
   :global(.sr-person) { margin: 0 12px 6px 56px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); }
   :global(.sr-empty) { padding: 18px 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
   :global(.sr-ans) { margin: 8px 8px 4px; padding: 14px; border-radius: 14px; background: var(--card-2); }
+  .sr-txt { white-space: pre-line; }
   :global(.sr-foot) { flex: none; padding: 8px 12px 2px; border-top: 1px solid var(--border); }
   @media (max-width: 880px) { :global(.sr-box) { top: 8px; max-height: calc(100vh - 16px); } :global(.sr-foot) { display: none; } }
 </style>

@@ -99,6 +99,10 @@ test('ТЗ №4, E5: окно «Спросить ИИ» отвечает по б
   assert.equal(a.mode, 'kb'); assert.equal(a.ai, false, 'ключа ИИ нет'); assert.equal(a.queued, false);
   assert.ok(a.kb.citations.length >= 1, 'ответ по базе приходит со ссылками на статьи');
   assert.equal(a.kb.citations[0].article_id, artId); assert.equal(a.kb.grounded, true); assert.ok(a.kb.answer.length > 20);
+  // в окне ответ — простым текстом: без маркеров markdown (в режиме extract это кусок статьи)
+  const { plainMd } = await import('../src/modules/search.js');
+  assert.equal(plainMd('## Порядок\n\n1. Согласуйте **даты** с `руководителем`.\n- пункт [ссылка](#/kb/3)\n\n\n\n> цитата'), 'Порядок\n\n1. Согласуйте даты с руководителем.\n• пункт ссылка\n\nцитата');
+  assert.doesNotMatch(a.answer, /^#|\*\*|`|\]\(/m, 'в ответе окна нет разметки markdown');
   assert.deepEqual(a.sources.map((s: any) => s.id), a.kb.citations.map((c: any) => c.article_id), 'sources — те же статьи для ссылок в окне');
   // оператору тот же ответ
   assert.equal((await chat(op, 'За сколько дней возвращаются деньги при возврате?')).json().kb.citations[0].article_id, artId);
