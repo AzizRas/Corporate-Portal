@@ -9,6 +9,7 @@ import {
   type Hub, type HubItem, type VisCtx, type NavCtx, type Persona,
 } from './nav-core';
 
+export type { VisCtx, NavCtx, Persona } from './nav-core';
 export interface NavItemDef { id: string; hub: string; href: string; icon: string; label: () => string; visible: (c: VisCtx) => boolean; badge?: () => number }
 /** Пункт видит тот, для кого его правило (nav-core.ts → itemVisible) даёт «да». */
 const vis = (id: string) => (c: VisCtx) => itemVisible(id, c);
