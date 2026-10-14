@@ -51,7 +51,11 @@ test('Профили: у каждого подразделения свой на
   for (const s of ['assist', 'trainer', 'ready', 'tests', 'kb', 'plan']) assert.ok(call.includes(s), `колл-центр видит ${s}`);
   assert.ok(svc.includes('assist') && !svc.includes('trainer') && !svc.includes('ready'), 'сервис-центр: помощник есть, тренажёра нет');
   assert.ok(wh.includes('kb') && wh.includes('plan') && wh.includes('assist') && !wh.includes('trainer') && !wh.includes('ready'), 'склад: без тренажёра и готовности к линии');
-  for (const s of ['assist', 'trainer', 'ready', 'kb', 'path']) assert.ok(!hr.includes(s), `HR не видит ${s}`);
+  for (const s of ['assist', 'trainer', 'ready']) assert.ok(!hr.includes(s), `HR не видит ${s}`);
+  // ТЗ №4, A8: HR ведёт базу знаний, а Главная ведёт его в «Карьеру» — оба раздела открыты
+  for (const s of ['kb', 'path']) assert.ok(hr.includes(s), `HR видит ${s}`);
+  // рекрутёр и бухгалтерия получают анкеты оценки 360° (reviews.ts → targetsOf), поэтому у них открыты «Рост» и «Карьера»
+  for (const [who, l] of [['рекрутёр', rec], ['бухгалтерия', buh]] as const) for (const s of ['growth', 'path']) assert.ok(l.includes(s), `${who} видит ${s}`);
   for (const l of [call, svc, wh, hr, rec, buh]) assert.ok(l.includes('library') && l.includes('tests'), 'библиотека и тесты открыты всем');
   for (const s of ['plan', 'chat', 'team']) assert.ok(hr.includes(s), `HR видит ${s} (адаптация, чат, команда)`);
   assert.ok(!rec.includes('plan') && !rec.includes('assist') && rec.includes('chat'), 'рекрутер: чат есть, адаптации и помощника нет');
@@ -75,7 +79,11 @@ test('Сервер закрывает помощник оператора и т�
   }
   assert.equal((await get(hr, '/api/training/trainer')).statusCode, 403, 'HR: тренажёр закрыт');
   assert.equal((await get(hr, '/api/training/ready')).statusCode, 403);
-  assert.equal((await send(hr, 'POST', '/api/search/chat', { q: 'привет' })).statusCode, 403, 'окно-помощник закрыт для HR');
+  // ТЗ №4, A8: окно «Спросить ИИ» открыто тем, у кого есть помощник оператора ИЛИ база знаний; HR — по базе знаний, бухгалтерия — ни того, ни другого
+  assert.equal((await send(hr, 'POST', '/api/search/chat', { q: 'привет' })).statusCode, 200, 'окно «Спросить ИИ» открыто для HR: у него есть база знаний');
+  const noKb = await send(buh, 'POST', '/api/search/chat', { q: 'привет' });
+  assert.equal(noKb.statusCode, 403, 'бухгалтерии нет ни помощника, ни базы знаний'); assert.equal(noKb.json().error, 'section_forbidden');
+  assert.equal((await send(buh, 'POST', '/api/search/chat/kb', { messages: [{ role: 'user', content: 'привет' }] })).statusCode, 403, 'быстрый ответ по базе закрыт так же');
   assert.equal((await get(cc, '/api/assist/data')).statusCode, 200, 'колл-центр работает');
   assert.equal((await get(cc, '/api/training/trainer')).statusCode, 200);
   assert.equal((await get(wh, '/api/training/trainer')).statusCode, 403, 'склад: тренажёр закрыт');
@@ -118,6 +126,20 @@ test('Админ меняет набор разделов; сброс возвр
   assert.equal((await send(adm, 'DELETE', '/api/admin/access')).statusCode, 200);
   assert.equal((await get(cc, '/api/assist/data')).statusCode, 200, 'сброс вернул набор по умолчанию');
   assert.equal((await get(await login('wh1'), '/api/assist/data')).statusCode, 200);
+});
+
+test('ТЗ №4, A8: анкеты оценки 360° (/api/reviews) закрываются вместе с разделом «Рост»', async () => {
+  const adm = await login('admin', 'admin-test-1'), cc = await login('cc1');
+  assert.equal((await get(await login('wh1'), '/api/reviews/my')).statusCode, 200, 'по умолчанию у склада раздел «Рост» открыт');
+  try {
+    assert.equal((await send(adm, 'PUT', '/api/admin/access', { matrix: { warehouse: ['home', 'chat'] } })).statusCode, 200);
+    const r = await get(await login('wh1'), '/api/reviews/my');
+    assert.equal(r.statusCode, 403, 'у сотрудника без «Роста» анкеты 360° закрыты'); assert.equal(r.json().error, 'section_forbidden');
+    assert.equal((await get(cc, '/api/reviews/my')).statusCode, 200, 'колл-центр не затронут');
+  } finally { await send(adm, 'DELETE', '/api/admin/access'); }
+  assert.equal((await get(await login('wh1'), '/api/reviews/my')).statusCode, 200, 'сброс вернул раздел');
+  // рекрутёр и бухгалтерия получают анкеты 360° — раздел «Рост» у них открыт по умолчанию
+  for (const l of ['rec1', 'buh']) assert.equal((await get(await login(l), '/api/reviews/my')).statusCode, 200, l);
 });
 
 test('Роль recruiter можно назначить сотруднику через админку', async () => {
