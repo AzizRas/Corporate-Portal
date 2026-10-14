@@ -10,6 +10,7 @@
   import OrgRefs from './OrgRefs.svelte';
   import OrgRefDrawer from './OrgRefDrawer.svelte';
   import Modal from '../components/Modal.svelte';
+  import Segmented from '../components/Segmented.svelte';
   import { ot } from './oc18n';
   import { buildModel, matches, type OcNode } from './oc-model';
 
@@ -55,11 +56,7 @@
 {:else if !data}<span class="spin"></span>
 {:else}
   <div class="bar2">
-    <div class="seg" role="group" aria-label="view">
-      <button type="button" class:on={view === 'cards'} onclick={() => setView('cards')}>{ot('vCards')}</button>
-      <button type="button" class:on={view === 'map'} onclick={() => setView('map')}>{ot('vMap')}</button>
-      <button type="button" class:on={view === 'groups'} onclick={() => setView('groups')}>{ot('vGroups')}</button>
-    </div>
+    <Segmented label={wt('o_title')} value={view} options={[{ id: 'cards', label: ot('vCards') }, { id: 'map', label: ot('vMap') }, { id: 'groups', label: ot('vGroups') }]} onchange={(id) => setView(id as View)} />
     {#if data.can_refs}<button type="button" class="btn sm" onclick={() => { nf = { name_ru: '', name_uz: '', placement: 'above', note: '' }; nerr = ''; newRef = true; }}>+ {ot('addRef')}</button>{/if}
     <div class="srch"><input type="search" bind:value={q} placeholder={ot('search')} aria-label={ot('search')} />
       {#if q.trim()}
@@ -141,9 +138,6 @@
 
 <style>
   .bar2 { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 12px; }
-  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .seg button { border: 0; background: none; padding: 8px 16px; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--muted); }
-  .seg .on { background: var(--chip-on-bg); color: var(--chip-on-ink); }
   .srch { position: relative; width: min(380px, 100%); }
   .res { position: absolute; top: 100%; left: 0; right: 0; z-index: 30; margin-top: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 6px; max-height: 360px; overflow: auto; box-shadow: 0 14px 40px rgba(0,0,0,.25); }
   .rh { padding: 6px 8px; }

@@ -589,11 +589,12 @@ test('A6 «Segmented»: переключатель-фильтр с ролью ra
   assert.match(seg, /min-height: var\(--tap\)/); assert.match(seg, /background: var\(--card-2\)/); assert.match(seg, /border-radius: var\(--r-2\)/);
   assert.match(seg, /ArrowRight/, 'стрелками меняется выбор'); assert.match(seg, /tabindex=/, 'в группу заходят одной точкой Tab');
   assert.doesNotMatch(seg, /style="/);
-  // где применён: «Каталог / Мои результаты», «Разбор ситуаций / Чек-лист руководителя», «Профиль / Настройки» и режимы «Структуры»
-  for (const f of ['tests/Tests.svelte', 'ai/Assistant.svelte', 'pages/Profile.svelte', 'org/Structure.svelte']) {
+  // где применён: «Каталог / Мои результаты», «Разбор ситуаций / Чек-лист руководителя», «Профиль / Настройки», режимы «Структуры» и вид схемы «Схема / Карта / Подразделения»
+  for (const f of ['tests/Tests.svelte', 'ai/Assistant.svelte', 'pages/Profile.svelte', 'org/Structure.svelte', 'org/OrgChart.svelte']) {
     const s = web(f);
     assert.match(s, /import Segmented from '\.\.\/components\/Segmented\.svelte'/, f); assert.match(s, /<Segmented\b/, f);
   }
+  assert.doesNotMatch(web('org/OrgChart.svelte'), /\.seg \{|class="seg"/, 'у схемы нет своего переключателя — тот же Segmented');
   const tests = web('tests/Tests.svelte');
   assert.match(tests, /\/tests\?view=history/); assert.doesNotMatch(tests, /TestTeam/, 'результаты команды переехали в «Мою команду»');
   const w = web('tests/t18n.ts');
