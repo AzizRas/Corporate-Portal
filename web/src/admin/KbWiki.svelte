@@ -1,6 +1,8 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api';
   import { fmtDate } from '../lib/format';
+  import { wt } from '../lib/w18n';
+  import Segmented from '../components/Segmented.svelte';
 
   // Вики по Karpathy: источники → черновики страниц (в «ИИ-редакторе»), схема, проверка, журнал, ответы ИИ
   let tab = $state<'src' | 'schema' | 'lint' | 'log' | 'ans'>('src');
@@ -31,9 +33,8 @@
   async function saveAns(a: any) { const r = await api.post(`/api/kb/answers/${a.id}/save`); a.draft_id = r.draft_id; }
 </script>
 
-<nav class="tabs">
-  {#each [['src', 'Источники'], ['schema', 'Схема вики'], ['lint', 'Проверка'], ['log', 'Журнал'], ['ans', 'Ответы ИИ']] as [k, l]}<button class:on={tab === k} onclick={() => (tab = k as any)}>{l}</button>{/each}
-</nav>
+<!-- виды одной страницы «Источники базы» — переключатель, а не вкладки раздела: вкладки группы «Контент» рисует HubTabs -->
+<div class="mb-4"><Segmented label={wt('ai_a_wiki')} value={tab} options={[{ id: 'src', label: 'Источники' }, { id: 'schema', label: 'Схема вики' }, { id: 'lint', label: 'Проверка' }, { id: 'log', label: 'Журнал' }, { id: 'ans', label: 'Ответы ИИ' }]} onchange={(id) => (tab = id as typeof tab)} /></div>
 {#if msg}<div class="alert ok">{msg}</div>{/if}
 
 {#if tab === 'src'}

@@ -4,6 +4,8 @@
   import { api } from '../lib/api';
   import { fmtDateTime } from '../lib/format';
   import { at } from './a18n';
+  import { wt } from '../lib/w18n';
+  import Segmented from '../components/Segmented.svelte';
 
   const ROLES = ['mentor', 'analyst', 'editor', 'supervisor', 'trainer', 'search', 'recruiter'];
   type Tab = 'settings' | 'usage' | 'log' | 'bad';
@@ -52,9 +54,8 @@
   const maxCalls = $derived(Math.max(1, ...days.map((d) => d.calls)));
 </script>
 
-<nav class="tabs" aria-label="ИИ">
-  {#each ['settings', 'usage', 'log', 'bad'] as t}<button type="button" class:on={tab === t} onclick={() => (tab = t as Tab)}>{at('ai_tab_' + t)}</button>{/each}
-</nav>
+<!-- виды одной страницы «ИИ» — переключатель, а не вкладки раздела: вкладки группы «Система» рисует HubTabs -->
+<div class="mb-4"><Segmented label={wt('ai_a_ai')} value={tab} options={(['settings', 'usage', 'log', 'bad'] as const).map((id) => ({ id, label: at('ai_tab_' + id) }))} onchange={(id) => (tab = id as Tab)} /></div>
 
 {#if tab === 'settings'}
   {#if loadErr}<div class="alert">{at('ai_load_err')}</div>
@@ -212,6 +213,5 @@
   .ai-col i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--grad-soft, var(--accent)); }
   .ai-bad { display: grid; gap: 10px; }
   .ai-bad-row { padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); }
-  nav.tabs button { font-family: inherit; }
   @media (max-width: 560px) { .ai-two { grid-template-columns: 1fr; } }
 </style>

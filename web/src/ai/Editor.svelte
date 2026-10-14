@@ -7,7 +7,9 @@
   import { fmtDateTime } from '../lib/format';
   import { md } from '../lib/md';
   import { et, eHas } from './e18n';
+  import { wt } from '../lib/w18n';
   import AiFeedback from '../components/AiFeedback.svelte';
+  import Segmented from '../components/Segmented.svelte';
 
   type Kind = 'test_new' | 'test_edit' | 'article_new' | 'article_edit' | 'library_add' | 'assign';
   const lang = $derived(app.lang);
@@ -197,10 +199,8 @@
 {:else if !meta}
   <span class="spin"></span>
 {:else}
-  <nav class="tabs" aria-label="tabs">
-    <button class:on={tab === 'create'} onclick={() => { tab = 'create'; if (draftId != null) go('/editor'); }}>{et('e_tab_create')}</button>
-    <button class:on={tab === 'drafts'} onclick={() => { tab = 'drafts'; if (draftId != null) go('/editor'); }}>{et('e_tab_drafts')}</button>
-  </nav>
+  <!-- «Создать» и «Черновики» — виды одной страницы «ИИ-редактор»: переключатель, а не вкладки раздела (вкладки группы «Контент» рисует HubTabs) -->
+  <div class="mb-4"><Segmented label={wt('ai_a_editor')} value={tab} options={[{ id: 'create', label: et('e_tab_create') }, { id: 'drafts', label: et('e_tab_drafts') }]} onchange={(id) => { tab = id as 'create' | 'drafts'; if (draftId != null) go('/editor'); }} /></div>
 
   {#if tab === 'create'}
     {#if !kinds.length}

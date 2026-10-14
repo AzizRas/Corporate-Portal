@@ -560,8 +560,14 @@ test('A6 «Один ряд»: у страниц раздела нет своих
   // ряд вкладок рисует HubTabs, единственный компонент с <nav class="tabs hub-tabs">
   const hubTabs = web('components/HubTabs.svelte');
   assert.match(hubTabs, /<nav class="tabs hub-tabs"/);
-  const rows = walk(dirOf(webUrl('src/components/'))).filter((f) => /<nav class="tabs/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.basename(f));
-  assert.deepEqual(rows, ['HubTabs.svelte'], 'среди общих компонентов ряд вкладок только в HubTabs');
+  // во всём интерфейсе ряд вкладок-навигации (<nav class="tabs") рисует только HubTabs: виды одной страницы («ИИ», «Источники базы», «Курсы и уроки», «ИИ-редактор»,
+  // калибровка 360°) переключает Segmented, а не второй ряд вкладок под рядом раздела
+  const rows = walk(dirOf(webUrl('src/'))).filter((f) => f.endsWith('.svelte') && /<nav class="tabs/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.basename(f));
+  assert.deepEqual(rows, ['HubTabs.svelte'], 'ряд вкладок только в HubTabs');
+  for (const f of ['admin/AiAdmin.svelte', 'admin/KbWiki.svelte', 'admin/TrainingAdmin.svelte', 'ai/Editor.svelte', 'pages/ReviewAdmin.svelte']) {
+    const s = web(f);
+    assert.match(s, /import Segmented from '\.\.\/components\/Segmented\.svelte'/, f); assert.match(s, /<Segmented\b/, f);
+  }
 });
 
 test('A6 «Подзаголовок»: HubTabs выводит название раздела, строку «для кого» и значки вкладок; у раздела с одной вкладкой — только заголовок', () => {
