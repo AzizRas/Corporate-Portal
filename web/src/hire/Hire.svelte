@@ -1,5 +1,7 @@
 <script lang="ts">
   import { hs, loadMeta, isAdm, toast, dismiss, ht } from './store.svelte';
+  import { app } from '../lib/state.svelte';
+  import { pageTitle } from '../lib/nav';
   import Vacancies from './Vacancies.svelte';
   import Board from './Board.svelte';
   import People from './People.svelte';
@@ -18,7 +20,8 @@
   const head = $derived(parts[0] ?? '');
 </script>
 
-<header class="page-head"><div><h1>{ht('hTitleP')}</h1><p class="sub">{ht('hSubP')}</p></div></header>
+<!-- заголовок — подпись открытой вкладки («Вакансии», «Кандидаты», у руководителя «Подбор»): название раздела «Найм» уже показывает HubTabs -->
+<header class="page-head"><div><h1>{pageTitle(app.route, ht('hTitleP'))}</h1><p class="sub">{ht('hSubP')}</p></div></header>
 
 {#if !ready}<p class="muted"><span class="spin"></span></p>
 {:else if failed || !hs.meta}<p class="alert">{ht('hNoAccess')}</p>

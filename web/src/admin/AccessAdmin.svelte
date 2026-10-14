@@ -3,7 +3,7 @@
   import { api } from '../lib/api';
 
   // Какие разделы видит каждое подразделение. Помощник оператора, тренажёр и готовность к линии закрываются и на сервере; остальные скрываются в меню.
-  const SEC: Record<string, string> = { home: 'Сводка', news: 'Новости', path: 'Мой путь', tasks: 'Задачи', growth: 'Развитие', plan: 'План обучения (адаптация)', trainer: 'Тренажёр', ready: 'Готовность к линии', tests: 'Тесты', library: 'Библиотека', kb: 'ЧАВО', assist: 'Помощник оператора', help: 'Как пользоваться', chat: 'Чат', team: 'Команда', structure: 'Структура', schedule: 'График', pay: 'ЗП и KPI' };
+  const SEC: Record<string, string> = { home: 'Главная', news: 'Новости', path: 'Карьера', tasks: 'Входящие и задачи', growth: 'Рост', plan: 'Курсы и «Мой старт»', trainer: 'Тренажёр', ready: 'Интервью готовности', tests: 'Проверка знаний', library: 'Библиотека', kb: 'База знаний', assist: 'Помощник оператора', help: 'Помощь', chat: 'Чаты', team: 'Моя команда', structure: 'Люди и структура', schedule: 'График', pay: 'Зарплата и KPI' };
   const PROF: Record<string, string> = { call: 'Колл-центр', service: 'Сервис-центр', warehouse: 'Склад', hr: 'HR', recruiter: 'Рекрутер', accounting: 'Бухгалтерия' };
   const LOCKED = ['library', 'tests'];
   let d: any = $state(null), matrix: Record<string, string[]> = $state({}), msg = $state(''), bad = $state(false), busy = $state(false);

@@ -21,7 +21,7 @@ const ru: Record<string, string> = {
   p_task_title: 'Новая задача', p_task_for: 'Для', p_task_name: 'Название', p_task_note: 'Комментарий', p_task_due: 'Срок', p_task_send: 'Поставить', p_task_ok: 'Задача поставлена', p_task_err: 'Не получилось поставить задачу.', p_forbidden: 'Недостаточно прав для этого действия.',
   p_cancel: 'Отмена', p_close: 'Закрыть', p_recent_tests: 'Последние тесты', p_recent_tasks: 'Задачи', p_no_tests: 'Тестов пока нет', p_no_tasks: 'Задач нет', p_done: 'выполнено', p_open_state: 'открыта', p_overdue_l: 'просрочено',
   // очередь
-  q_title: 'Очередь вопросов и предложений', q_sub: 'Что сотрудники не нашли в базе знаний или написали руководству',
+  q_title: 'Вопросы сотрудников', q_sub: 'Что сотрудники не нашли в базе знаний или написали руководству',
   q_new: 'Новые', q_in_progress: 'В работе', q_answered: 'Отвечены', q_closed: 'Закрыты',
   q_empty: 'Здесь пока пусто. Когда сотрудники зададут вопрос, на который нет ответа в базе, он появится в этом списке.', q_empty_tab: 'В этой вкладке нет вопросов.',
   q_anon: 'Аноним', q_question: 'Вопрос', q_suggestion: 'Предложение', q_search: 'из поиска', q_manual: 'вручную', q_dups: 'Спросили ещё раз: ×{n}',
@@ -52,7 +52,7 @@ const uz: Record<string, string> = {
   p_assign: 'Vazifa qo‘yish', p_open: 'Ochish', p_one: '1:1 suhbat',
   p_task_title: 'Yangi vazifa', p_task_for: 'Kimga', p_task_name: 'Nomi', p_task_note: 'Izoh', p_task_due: 'Muddat', p_task_send: 'Qo‘yish', p_task_ok: 'Vazifa qo‘yildi', p_task_err: 'Vazifani qo‘yib bo‘lmadi.', p_forbidden: 'Bu amal uchun huquq yetarli emas.',
   p_cancel: 'Bekor qilish', p_close: 'Yopish', p_recent_tests: 'Oxirgi testlar', p_recent_tasks: 'Vazifalar', p_no_tests: 'Testlar hozircha yo‘q', p_no_tasks: 'Vazifalar yo‘q', p_done: 'bajarilgan', p_open_state: 'ochiq', p_overdue_l: 'muddati o‘tgan',
-  q_title: 'Savol va takliflar navbati', q_sub: 'Xodimlar bilimlar bazasida topa olmagan yoki rahbarga yozgan narsalar',
+  q_title: 'Xodimlar savollari', q_sub: 'Xodimlar bilimlar bazasida topa olmagan yoki rahbarga yozgan narsalar',
   q_new: 'Yangi', q_in_progress: 'Ishda', q_answered: 'Javob berilgan', q_closed: 'Yopilgan',
   q_empty: 'Bu yerda hozircha bo‘sh. Xodimlar bazada javobi yo‘q savol bersa, u shu ro‘yxatda paydo bo‘ladi.', q_empty_tab: 'Bu bo‘limda savollar yo‘q.',
   q_anon: 'Anonim', q_question: 'Savol', q_suggestion: 'Taklif', q_search: 'qidiruvdan', q_manual: 'qo‘lda', q_dups: 'Yana so‘rashdi: ×{n}',

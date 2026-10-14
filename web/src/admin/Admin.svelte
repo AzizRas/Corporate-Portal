@@ -24,6 +24,7 @@
   // Режим «Управление» (ТЗ №4, A7): группы и вкладки рисует HubTabs по реестру пунктов (nav.ts → ADMIN_HUBS), подписи ru/uz лежат в w18n.ts (ai_*, m_*),
   // а видимость задаёт реестр, а не эта страница. Здесь только выбор страницы по первому сегменту после /admin; новые адреса (org, onboarding, leaves, offboarding,
   // analytics, reviews, reserve, questions, editor) показывает Router, пока эпик J не разнесёт старые многоцелевые страницы.
+  // Статистика тура («Обучение порталу») после переезда /admin/tour → /admin/usage стоит под использованием портала: иначе до J4 она осталась бы без входа.
   let { parts }: { parts: string[] } = $props();
   const cur = $derived(parts[0]);
   // /admin без вкладки ведёт на первую доступную вкладку режима (обычно это делает REDIRECTS ещё до отрисовки)
@@ -44,7 +45,7 @@
 {:else if cur === 'assist'}<AssistAdmin collection={parts[1] ?? null} />
 {:else if cur === 'requests'}<Requests />
 {:else if cur === 'access'}<AccessAdmin />
-{:else if cur === 'usage'}<UsageAdmin />
+{:else if cur === 'usage'}<div class="stack"><UsageAdmin /><TourStats /></div>
 {:else if cur === 'ai'}<AiAdmin />
 {:else if cur === 'tour'}<TourStats />
 {:else if cur === 'audit'}<Audit />
