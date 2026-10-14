@@ -5,7 +5,7 @@ import { app, can, hasOwn } from './state.svelte';
 import { wt } from './w18n';
 import { notif } from './notify.svelte';
 import {
-  HUBS, ADMIN_HUBS, UTIL, MANAGE_ROLES, pickLanding, normPath, buildHubs, itemVisible, pickActive, pathOpen, personaOf, navCtxOf, visCtxOf, ROUTE_ALIASES,
+  HUBS, ADMIN_HUBS, UTIL, MANAGE_ROLES, TAB_ITEMS, pickLanding, normPath, buildHubs, itemVisible, pickActive, pathOpen, personaOf, navCtxOf, visCtxOf, ROUTE_ALIASES, mobileTabs, moreSections, tabHref,
   type Hub, type HubItem, type VisCtx, type NavCtx, type Persona,
 } from './nav-core';
 
@@ -118,6 +118,29 @@ export const utilItems = (): NavItemDef[] => visibleItems().filter((i) => UTIL.i
 export const canManage = (): boolean => hasOwn(...MANAGE_ROLES);
 /** Куда ведёт кнопка «Управление»: первая видимая вкладка режима. */
 export const adminHome = (): string | null => adminHubs()[0]?.items[0]?.href ?? null;
+
+/* ---------- Нижняя панель телефона и «Ещё» (ТЗ №4, G1 и G2) ---------- */
+export interface TabDef { id: string; href: string; icon: string; label: string; badge: number }
+/** Значок вкладки-раздела; у вкладки-пункта берётся значок самого пункта. */
+const TAB_ICON: Record<string, string> = { home: 'home', learn: 'training', team: 'team', manage: 'gear', more: 'more' };
+/** id вкладок панели этого человека: четыре по персоне (закрытые заменяет следующий кандидат) и «Ещё». */
+export const mobileTabIds = (): string[] => {
+  const ids = new Set(visibleItems().map((i) => i.id));
+  return mobileTabs(persona(), (id) => ids.has(id));
+};
+/** Вкладки панели с адресом, значком, подписью (mt_<id>) и бейджем. Адрес вкладки-раздела — первый видимый пункт раздела (tabHref); «Ещё» — #/more.
+ *  Бейдж «Входящих» стоит на своей вкладке, а если её нет — на «Главной». */
+export function mobileTabDefs(): TabDef[] {
+  const items = visibleItems(), seen = new Set(items.map((i) => i.id));
+  const ids = mobileTabs(persona(), (id) => seen.has(id));
+  return ids.map((id) => {
+    const firstId = (TAB_ITEMS[id] ?? []).find((x) => seen.has(x));
+    const badge = id === 'chat' ? notif.chat_total : id === 'inbox' || (id === 'home' && !ids.includes('inbox')) ? notif.inbox_todo : 0;
+    return { id, href: '#' + tabHref(id, items), icon: TAB_ICON[id] ?? items.find((i) => i.id === firstId)?.icon ?? 'more', label: wt('mt_' + id), badge };
+  });
+}
+/** Разделы «Ещё»: у каждого — только вкладки, которых нет в нижней панели; раздел без таких вкладок пропускается. */
+export const moreHubs = (): Hub[] => moreSections(navHubs(), mobileTabIds());
 
 /** Названия разделов меню на языке пользователя: n2_<id> для разделов, m_<id> для групп «Управления», «Профиль и настройки» для утилит. */
 export const hubLabel = (id: string): string =>

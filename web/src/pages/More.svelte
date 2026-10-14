@@ -1,16 +1,16 @@
 <script lang="ts">
   import { app, logout } from '../lib/state.svelte';
   import { t } from '../lib/i18n';
-  import { st } from '../lib/s18n';
   import { wt } from '../lib/w18n';
-  import { navHubs, adminHubs, canManage, hubLabel } from '../lib/nav';
+  import { moreHubs, mobileTabIds, adminHubs, canManage, hubLabel } from '../lib/nav';
   import Icon from '../components/Icon.svelte';
   import Avatar from '../components/Avatar.svelte';
 
-  // «Ещё» на телефоне: карточка профиля, разделы меню с подзаголовком «для кого», группы режима «Управление», помощь и выход.
-  // Только недостающие пункты (без тех, что уже в нижней панели) оставляет задача G2.
-  const groups = $derived(navHubs());
+  // «Ещё» на телефоне (ТЗ №4, G2), сверху вниз: карточка «Имя · Профиль и настройки»; разделы меню с подзаголовком «для кого» — только вкладки, которых нет в нижней панели
+  // (раздел, целиком попавший в панель, не показывается; у оператора «Моя работа» остаётся с «Заявками» и «Зарплатой и KPI»); группы режима «Управление»; «Помощь» и «Выйти».
+  const groups = $derived(moreHubs());
   const manage = $derived(canManage() ? adminHubs() : []);
+  const helpInBar = $derived(mobileTabIds().includes('help'));         // «Помощь» уже в нижней панели — второй раз её не повторяем
 </script>
 <header class="page-head"><div><h1>{t('more')}</h1></div></header>
 <div class="stack">
@@ -42,8 +42,8 @@
       {/each}
     </section>
   {/if}
-  <a class="btn" href="#/help"><Icon inline name="help" /> {wt('ut_help')}</a>
-  <button class="btn danger" onclick={logout}>{st('n_logout')}</button>
+  {#if !helpInBar}<a class="btn" href="#/help"><Icon inline name="help" /> {wt('ut_help')}</a>{/if}
+  <button class="btn danger" onclick={logout}>{wt('ut_logout')}</button>
 </div>
 
 <style>

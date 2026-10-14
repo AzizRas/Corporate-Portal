@@ -6,17 +6,6 @@
 export const LANDING_ORDER = ['home', 'chat', 'news', 'inbox', 'library', 'tests', 'help'] as const;
 export const pickLanding = (can: (section: string) => boolean): string => LANDING_ORDER.find((s) => can(s)) ?? 'home';
 
-/** Нижняя панель телефона: четыре раздела и «Ещё». section — раздел из матрицы доступа (если закрыт, пункт не показывается). */
-export const MOBILE_TABS = [
-  { id: 'home', section: 'home', href: '#/home', icon: 'home' },
-  { id: 'chat', section: 'chat', href: '#/chat', icon: 'chat' },
-  { id: 'training', section: 'plan', href: '#/training', icon: 'training' },
-  { id: 'schedule', section: 'schedule', href: '#/schedule', icon: 'schedule' },
-  { id: 'more', section: null, href: '#/more', icon: 'more' },
-] as const;
-/** Пункты, на которых нижняя панель подсвечивает себя; всё остальное подсвечивает «Ещё». */
-export const MOBILE_TAB_IDS: string[] = MOBILE_TABS.filter((t) => t.id !== 'more').map((t) => t.id);
-
 /** Маршрут вида «#/chat/general?x=1» → путь «/chat/general»; пустой маршрут — раздел, который открывает «/». */
 export function normPath(route: string, landing: string): string {
   const p = '/' + route.split('?')[0].split('/').filter(Boolean).join('/');
@@ -71,6 +60,55 @@ export function buildHubs(visible: HubItem[], defs: HubDef[] = HUBS): Hub[] {
 }
 /** В каком разделе открытый сейчас пункт. */
 export const hubOfActive = (hubs: Hub[], itemId: string | null | undefined): Hub | null => (itemId ? hubs.find((h) => h.items.some((i) => i.id === itemId)) ?? null : null);
+
+/* ---------- Нижняя панель телефона (ТЗ №4, G1) ----------
+ * Панель зависит от персоны: четыре вкладки и «Ещё» (у внешних — сколько есть и «Ещё»). Вкладка — это либо один пункт меню (Чаты, График, Мой старт, Входящие, Люди …),
+ * либо целый раздел (Обучение, Команда, Управление): её подсвечивает любой пункт раздела, а ведёт она на первый видимый пункт. */
+/** Вкладка панели → пункты меню, которые она покрывает (и подсвечивается на них, и не повторяется в «Ещё»). */
+export const TAB_ITEMS: Record<string, string[]> = {
+  home: ['today', 'inbox'], chat: ['chat'], schedule: ['schedule'], start: ['start'], inbox: ['inbox'], people: ['people'],
+  news: ['news'], kb: ['kb'], help: ['help'],
+  learn: ['start', 'courses', 'trainer', 'tests', 'library', 'lead_school'],
+  team: ['team', 'team_schedule', 'team_newbies', 'team_learning', 'team_growth', 'team_tasks', 'team_hire'],
+  manage: ADMIN_HUBS.flatMap((h) => h.items),
+};
+/** Основные вкладки персоны в порядке показа (§3.6). */
+const PRIMARY: Record<Persona, string[]> = {
+  operator: ['home', 'chat', 'schedule', 'learn'], newbie: ['home', 'chat', 'start', 'schedule'],
+  lead: ['home', 'chat', 'team', 'inbox'], hr: ['home', 'chat', 'inbox', 'people'],
+  admin: ['home', 'chat', 'inbox', 'manage'], office: ['home', 'chat', 'inbox', 'manage'],
+  external: ['chat', 'learn', 'schedule', 'kb'],
+};
+/** Если основная вкладка закрыта (раздел отключён подразделению или нет роли), на её место встаёт следующий кандидат. Внешним замен нет. */
+const FALLBACK = ['people', 'news', 'kb', 'help'];
+/** id вкладок нижней панели: 4 видимых + 'more' (у внешних — сколько есть + 'more'). visible(itemId) — виден ли пункт меню. */
+export function mobileTabs(p: Persona, visible: (itemId: string) => boolean): string[] {
+  const ok = (t: string) => TAB_ITEMS[t].some(visible);
+  const list = [...PRIMARY[p], ...(p === 'external' ? [] : FALLBACK)];
+  const out: string[] = [];
+  for (const t of list) if (out.length < 4 && !out.includes(t) && ok(t)) out.push(t);
+  return [...out, 'more'];
+}
+/** Куда ведёт вкладка: адрес первого видимого пункта из тех, что она покрывает (у вкладки-раздела — первый пункт раздела); «Ещё» — /more. items — видимые пункты с адресами. */
+export function tabHref(tab: string, items: { id: string; href: string }[]): string {
+  if (tab === 'more') return '/more';
+  const byId = new Map(items.map((i) => [i.id, i.href]));
+  const id = (TAB_ITEMS[tab] ?? []).find((x) => byId.has(x));
+  return id ? byId.get(id)! : '/home';
+}
+/** Какая вкладка горит: первая (кроме home), содержащая активный пункт; затем home; иначе more (там и профиль, и всё, чего нет в панели). */
+export function activeTab(tabs: string[], item: string | null): string {
+  const has = (t: string) => !!item && (TAB_ITEMS[t] ?? []).includes(item);
+  return tabs.find((t) => t !== 'home' && has(t)) ?? (tabs.includes('home') && has('home') ? 'home' : 'more');
+}
+/** Раздел или пункт — id либо объект с id: «Ещё» собирается и из чистых id (тест), и из пунктов меню с подписями (страница). */
+type IdLike = string | { id: string };
+const idOf = (x: IdLike): string => (typeof x === 'string' ? x : x.id);
+/** «Ещё» (G2): для каждого раздела — только те вкладки, которых нет в нижней панели; раздел без таких вкладок пропускается. */
+export function moreSections<H extends { id: string; items: IdLike[] }>(hubs: H[], tabs: string[]): H[] {
+  const shown = new Set(tabs.flatMap((t) => TAB_ITEMS[t] ?? []));
+  return hubs.map((h) => ({ ...h, items: h.items.filter((i) => !shown.has(idOf(i))) }) as H).filter((h) => h.items.length);
+}
 
 /* ---------- Персона ---------- */
 export interface PersonaUser { roles: string[]; external: string[] | null; team_nodes?: number; onboarding?: { active: boolean } | null }

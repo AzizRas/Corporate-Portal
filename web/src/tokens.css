@@ -55,6 +55,7 @@ input:disabled, select:disabled, textarea:disabled { opacity: .6; cursor: not-al
 @media (max-width: 880px) {
   .btn, .tabs a, .tabs button, .nv, select, input:not([type='checkbox']):not([type='radio']), .more-i { min-height: var(--tap); }
   .tabbar { grid-template-columns: repeat(5, 1fr); }
+  .tabbar.n3 { grid-template-columns: repeat(3, 1fr); } .tabbar.n4 { grid-template-columns: repeat(4, 1fr); } .tabbar.n2 { grid-template-columns: repeat(2, 1fr); }   /* внешним — столько вкладок, сколько у них разделов */
   .tabbar a { min-height: var(--tap); justify-content: center; }
   input[type='checkbox'], input[type='radio'] { width: 22px; height: 22px; }
 }

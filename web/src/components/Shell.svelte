@@ -6,8 +6,8 @@
   import { wt } from '../lib/w18n';
   import { enhanceTables } from '../lib/table-cards';
   import { notif, startNotify } from '../lib/notify.svelte';
-  import { activeItem, landing, navHubs, adminHubs, adminHome, canManage, hubLabel } from '../lib/nav';
-  import { hubOfActive, MOBILE_TABS, MOBILE_TAB_IDS } from '../lib/nav-core';
+  import { activeItem, landing, navHubs, adminHubs, adminHome, canManage, hubLabel, mobileTabDefs } from '../lib/nav';
+  import { hubOfActive, activeTab } from '../lib/nav-core';
   import HubTabs from './HubTabs.svelte';
   import Search, { openSearch } from './Search.svelte';
   import AssistChat from './AssistChat.svelte';
@@ -51,10 +51,9 @@
   const manageHref = $derived(adminHome());
   const onProfile = $derived(active === 'profile' || active === 'settings');
 
-  // нижняя панель телефона: Главная, Чат, Обучение, График и «Ещё» (всё остальное — в «Ещё»)
-  const tabLabel: Record<string, string> = $derived({ home: st('n_home'), chat: st('n_chat'), training: st('n_training'), schedule: st('n_schedule'), more: st('n_more') });
-  const tabs = $derived(MOBILE_TABS.filter((tb) => !tb.section || can(tb.section)).map((tb) => ({ ...tb, l: tabLabel[tb.id], badge: tb.id === 'chat' ? notif.chat_total : 0 })));
-  const tabIds = MOBILE_TAB_IDS;
+  // нижняя панель телефона зависит от персоны: четыре вкладки и «Ещё» (у внешних — сколько есть); всё, чего нет в панели, лежит в «Ещё»
+  const tabs = $derived(mobileTabDefs());
+  const tabOn = $derived(activeTab(tabs.map((tb) => tb.id), active));
 </script>
 
 <div class="shell" class:app--admin={adminMode}>
@@ -118,10 +117,10 @@
     {@render children()}
   </main>
 
-  <nav class="tabbar" aria-label="menu">
-    {#each tabs as tb}
-      <a href={tb.href} data-tour={'tab-' + tb.id} class:on={tb.id === 'more' ? !tabIds.includes(key) : key === tb.id}>
-        <i><Icon name={tb.icon} />{#if tb.badge}<em>{tb.badge > 99 ? '99+' : tb.badge}</em>{/if}</i>{tb.l}
+  <nav class="tabbar" class:n3={tabs.length === 3} class:n4={tabs.length === 4} class:n2={tabs.length <= 2} aria-label="menu">
+    {#each tabs as tb (tb.id)}
+      <a href={tb.href} data-tour={'tab-' + tb.id} class:on={tb.id === tabOn} aria-current={tb.id === tabOn ? 'page' : undefined}>
+        <i><Icon name={tb.icon} />{#if tb.badge}<em>{tb.badge > 99 ? '99+' : tb.badge}</em>{/if}</i>{tb.label}
       </a>
     {/each}
   </nav>

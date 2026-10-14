@@ -536,7 +536,7 @@ test('A5 «Оболочка»: цвет режима «Управление» в
 
 test('A5 «Оболочка»: «Ещё» на телефоне берёт пункты из реестра и показывает профиль, «Управление», помощь и выход', () => {
   const more = web('pages/More.svelte');
-  for (const s of ['navHubs()', 'adminHubs()', 'canManage()', 'ut_profile_settings', 'ut_help', 'logout']) assert.ok(more.includes(s), s);
+  for (const s of ['moreHubs()', 'adminHubs()', 'canManage()', 'ut_profile_settings', 'ut_help', 'logout']) assert.ok(more.includes(s), s);   // moreHubs() — navHubs() без вкладок нижней панели (G2)
   assert.doesNotMatch(more, /style="/);
   // landing: «Входящие» вместо «Задач» и открыты всем штатным
   assert.deepEqual([...nav.LANDING_ORDER], ['home', 'chat', 'news', 'inbox', 'library', 'tests', 'help']);
@@ -777,4 +777,180 @@ test('A11 «Каркас»: оператор не видит «Мою коман
     const to = nav.REDIRECTS(r.href, '', ctx(u)) ?? r.href;
     assert.ok(heads.has(to.split('?')[0].split('/').filter(Boolean)[0]), `${name}: пункт ${id} (${r.href} → ${to}) не открывается`);
   }
+});
+
+/* ================= G1. Нижняя панель телефона по персоне ================= */
+/** вкладки панели человека: персона — по правилам §3.2 п. 7, видимость пунктов — как в меню */
+const tabsFor = (u: U, can: (s: string) => boolean = yes): string[] => { const ids = new Set(visibleIds(u, can)); return nav.mobileTabs(nav.personaOf(u), (id: string) => ids.has(id)); };
+const OP_TABS = ['home', 'chat', 'schedule', 'learn', 'more'], MANAGE_TABS = ['home', 'chat', 'inbox', 'manage', 'more'];
+/** словари w18n.ts / s18n.ts: пары «ключ: 'значение'» раздельно из блоков ru и uz (по позициям const ru и const uz) */
+const dictOf = (src: string): { ru: Record<string, string>; uz: Record<string, string> } => {
+  const at = src.indexOf('const uz'), start = src.indexOf('const ru');
+  const pairs = (blk: string): Record<string, string> => Object.fromEntries([...blk.matchAll(/(?:^|[\s,{])([A-Za-z_]\w*): '((?:[^'\\]|\\.)*)'/g)].map((m) => [m[1], m[2]]));
+  return { ru: pairs(src.slice(start, at)), uz: pairs(src.slice(at)) };
+};
+
+test('G1 «Телефон»: нижняя панель по персоне — ровно 5 пунктов, последний «Ещё», состав как в §3.6', () => {
+  const table: [string, U, string[]][] = [
+    ['оператор', FIX.operator, OP_TABS],
+    ['новичок', FIX.newbie, ['home', 'chat', 'start', 'schedule', 'more']],
+    ['руководитель группы', FIX.lead, ['home', 'chat', 'team', 'inbox', 'more']],
+    ['старший оператор без узла — как оператор', FIX.senior, OP_TABS],
+    ['наставник без узла — как оператор', FIX.mentor, OP_TABS],
+    ['HR', FIX.hr, ['home', 'chat', 'inbox', 'people', 'more']],
+    ['админ', FIX.admin, MANAGE_TABS],
+    ['рекрутёр', FIX.recruiter, MANAGE_TABS], ['бухгалтер', FIX.accountant, MANAGE_TABS], ['редактор', FIX.editor, MANAGE_TABS],
+    ['служебная учётная запись администратора', FIX.service, MANAGE_TABS],
+  ];
+  for (const [name, u, want] of table) assert.deepEqual(tabsFor(u), want, name);
+  // инварианты для всех, кроме внешних: ровно пять, «Ещё» последним и один раз, повторов нет, каждая вкладка описана в TAB_ITEMS
+  for (const [name, u] of Object.entries(FIX).filter(([k]) => k !== 'external')) {
+    const t = tabsFor(u);
+    assert.equal(t.length, 5, name); assert.equal(t.at(-1), 'more', name); assert.equal(new Set(t).size, 5, `${name}: вкладки не повторяются`);
+    for (const id of t.slice(0, 4)) assert.ok(id in nav.TAB_ITEMS, `${name}: вкладка ${id} без пунктов`);
+  }
+  // профиль HR из матрицы (без помощника оператора и тренажёра) состав не меняет
+  const hrCan = (s: string) => !['assist', 'trainer', 'ready'].includes(s);
+  assert.deepEqual(tabsFor(FIX.hr, hrCan), ['home', 'chat', 'inbox', 'people', 'more']);
+  // руководитель с ролью hr — всё равно HR (порядок проверок §3.2 п. 7), а старший оператор, возглавивший узел, — руководитель
+  assert.deepEqual(tabsFor(user(['employee', 'senior'], { team_nodes: 1 })), ['home', 'chat', 'team', 'inbox', 'more']);
+  assert.deepEqual(tabsFor(user(['employee', 'hr'], { team_nodes: 1 })), ['home', 'chat', 'inbox', 'people', 'more']);
+});
+
+test('G1 «Телефон»: закрытый пункт заменяет следующий кандидат — «Люди», «Новости», «База знаний», «Помощь»', () => {
+  const op = (can: (s: string) => boolean) => tabsFor(FIX.operator, can);
+  assert.deepEqual(op((s) => s !== 'schedule'), ['home', 'chat', 'learn', 'people', 'more'], 'у оператора закрыт «График» — вместо него «Люди»');
+  assert.deepEqual(op((s) => !['plan', 'trainer', 'tests', 'library'].includes(s)), ['home', 'chat', 'schedule', 'people', 'more'], 'в «Обучении» нечего показать');
+  assert.deepEqual(op((s) => !['schedule', 'chat'].includes(s)), ['home', 'learn', 'people', 'news', 'more']);
+  assert.deepEqual(op((s) => !['schedule', 'chat', 'news'].includes(s)), ['home', 'learn', 'people', 'kb', 'more']);
+  assert.deepEqual(op((s) => !['schedule', 'chat', 'news', 'kb'].includes(s)), ['home', 'learn', 'people', 'help', 'more']);
+  assert.deepEqual(tabsFor(FIX.newbie, (s) => s !== 'schedule'), ['home', 'chat', 'start', 'people', 'more']);
+  assert.deepEqual(tabsFor(FIX.admin, (s) => s !== 'home'), MANAGE_TABS, '«Главная» живёт и за счёт «Входящих», раздел матрицы home ей не нужен');
+  // пока кандидатов хватает, любая персона при любом наборе закрытых разделов получает ровно пять вкладок
+  for (const closed of [[], ['chat'], ['schedule', 'chat'], ['plan', 'trainer', 'tests', 'library', 'schedule']]) {
+    for (const [name, u] of Object.entries(FIX).filter(([k]) => k !== 'external')) assert.equal(tabsFor(u, (s) => !closed.includes(s)).length, 5, `${name} без ${closed}`);
+  }
+  // кандидаты кончились (закрыто почти всё) — вкладок меньше, но «Ещё» остаётся последней и один раз
+  const few = op((s) => !['home', 'news', 'kb', 'help', 'chat', 'schedule'].includes(s));
+  assert.deepEqual(few, ['home', 'learn', 'people', 'more']);
+});
+
+test('G1 «Телефон»: внешнее подразделение — 3–4 вкладки и «Ещё», замен нет (классы .tabbar.n3 и .tabbar.n4)', () => {
+  const ext = (allowed: string[]) => tabsFor(user(['employee'], { external: allowed }));
+  assert.deepEqual(tabsFor(FIX.external), ['chat', 'learn', 'more'], 'разрешены чат и обучение — три пункта: Чаты, Обучение, Ещё');
+  assert.deepEqual(ext(['chat', 'training', 'schedule']), ['chat', 'learn', 'schedule', 'more']);
+  assert.deepEqual(ext(['kb']), ['kb', 'more']); assert.deepEqual(ext(['training']), ['learn', 'more']);
+  assert.deepEqual(ext(['chat', 'training', 'tests', 'library', 'schedule', 'kb', 'news']), ['chat', 'learn', 'schedule', 'kb', 'more']);
+  assert.deepEqual(ext([]), ['more'], 'внешнему, которому ничего не разрешено, остаётся «Ещё» с профилем');
+  for (const allowed of [['chat', 'training'], ['chat', 'training', 'schedule'], ['kb'], ['chat']]) for (const t of ext(allowed)) assert.ok(!['people', 'news', 'help', 'home', 'inbox', 'team', 'manage'].includes(t), `${allowed}: «${t}» внешнему не положена`);
+});
+
+test('G1 «Телефон»: подсвечивается первая вкладка (кроме «Главной»), содержащая активный пункт; затем «Главная»; иначе «Ещё»', () => {
+  const lead = ['home', 'chat', 'team', 'inbox', 'more'];
+  assert.equal(nav.activeTab(lead, 'team_newbies'), 'team'); assert.equal(nav.activeTab(lead, 'news'), 'more');
+  assert.equal(nav.activeTab(lead, 'inbox'), 'inbox', '«Входящие» горят на своей вкладке, а не на «Главной»'); assert.equal(nav.activeTab(lead, 'today'), 'home');
+  assert.equal(nav.activeTab(OP_TABS, 'inbox'), 'home', 'вкладки «Входящие» нет — горит «Главная»');
+  assert.equal(nav.activeTab(OP_TABS, 'courses'), 'learn'); assert.equal(nav.activeTab(OP_TABS, 'lead_school'), 'learn'); assert.equal(nav.activeTab(OP_TABS, 'schedule'), 'schedule');
+  assert.equal(nav.activeTab(OP_TABS, 'requests'), 'more', '«Заявки» лежат в «Ещё»'); assert.equal(nav.activeTab(OP_TABS, 'profile'), 'more'); assert.equal(nav.activeTab(OP_TABS, 'help'), 'more');
+  assert.equal(nav.activeTab(OP_TABS, null), 'more', 'адрес без пункта (#/more, неизвестный) — горит «Ещё»'); assert.equal(nav.activeTab(OP_TABS, 'нет-такого'), 'more');
+  assert.equal(nav.activeTab(MANAGE_TABS, 'a_audit'), 'manage'); assert.equal(nav.activeTab(MANAGE_TABS, 'h_vac'), 'manage');
+  assert.equal(nav.activeTab(['home', 'chat', 'inbox', 'people', 'more'], 'a_users'), 'more', 'у HR группы «Управления» открываются через «Ещё»');
+  assert.equal(nav.activeTab(['home', 'chat', 'start', 'schedule', 'more'], 'courses'), 'more', 'у новичка «Курсы» вне панели'); assert.equal(nav.activeTab(['home', 'chat', 'start', 'schedule', 'more'], 'start'), 'start');
+  assert.equal(nav.activeTab(['chat', 'learn', 'more'], 'chat'), 'chat'); assert.equal(nav.activeTab(['more'], 'today'), 'more', 'вкладки «Главная» нет — горит «Ещё»');
+  // у каждого пункта видимого меню любой персоны горит ровно одна вкладка этой панели
+  for (const [name, u] of Object.entries(FIX)) { const t = tabsFor(u); for (const id of visibleIds(u)) assert.ok(t.includes(nav.activeTab(t, id)), `${name}: ${id}`); }
+});
+
+test('G1 «Телефон»: адреса вкладок — как в ТЗ, вкладка-раздел ведёт на первый видимый пункт раздела', () => {
+  const items = (u: U, can: (s: string) => boolean = yes) => { const ids = visibleIds(u, can); return registry.filter((r) => ids.includes(r.id)).map((r) => ({ id: r.id, href: r.href })); };
+  const href = (tab: string, u: U, can: (s: string) => boolean = yes) => nav.tabHref(tab, items(u, can));
+  const single: Record<string, string> = { home: '/home', chat: '/chat', schedule: '/schedule', inbox: '/inbox', people: '/people', news: '/news', kb: '/kb', help: '/help' };
+  for (const [tab, h] of Object.entries(single)) assert.equal(href(tab, FIX.operator), h, tab);
+  assert.equal(href('start', FIX.newbie), '/training'); assert.equal(nav.tabHref('more', []), '/more');
+  assert.equal(href('learn', FIX.operator), '/training/courses'); assert.equal(href('learn', FIX.newbie), '/training', 'у новичка раздел «Обучение» открывается на «Мой старт»');
+  assert.equal(href('learn', FIX.operator, (s) => s !== 'plan'), '/training/trainer', 'курсы закрыты — первый видимый пункт раздела');
+  assert.equal(href('team', FIX.lead), '/team'); assert.equal(href('team', FIX.mentor), '/team/newbies'); assert.equal(href('team', FIX.senior), '/team/newbies');
+  assert.equal(href('home', FIX.operator, (s) => s !== 'home'), '/inbox', 'если «Сегодня» закрыта, «Главная» ведёт во «Входящие»');
+  // «Управление» открывает первую доступную вкладку режима — ту же, что и /admin
+  for (const k of ['admin', 'hr', 'recruiter', 'accountant', 'editor'] as const) assert.equal(href('manage', FIX[k]), nav.firstAdminHref(FIX[k].roles), k);
+  assert.equal(href('manage', FIX.admin), '/admin/users'); assert.equal(href('manage', FIX.recruiter), '/hire'); assert.equal(href('manage', FIX.accountant), '/admin/payroll');
+  // вкладка без единого видимого пункта не ломает ссылку
+  assert.equal(href('team', FIX.operator), '/home');
+  // оболочка берёт адрес из этой же функции и ставит бейджи: чаты — chat_total, «Входящие» — inbox_todo (на «Главной», если вкладки «Входящие» нет)
+  const navTs = web('lib/nav.ts');
+  assert.match(navTs, /href: '#' \+ tabHref\(id, items\)/); assert.match(navTs, /id === 'chat' \? notif\.chat_total/); assert.match(navTs, /id === 'inbox' \|\| \(id === 'home' && !ids\.includes\('inbox'\)\) \? notif\.inbox_todo : 0/);
+  assert.match(navTs, /label: wt\('mt_' \+ id\)/);
+});
+
+test('G1 «Телефон»: оболочка строит панель из mobileTabs, в tokens.css есть .tabbar.n3 и .tabbar.n4, строка repeat(5, 1fr) сохранена, подписи mt_* на двух языках', () => {
+  const shell = web('components/Shell.svelte'), css = web('tokens.css');
+  assert.match(shell, /const tabs = \$derived\(mobileTabDefs\(\)\)/); assert.match(shell, /const tabOn = \$derived\(activeTab\(tabs\.map\(\(tb\) => tb\.id\), active\)\)/);
+  assert.match(shell, /<nav class="tabbar" class:n3=\{tabs\.length === 3\} class:n4=\{tabs\.length === 4\}/);
+  assert.match(shell, /data-tour=\{'tab-' \+ tb\.id\}/, 'тур находит вкладки по tab-<id>');
+  assert.doesNotMatch(shell, /style="/);
+  const bad: string[] = [];
+  for (const f of walk(dirOf(webUrl('src/'))).filter((x) => /\.(svelte|ts)$/.test(x))) if (/MOBILE_TABS|MOBILE_TAB_IDS/.test(fs.readFileSync(f, 'utf8'))) bad.push(path.basename(f));
+  assert.deepEqual(bad, [], 'константы MOBILE_TABS и MOBILE_TAB_IDS удалены');
+  assert.match(css, /\.tabbar \{ grid-template-columns: repeat\(5, 1fr\); \}/);
+  assert.match(css, /\.tabbar\.n3 \{ grid-template-columns: repeat\(3, 1fr\); \}/); assert.match(css, /\.tabbar\.n4 \{ grid-template-columns: repeat\(4, 1fr\); \}/);
+  const block = css.slice(css.indexOf('@media (max-width: 880px)', css.indexOf('телефон: область нажатия')));
+  assert.ok(block.indexOf('.tabbar.n3') > 0 && block.indexOf('.tabbar.n3') < block.indexOf('\n}'), 'классы лежат в том же блоке @media, что и repeat(5, 1fr)');
+  // подписи нижней панели: тексты из G1
+  const d = dictOf(web('lib/w18n.ts'));
+  const want: Record<string, [string, string]> = {
+    mt_home: ['Главная', 'Bosh sahifa'], mt_chat: ['Чаты', 'Chatlar'], mt_schedule: ['График', 'Jadval'], mt_learn: ['Обучение', 'O‘qish'], mt_start: ['Мой старт', 'Moslashuv'],
+    mt_team: ['Команда', 'Jamoa'], mt_inbox: ['Входящие', 'Kiruvchi'], mt_people: ['Люди', 'Xodimlar'], mt_manage: ['Управление', 'Boshqaruv'], mt_news: ['Новости', 'Yangiliklar'],
+    mt_kb: ['База знаний', 'Bilimlar bazasi'], mt_help: ['Помощь', 'Yordam'], mt_more: ['Ещё', 'Yana'],
+  };
+  for (const [k, [r, u]] of Object.entries(want)) { assert.equal(d.ru[k], r, `${k} ru`); assert.equal(d.uz[k], u, `${k} uz`); }
+  for (const tab of [...Object.keys(nav.TAB_ITEMS), 'more']) assert.ok(`mt_${tab}` in want, `для вкладки ${tab} нет подписи`);
+});
+
+/* ================= G2. «Ещё» без повторов ================= */
+test('G2 «Ещё»: сборка списка — чистая функция moreSections; у оператора нет Главной, Чатов, Графика и раздела «Обучения»', () => {
+  const hubsOf = (u: U, can: (s: string) => boolean = yes) => Object.entries(tabsOf(u, can)).map(([id, items]) => ({ id, items }));
+  const more = (u: U, can: (s: string) => boolean = yes): Record<string, string[]> => Object.fromEntries(nav.moreSections(hubsOf(u, can), tabsFor(u, can)).map((h: any) => [h.id, h.items]));
+  // пример из ТЗ: «Моя работа: Заявки · Зарплата и KPI», «Рост», «Компания»
+  assert.deepEqual(more(FIX.operator), { work: ['requests', 'pay'], grow: GROW, company: COMPANY });
+  assert.deepEqual(nav.moreSections([{ id: 'home', items: ['today', 'inbox'] }, { id: 'work', items: ['schedule', 'requests', 'pay'] }, { id: 'learn', items: ['courses', 'trainer'] }], OP_TABS),
+    [{ id: 'work', items: ['requests', 'pay'] }], 'раздел, целиком попавший в панель, пропускается; у частично показанного остаются недостающие вкладки');
+  assert.deepEqual(more(FIX.newbie), { work: ['requests'], learn: ['courses', 'trainer', 'tests', 'library'], company: COMPANY });
+  assert.deepEqual(more(FIX.lead), { work: ['schedule', 'requests', 'pay'], learn: ['courses', 'trainer', 'tests', 'library', 'lead_school'], grow: GROW, company: COMPANY });
+  const hrCan = (s: string) => !['assist', 'trainer', 'ready'].includes(s);
+  assert.deepEqual(more(FIX.hr, hrCan), { work: ['schedule', 'requests', 'pay'], learn: ['courses', 'tests', 'library', 'lead_school'], grow: GROW, company: ['news', 'kb', 'surveys'] }, 'у HR «Люди» уже в панели');
+  assert.deepEqual(more(FIX.admin), { work: ['schedule', 'requests', 'pay'], learn: ['courses', 'trainer', 'tests', 'library'], grow: GROW, company: COMPANY });
+  assert.deepEqual(more(FIX.external), {}, 'у внешнего с чатом и обучением всё уже в панели: в «Ещё» остаются профиль, помощь и выход');
+  const ext = user(['employee'], { external: ['chat', 'training', 'tests', 'news'] });
+  assert.deepEqual(more(ext), { company: ['news'] }, 'вкладка «Обучение» покрывает и «Проверку знаний»; «Новости» в панель внешнего не входят — они в «Ещё»');
+  // функция принимает и id, и пункты с подписями (так её вызывает страница), оставляя прочие поля раздела
+  const rich = nav.moreSections([{ id: 'work', icon: 'briefcase', items: [{ id: 'schedule', label: 'График' }, { id: 'pay', label: 'Зарплата и KPI' }] }], OP_TABS);
+  assert.deepEqual(rich, [{ id: 'work', icon: 'briefcase', items: [{ id: 'pay', label: 'Зарплата и KPI' }] }]);
+  assert.deepEqual(nav.moreSections([], OP_TABS), []); assert.deepEqual(nav.moreSections([{ id: 'x', items: ['a'] }], []), [{ id: 'x', items: ['a'] }]);
+});
+
+test('G2 «Ещё»: ничего не повторяет нижнюю панель и ничего не теряет — у каждой персоны пункт либо в панели, либо в «Ещё»', () => {
+  for (const [name, u] of Object.entries(FIX)) {
+    const tabs = tabsFor(u), covered = new Set(tabs.flatMap((t) => nav.TAB_ITEMS[t] ?? []));
+    const hubs = Object.entries(tabsOf(u)).map(([id, items]) => ({ id, items }));
+    const shown = nav.moreSections(hubs, tabs).flatMap((h: any) => h.items as string[]);
+    assert.deepEqual(shown.filter((i) => covered.has(i)), [], `${name}: «Ещё» повторяет нижнюю панель`);
+    const all = hubs.flatMap((h) => h.items);
+    assert.deepEqual(all.filter((i) => !covered.has(i) && !shown.includes(i)), [], `${name}: пункт потерян`);
+    assert.equal(new Set(shown).size, shown.length, `${name}: повтор внутри «Ещё»`);
+  }
+});
+
+test('G2 «Ещё»: страница — карточка профиля сверху, разделы с подзаголовком «для кого», «Управление» с группами, «Помощь» и «Выйти»', () => {
+  const more = web('pages/More.svelte');
+  assert.match(more, /const groups = \$derived\(moreHubs\(\)\)/); assert.match(more, /moreHubs/);
+  assert.ok(more.indexOf('class="card more-me"') < more.indexOf('{#each groups'), 'карточка профиля идёт первой');
+  assert.match(more, /href="#\/profile"/); assert.match(more, /wt\('ut_profile_settings'\)/); assert.match(more, /<Avatar /);
+  assert.match(more, /<h3 class="card-title">\{hubLabel\(g\.id\)\}<\/h3>\s*<p class="muted xs more-sub">\{wt\('hs_' \+ g\.id\)\}<\/p>/, 'название раздела и под ним строка «для кого» (muted xs)');
+  assert.match(more, /const manage = \$derived\(canManage\(\) \? adminHubs\(\) : \[\]\)/); assert.match(more, /wt\('am_enter'\)/);
+  assert.ok(more.indexOf('wt(\'am_enter\')') > more.indexOf('{#each groups') && more.indexOf('href="#/help"') > more.indexOf('wt(\'am_enter\')') && more.indexOf('onclick={logout}') > more.indexOf('href="#/help"'), 'порядок: разделы, «Управление», «Помощь», «Выйти»');
+  assert.match(more, /\{#if !helpInBar\}<a class="btn" href="#\/help">/, '«Помощь» не повторяется, если она уже в нижней панели');
+  assert.doesNotMatch(more, /style="/); assert.doesNotMatch(more, /navHubs\(\)/, 'страница берёт moreHubs(): navHubs() без вкладок панели');
+  const navTs = web('lib/nav.ts');
+  assert.match(navTs, /export const moreHubs = \(\): Hub\[\] => moreSections\(navHubs\(\), mobileTabIds\(\)\)/);
+  assert.match(navTs, /export const mobileTabIds = \(\): string\[\] =>/);
 });
