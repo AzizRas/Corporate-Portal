@@ -7,9 +7,8 @@
   import { enhanceTables } from '../lib/table-cards';
   import { notif, startNotify } from '../lib/notify.svelte';
   import { activeItem, landing, navHubs, adminHubs, adminHome, canManage, hubLabel } from '../lib/nav';
-  import { hubOfActive } from '../lib/nav-core';
+  import { hubOfActive, MOBILE_TABS, MOBILE_TAB_IDS } from '../lib/nav-core';
   import HubTabs from './HubTabs.svelte';
-  import { MOBILE_TABS, MOBILE_TAB_IDS } from '../lib/nav-core';
   import Search, { openSearch } from './Search.svelte';
   import AssistChat from './AssistChat.svelte';
   import Tour from './Tour.svelte';

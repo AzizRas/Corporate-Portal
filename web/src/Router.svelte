@@ -78,7 +78,9 @@
     {:else if head === 'news'}<Lazy load={newsLoader} />
     {:else if head === 'schedule'}<Lazy load={scheduleLoader} />
     {:else if head === 'training' && parts[1] === 'lead'}<Lazy load={assistantLoader} />
-    {:else if head === 'training'}<Lazy load={trainingLoader} />
+    {:else if head === 'training'}
+      <!-- /training («Мой старт» у новичка), /training/courses, /training/lesson/<номер>, /training/trainer, /training/ready и /training/ready/<номер> показывает одна страница обучения -->
+      <Lazy load={trainingLoader} />
     {:else if head === 'tests'}<Lazy load={testsLoader} />
     {:else if head === 'library'}<Lazy load={libraryLoader} />
     {:else if head === 'path'}<Lazy load={pathLoader} />
