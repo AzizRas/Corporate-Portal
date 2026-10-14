@@ -10,7 +10,9 @@ export type TourKind = 'operator' | 'lead' | 'staff' | 'external';
 export const tourKind = (u: Pick<AuthUser, 'roles' | 'external'> & { branch_nodes?: number[] }): TourKind =>
   u.external ? 'external' : u.roles.includes('manager') || u.roles.includes('head') || (u.branch_nodes?.length ?? 0) > 0 ? 'lead' : u.roles.some((r) => ['hr', 'admin', 'editor', 'accountant'].includes(r)) ? 'staff' : 'operator';
 
-const PAGES = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports', 'search']);
+// Страницы, посещения которых считаем (POST /api/visit): первый сегмент адреса (team, admin, hire, att …) и для team, training, growth ещё и первые два (team/newbies, training/courses, growth/talk).
+// Старые id (queue, assistant, editor, reports, structure …) остаются: в базе есть записи статистики, а по старой ссылке человек ещё может зайти.
+const PAGES = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports', 'search', 'inbox', 'requests', 'people', 'surveys', 'pay', 'team/schedule', 'team/newbies', 'team/learning', 'team/growth', 'team/tasks', 'team/hire', 'training/courses', 'training/lead', 'growth/self', 'growth/reviews', 'growth/talk', 'growth/mentor', 'att', 'hire', 'hr', 'leaves']);
 const EVENTS = new Set(['start', 'view', 'next', 'back', 'skip', 'done', 'restart']);
 
 interface Item { id: string; topic: string; route: string; done: boolean }

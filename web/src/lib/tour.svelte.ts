@@ -87,7 +87,8 @@ export async function restartTour() {
 }
 
 /** Какие страницы считаем посещёнными для чек-листа и статистики. */
-const PAGE_IDS = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports']);
+// Тот же набор, что PAGES на сервере (server/src/modules/onboarding.ts): первый сегмент адреса и для team, training, growth — ещё и первые два (team/newbies, training/courses …).
+const PAGE_IDS = new Set(['home', 'chat', 'news', 'path', 'tasks', 'training', 'training/trainer', 'training/ready', 'tests', 'library', 'growth', 'kb', 'assist', 'help', 'team', 'structure', 'schedule', 'schedule/team', 'profile', 'profile/pay', 'profile/settings', 'admin', 'queue', 'editor', 'assistant', 'reports', 'inbox', 'requests', 'people', 'surveys', 'pay', 'team/schedule', 'team/newbies', 'team/learning', 'team/growth', 'team/tasks', 'team/hire', 'training/courses', 'training/lead', 'growth/self', 'growth/reviews', 'growth/talk', 'growth/mentor', 'att', 'hire', 'hr', 'leaves']);
 const seen = new Set<string>();
 export function visit(route: string) {
   const parts = route.split('?')[0].split('/').filter(Boolean);

@@ -16,8 +16,8 @@ export const MIN_MISSES = 3;           // столько обращений в �
 
 /** Какие страницы (id из /api/visit) считаются открытием раздела матрицы доступа. Пустой список — посещения пока не отслеживаются. */
 export const SECTION_PAGES: Record<Section, string[]> = {
-  home: ['home'], news: ['news'], path: ['path'], tasks: ['tasks'], growth: ['growth'], plan: ['training'], trainer: ['training/trainer'], ready: ['training/ready'],
-  tests: ['tests'], library: ['library'], kb: ['kb'], assist: ['assist'], help: ['help'], chat: ['chat'], team: ['team'], structure: ['structure'], schedule: ['schedule'], pay: ['profile/pay'],
+  home: ['home'], news: ['news'], path: ['path'], tasks: ['tasks', 'inbox'], growth: ['growth'], plan: ['training'], trainer: ['training/trainer'], ready: ['training/ready'],
+  tests: ['tests'], library: ['library'], kb: ['kb'], assist: ['assist'], help: ['help'], chat: ['chat'], team: ['team'], structure: ['structure', 'people'], schedule: ['schedule'], pay: ['profile/pay', 'pay'],
 };
 /** Основы слов для сопоставления запросов в поиск и помощь (русские и узбекские) с разделом. */
 export const SECTION_WORDS: Record<Section, string[]> = {

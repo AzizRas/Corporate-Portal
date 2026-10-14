@@ -115,6 +115,32 @@ test('Чек-лист «Первые шаги»: пункты закрывают
   assert.deepEqual(ext.items.map((i: any) => i.id), ['profile', 'chat', 'training']);
 });
 
+test('ТЗ №4, A10: учёт посещений знает новые адреса меню, старые id остаются, чужие отклоняются; набор клиента не шире серверного', async () => {
+  const op = await login('op2'), id = (await pool.query(`SELECT id FROM users WHERE login='op2'`)).rows[0].id;
+  // новые разделы и вкладки (первый сегмент адреса, для team, training и growth ещё и два): inbox, requests, people, surveys, pay, att, hire, admin
+  const fresh = ['inbox', 'requests', 'people', 'surveys', 'pay', 'att', 'hire', 'admin', 'team', 'team/schedule', 'team/newbies', 'team/learning', 'team/growth', 'team/tasks', 'team/hire',
+    'training/courses', 'training/lead', 'growth/self', 'growth/reviews', 'growth/talk', 'growth/mentor'];
+  for (const page of fresh) assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, 200, page);
+  // старые id не удалены: по ним есть записи статистики, и по старой ссылке человек ещё может зайти
+  for (const page of ['queue', 'assistant', 'editor', 'reports', 'structure', 'schedule/team', 'profile/pay', 'profile/settings', 'training/team']) {
+    assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, page === 'training/team' ? 400 : 200, page);
+  }
+  for (const bad of ['', 'нет-такой', 'team/newbies/extra', 'admin/users', 'inbox?type=task']) assert.equal((await send(op, 'POST', '/api/visit', { page: bad })).statusCode, 400, `«${bad}» не страница`);
+  assert.equal((await pool.query(`SELECT n FROM page_visits WHERE user_id=$1 AND page='team/newbies'`, [id])).rows[0].n, 1);
+  await send(op, 'POST', '/api/visit', { page: 'team/newbies' });
+  assert.equal((await pool.query(`SELECT n FROM page_visits WHERE user_id=$1 AND page='team/newbies'`, [id])).rows[0].n, 2, 'повторный визит считается');
+  // клиент отправляет только то, что сервер принимает (иначе каждый визит в такую страницу давал бы 400 в консоли)
+  const fs = await import('node:fs');
+  const tour = fs.readFileSync(new URL('../../web/src/lib/tour.svelte.ts', import.meta.url), 'utf8');
+  const ids = [...(/const PAGE_IDS = new Set\(\[(.*?)\]\);/s.exec(tour)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 40, `в PAGE_IDS ${ids.length} страниц`);
+  for (const page of ids) assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, 200, `клиент шлёт «${page}», сервер должен принять`);
+  for (const page of fresh) assert.ok(ids.includes(page), `клиент считает визит в «${page}»`);
+  // каждая страница из соответствия «раздел матрицы → страницы» принимается сервером
+  const { SECTION_PAGES } = await import('../src/modules/usage.js');
+  for (const pages of Object.values(SECTION_PAGES)) for (const page of pages) assert.equal((await send(op, 'POST', '/api/visit', { page })).statusCode, 200, `usage: «${page}»`);
+});
+
 test('«Как это сделать»: без ИИ подбор по словам (RU и UZ), права по ролям, неотвеченное запоминается', async () => {
   const op = await login('op1'), sv = await login('rustam'), ext = await login('ext1');
   const ask = async (who: any, query: string) => (await send(who, 'POST', '/api/help/ask', { query })).json();
