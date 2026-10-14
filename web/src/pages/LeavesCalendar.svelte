@@ -17,7 +17,7 @@
   const days = $derived.by(() => { const [y, m] = ym.split('-').map(Number); return Array.from({ length: new Date(y, m, 0).getDate() }, (_, i) => `${ym}-${pad(i + 1)}`); });
   async function load() {
     fail = false;
-    try { data = await api.get(`/api/leaves/calendar?from=${days[0]}&to=${days.at(-1)}`); } catch { fail = true; }
+    try { data = await api.get(`/api/leaves/calendar?from=${days[0]}&to=${days[days.length - 1]}`); } catch { fail = true; }
   }
   $effect(() => { ym; load(); });
   function shift(d: number) { const [y, m] = ym.split('-').map(Number), n = new Date(y, m - 1 + d, 1); ym = `${n.getFullYear()}-${pad(n.getMonth() + 1)}`; }

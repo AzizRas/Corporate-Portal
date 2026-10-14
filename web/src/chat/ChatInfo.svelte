@@ -6,7 +6,7 @@
   import Avatar from '../components/Avatar.svelte';
 
   let { chan, people, onclose, onchange }: { chan: any; people: any[]; onclose: () => void; onchange: (leave?: boolean) => void } = $props();
-  let data: any = $state(null), err = $state(''), find = $state(''), adding = $state(false), picked: number[] = $state([]), name = $state(chan.name_ru), busy = $state(false);
+  let data: any = $state(null), err = $state(''), find = $state(''), adding = $state(false), picked: number[] = $state([]), name = $state(''), busy = $state(false);   // имя подставляет $effect ниже (и при смене чата)
   const mine = $derived(chan.role as string | undefined);
   const canManage = $derived(mine === 'owner' || mine === 'admin');
   const load = async () => (data = await api.get(`/api/chat/${encodeURIComponent(chan.id)}/members`));
