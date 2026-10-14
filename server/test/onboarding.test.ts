@@ -215,3 +215,54 @@ test('ТЗ №4, E2: темы справки по разделам матриц�
   } finally { await send(adm, 'DELETE', '/api/admin/access'); }
   assert.ok((await topics(await login('op1'))).some((t) => t.id === 'dayoff_request'), 'сброс матрицы вернул тему');
 });
+
+test('ТЗ №4, E3: вид тура — руководитель только по узлу, рекрутёр — «staff»; «Что изменилось» один раз видит тот, кто основной тур уже проходил', async () => {
+  const adm = await login('admin', 'admin-test-1');
+  const make = async (l: string, roles: string[]) => {
+    const r = await send(adm, 'POST', '/api/admin/users', { login: l, name: `Тур ${l}`, password: 'demo12345', roles });
+    assert.equal(r.statusCode, 200, r.body);
+    return login(l);
+  };
+  // роли manager и head без узла руководителем не делают (тура руководителя и чек-листа руководителя у них нет); рекрутёр — к «staff»
+  const mgr = await make('tour_mgr', ['employee', 'manager', 'head']), rec = await make('tour_rec', ['employee', 'recruiter']);
+  assert.equal((await get(mgr, '/api/tour')).json().kind, 'operator'); assert.equal((await get(mgr, '/api/checklist')).json().kind, 'operator');
+  assert.equal((await get(rec, '/api/tour')).json().kind, 'staff');
+  for (const l of ['rustam', 'head']) assert.equal((await get(await login(l), '/api/tour')).json().kind, 'lead', `${l} возглавляет узел`);
+  assert.equal((await get(await login('editor'), '/api/tour')).json().kind, 'staff');
+
+  // новому сотруднику основной тур впереди, «Что изменилось» ему не нужно
+  const u = await login('op4');
+  const flags = async (who: any) => { const t = (await get(who, '/api/tour')).json(); return [t.status, t.auto, t.whatsnew]; };
+  assert.deepEqual(await flags(u), ['new', true, false]);
+  // основной тур пройден — «Что изменилось» ждёт показа
+  await send(u, 'POST', '/api/tour/event', { event: 'start', step: 0, step_id: 'chat', total: 7 });
+  await send(u, 'POST', '/api/tour/event', { event: 'done', step: 6, step_id: 'bell', total: 7 });
+  assert.deepEqual(await flags(u), ['done', false, true]);
+  // у другого сотрудника — своё состояние
+  assert.deepEqual(await flags(await login('buh')), ['new', true, false]);
+
+  // статистика основного тура не должна считать «Что изменилось»: воронка и итоги прежние, у «Что изменилось» — свой счётчик
+  const stats = async () => (await get(adm, '/api/admin/tour/stats')).json();
+  const before = await stats();
+  assert.deepEqual(before.whatsnew, { done: 0, skipped: 0 });
+  await send(u, 'POST', '/api/tour/event', { event: 'done', step: 4, step_id: 'whatsnew', total: 5 });
+  assert.deepEqual(await flags(u), ['done', false, false], 'после «Готово» «Что изменилось» не возвращается');
+  const after = await stats();
+  assert.deepEqual(after.kinds, before.kinds); assert.deepEqual(after.steps, before.steps);
+  assert.deepEqual(after.whatsnew, { done: 1, skipped: 0 });
+  // не возвращается и после повторного прохождения основного тура из профиля
+  await send(u, 'POST', '/api/tour/event', { event: 'restart' });
+  assert.deepEqual(await flags(u), ['new', true, false]);
+  await send(u, 'POST', '/api/tour/event', { event: 'done', step: 6, step_id: 'bell', total: 7 });
+  assert.deepEqual(await flags(u), ['done', false, false]);
+
+  // «Пропустить» закрывает так же, как «Готово»
+  const v = await login('dilnoza');
+  await send(v, 'POST', '/api/tour/event', { event: 'skip', step: 1, step_id: 'chat', total: 7 });
+  assert.deepEqual(await flags(v), ['skipped', false, true]);
+  await send(v, 'POST', '/api/tour/event', { event: 'skip', step: 0, step_id: 'whatsnew', total: 5 });
+  assert.deepEqual(await flags(v), ['skipped', false, false]);
+  assert.deepEqual((await stats()).whatsnew, { done: 1, skipped: 1 });
+  // события «Что изменилось» не мешают тому, кто тур не проходил: у него по-прежнему впереди основной тур
+  assert.deepEqual(await flags(await login('hr')), ['new', true, false]);
+});

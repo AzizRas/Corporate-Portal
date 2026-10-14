@@ -1184,3 +1184,90 @@ test('E2 «Справка»: темы, которые человек видит,
   }
   assert.deepEqual(bad, []);
 });
+
+/* ================= E3. Тур по новым разделам и «Что изменилось» ================= */
+/** шаги тура по видам: id и цели подсветки из исходника tour.svelte.ts (его нельзя импортировать — он тянет состояние приложения) */
+const tourSteps = (): Record<string, { id: string; targets: string[]; line: string }[]> => {
+  const src = web('lib/tour.svelte.ts');
+  const body = src.slice(src.indexOf('export const TOURS'), src.indexOf('export const tour = $state'));
+  const out: Record<string, { id: string; targets: string[]; line: string }[]> = {};
+  let cur = '';
+  for (const line of body.split('\n')) {
+    const k = /^ {2}(operator|lead|staff|external|whatsnew): \[/.exec(line)?.[1];
+    if (k) { cur = k; out[k] = []; continue; }
+    if (!cur) continue;
+    const s = /^\s*S\('(\w+)', \[([^\]]*)\]/.exec(line);
+    if (s) out[cur].push({ id: s[1], targets: [...s[2].matchAll(/'([^']+)'/g)].map((x) => x[1]), line });
+    else if (/^\s*inbox\(\[/.test(line)) out[cur].push({ id: 'inbox', targets: ['nav-inbox', 'tab-inbox', 'tab-home'], line });         // хелпер inbox([ru, uz]) строит шаг «Входящие»
+    else if (/^\s*search, bell,/.test(line)) out[cur].push({ id: 'search', targets: ['search'], line }, { id: 'bell', targets: ['bell'], line });
+    else if (/^\s*bell,/.test(line)) out[cur].push({ id: 'bell', targets: ['bell'], line });
+  }
+  assert.deepEqual(Object.keys(out), ['operator', 'lead', 'staff', 'external', 'whatsnew'], 'виды тура идут в этом порядке');
+  return out;
+};
+
+test('E3 «Тур»: шаги под новые разделы (ТЗ №4, E3): операторский, руководительский, офисный и внешний; цели подсветки существуют на странице', () => {
+  const t = tourSteps();
+  const ids = (k: string) => t[k].map((s) => s.id);
+  assert.deepEqual(ids('operator'), ['chat', 'work', 'learn', 'path', 'kb', 'search', 'bell']);
+  assert.deepEqual(ids('lead'), ['team', 'inbox', 'newbies', 'lead_school', 'schedule', 'search', 'bell']);
+  assert.deepEqual(ids('staff'), ['hire', 'manage', 'inbox', 'kb', 'search', 'bell']);
+  assert.deepEqual(ids('external'), ['chat', 'training', 'profile', 'bell']);
+  const want: Record<string, string[]> = {
+    'operator/chat': ['nav-hub-chat', 'tab-chat'], 'operator/work': ['nav-hub-work', 'tab-schedule'], 'operator/learn': ['nav-hub-learn', 'tab-learn'], 'operator/path': ['nav-hub-grow', 'tab-more'], 'operator/kb': ['nav-hub-company', 'tab-more'],
+    'lead/team': ['nav-hub-team', 'tab-team'], 'lead/inbox': ['nav-inbox', 'tab-inbox'], 'lead/newbies': ['nav-team_newbies'], 'lead/lead_school': ['nav-lead_school'], 'lead/schedule': ['nav-team_schedule'],
+    'staff/manage': ['am-enter'], 'external/training': ['nav-courses'], 'external/profile': ['me-card'],
+  };
+  for (const [k, need] of Object.entries(want)) { const [kind, id] = k.split('/'); const s = t[kind].find((x) => x.id === id)!; for (const n of need) assert.ok(s.targets.includes(n), `${k}: нет цели ${n}`); }
+  // каждая цель либо есть в разметке (колонка, вкладки раздела, нижняя панель, карточка профиля, «Управление»), либо вычисляется из реестра
+  const shell = web('components/Shell.svelte'), hubTabs = web('components/HubTabs.svelte');
+  assert.match(shell, /data-tour=\{'nav-hub-' \+ h\.id\}/); assert.match(shell, /data-tour=\{'tab-' \+ tb\.id\}/); assert.match(shell, /data-tour="am-enter"/); assert.match(shell, /data-tour="me-card"/);
+  assert.match(shell, /data-tour="search"/); assert.match(shell, /data-tour="bell"/); assert.match(hubTabs, /data-tour=\{'nav-' \+ i\.id\}/);
+  const itemIds = new Set(registry.map((r) => r.id)), hubIds = new Set([...nav.HUBS, ...nav.ADMIN_HUBS].map((h: any) => h.id)), tabIds = new Set([...Object.keys(nav.TAB_ITEMS), 'more']);
+  const bad: string[] = [];
+  for (const [kind, steps] of Object.entries(t)) for (const s of steps) for (const g of s.targets) {
+    const ok = g.startsWith('nav-hub-') ? hubIds.has(g.slice(8)) : g.startsWith('nav-') ? itemIds.has(g.slice(4)) : g.startsWith('tab-') ? tabIds.has(g.slice(4)) : ['me-card', 'am-enter', 'search', 'bell'].includes(g);
+    if (!ok) bad.push(`${kind}/${s.id}: цель «${g}»`);
+  }
+  assert.deepEqual(bad, [], 'цель подсветки не существует');
+  // старых разделов в тексте тура нет
+  const src = web('lib/tour.svelte.ts');
+  for (const w of ['nav-plan', 'nav-queue', 'nav-assistant', 'nav-structure', 'nav-admin', 'nav-editor', 'nav-path', 'nav-know', 'Помощник супервайзера', 'Админка', 'ЧАВО', 'Очередь вопросов', 'Мой путь']) assert.ok(!src.includes(w), `старое «${w}» в туре`);
+  assert.doesNotMatch(src, /qitish/i, 'в туре нет «O‘qitish»');
+  // у каждого шага есть заголовок и текст на русском и узбекском; узбекский — латиница
+  const pair = /\['([^'\]]+)', '([^']+)'\]/g;
+  let n = 0;
+  for (const [kind, steps] of Object.entries(t)) for (const s of steps.filter((x) => x.line.trimStart().startsWith('S('))) {
+    const [ru, uz] = [...s.line.replace(/^\s*S\('\w+', \[[^\]]*\]/, '').matchAll(pair)];          // первые две пары после целей подсветки — русский и узбекский
+    assert.ok(ru && uz, `${kind}/${s.id}: нужны пары [заголовок, текст] на русском и узбекском`);
+    assert.match(ru[0], /[А-Яа-яЁё]/, `${kind}/${s.id}: русский текст`); assert.doesNotMatch(uz[0], /[А-Яа-яЁё]/, `${kind}/${s.id}: узбекский — латиница`); n++;
+  }
+  assert.ok(n >= 20, `шагов с текстами: ${n}`);
+});
+
+test('E3 «Тур»: «Что изменилось» — 5 шагов, запускается один раз и не шлёт события основного тура; STEP_SECTION знает work, learn, team', async () => {
+  const t = tourSteps(), src = web('lib/tour.svelte.ts');
+  assert.equal(t.whatsnew.length, 5);
+  const flat = t.whatsnew.map((s) => s.targets);
+  assert.ok(flat[0].includes('nav-hub-work') && flat[1].includes('nav-hub-learn') && flat[1].includes('nav-hub-grow') && flat[2].includes('nav-hub-chat') && flat[3].includes('nav-inbox') && flat[4].includes('me-card') && flat[4].includes('am-enter'));
+  for (const phrase of ['Личное по работе теперь в «Моей работе»: график, заявки, зарплата', 'Обучение — что назначено и проверяется. Рост — куда расти вместе с руководителем', 'Чаты как в Telegram', 'Папки, группы команд, видно, кто в сети', 'Входящие — дела, которые ждут вас', 'Профиль и настройки — внизу; Управление — отдельный режим']) assert.ok(src.includes(phrase), phrase);
+  // события: основной тур получает start, view, next, back; «Что изменилось» — только done и skip со step_id = whatsnew
+  assert.match(src, /const news = tour\.kind === 'whatsnew';\n\s*if \(news && event !== 'done' && event !== 'skip'\) return Promise\.resolve\(\);/);
+  assert.match(src, /step_id: news \? 'whatsnew' : tour\.steps\[step\]\?\.id \?\? ''/);
+  assert.match(src, /if \(t\.auto\) startTour\(t\.kind\);\n\s*else if \(t\.whatsnew && t\.kind !== 'external'\) startTour\('whatsnew'\);/);
+  assert.match(src, /\.filter\(\(s\) => stepAllowed\(s\.id, can\)\)/); assert.match(src, /\.filter\(\(s\) => !s\.needs \|\| s\.needs\.some\(\(n\) => shown\.has\(n\)\)\)/);
+  assert.match(src, /S\('hire',[\s\S]*\['hr', 'recruiter', 'admin'\]/, 'шаг «Найм» только для hr, recruiter, admin');
+  // STEP_SECTION: шаги work, learn, team привязаны к разделам матрицы
+  const { STEP_SECTION, stepAllowed } = await import('../../web/src/lib/tour-core.ts');
+  const { SECTIONS } = await import('../src/access.js');
+  assert.equal(STEP_SECTION.work, 'schedule'); assert.equal(STEP_SECTION.learn, 'plan'); assert.equal(STEP_SECTION.team, 'team');
+  for (const [step, section] of Object.entries(STEP_SECTION)) assert.ok((SECTIONS as readonly string[]).includes(section), `${step} → ${section}`);
+  const acc = (s: string) => ['home', 'news', 'chat', 'schedule', 'tasks', 'help', 'pay', 'growth', 'path', 'library', 'tests'].includes(s);       // профиль бухгалтерии
+  assert.equal(stepAllowed('kb', acc), false, 'у бухгалтерии нет базы знаний — шага тоже'); assert.equal(stepAllowed('work', acc), true); assert.equal(stepAllowed('learn', acc), false);
+  assert.equal(stepAllowed('manage', acc), true); assert.equal(stepAllowed('inbox', () => false), true); assert.equal(stepAllowed('newbies', () => false), true);
+  // сервер: признак whatsnew и вид тура
+  const srv = fs.readFileSync(serverUrl('modules/onboarding.ts'), 'utf8');
+  assert.match(srv, /whatsnew: s\.status !== 'new' && !closed/); assert.match(srv, /step_id='whatsnew' AND event IN \('done','skip'\)/);
+  assert.match(srv, /\(u\.branch_nodes\?\.length \?\? 0\) > 0 \? 'lead'/); assert.doesNotMatch(srv.slice(srv.indexOf('export const tourKind'), srv.indexOf('interface Item')), /'manager'|'head'/, 'роли manager и head без узла руководителем не делают');
+  assert.match(srv, /\['hr', 'admin', 'editor', 'accountant', 'recruiter'\]\.includes\(r\)/);
+});

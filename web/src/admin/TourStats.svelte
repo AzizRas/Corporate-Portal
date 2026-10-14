@@ -5,7 +5,7 @@
 
   let d: any = $state(null);
   api.get('/api/admin/tour/stats').then((r) => (d = r));
-  const KIND_RU: Record<string, string> = { operator: 'Сотрудники и операторы', lead: 'Супервайзеры и руководители', staff: 'HR, админ, редакторы, бухгалтерия', external: 'Внешние подразделения' };
+  const KIND_RU: Record<string, string> = { operator: 'Сотрудники и операторы', lead: 'Руководители узлов структуры', staff: 'HR, админ, рекрутёры, редакторы, бухгалтерия', external: 'Внешние подразделения' };
   const stepsOf = (kind: string) => (d?.steps ?? []).filter((s: any) => s.kind === kind);
   const max = (kind: string) => Math.max(1, ...stepsOf(kind).map((s: any) => s.reached));
   const stepTitle = (kind: string, id: string) => TOURS[kind]?.find((s) => s.id === id)?.title.ru ?? id;
