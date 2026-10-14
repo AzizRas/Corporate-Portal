@@ -135,13 +135,13 @@ const RULES: Record<string, (c: VisCtx) => boolean> = {
   today: (c) => inner(c) && c.can('home'),
   inbox: (c) => inner(c),
   chat: (c) => c.can('chat') && ext(c, 'chat'),
-  team: (c) => c.hasTeam,
-  team_schedule: (c) => c.hasTeam,
-  team_newbies: (c) => c.hasTeam || c.own('senior', 'mentor'),     // старший — рекомендует допуск по своему узлу, наставник — видит своих подопечных
-  team_learning: (c) => c.hasTeam,
-  team_growth: (c) => c.hasTeam,
-  team_tasks: (c) => c.hasTeam,
-  team_hire: (c) => c.hasTeam,
+  team: (c) => inner(c) && c.hasTeam,
+  team_schedule: (c) => inner(c) && c.hasTeam,
+  team_newbies: (c) => inner(c) && (c.hasTeam || c.own('senior', 'mentor')),     // старший — рекомендует допуск по своему узлу, наставник — видит своих подопечных
+  team_learning: (c) => inner(c) && c.hasTeam,
+  team_growth: (c) => inner(c) && c.hasTeam,
+  team_tasks: (c) => inner(c) && c.hasTeam,
+  team_hire: (c) => inner(c) && c.hasTeam,
   schedule: (c) => c.can('schedule') && c.staff && ext(c, 'schedule'),
   requests: (c) => inner(c) && c.staff,
   pay: (c) => c.can('pay') && !c.intern && inner(c) && c.staff,
@@ -167,7 +167,7 @@ const RULES: Record<string, (c: VisCtx) => boolean> = {
 };
 /** Виден ли пункт меню этому человеку (id — из HUBS, ADMIN_HUBS или UTIL). Неизвестный id не виден. */
 export function itemVisible(id: string, c: VisCtx): boolean {
-  if (id in ADMIN_ROLES) return c.any(...ADMIN_ROLES[id]);
+  if (id in ADMIN_ROLES) return inner(c) && c.any(...ADMIN_ROLES[id]);
   return RULES[id]?.(c) ?? false;
 }
 

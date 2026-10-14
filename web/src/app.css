@@ -362,6 +362,7 @@ input[type='tel'], input[type='email'], input[type='url'], input[type='datetime-
 .am-back-m { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); font-weight: 700; color: inherit; text-decoration: none; }
 .am-back-m:hover { text-decoration: none; }
 .side:not(.collapsed) .am-back i { display: none; }   /* в подписи уже есть стрелка; значок нужен только свёрнутой колонке */
+.side.collapsed > .nv.am-back { display: flex; }      /* свёрнутая колонка прячет прямые пункты, а «Вернуться в портал» нужен и ей */
 /* режим «Управление»: колонка и верхняя панель телефона окрашены токеном --mode-admin, чтобы было видно, что это не обычный портал; внутри колонки весь текст цвета --mode-admin-ink (контраст проверяет web/scripts/contrast.mjs) */
 .app--admin .side, .app--admin .topbar { background: var(--mode-admin); color: var(--mode-admin-ink); }
 .app--admin .side { --text: var(--mode-admin-ink); --muted: var(--mode-admin-ink); --nav-on: color-mix(in srgb, var(--mode-admin-ink) 16%, transparent); --border: color-mix(in srgb, var(--mode-admin-ink) 32%, transparent); --card: color-mix(in srgb, var(--mode-admin-ink) 8%, transparent); --card-2: color-mix(in srgb, var(--mode-admin-ink) 12%, transparent); --chip: color-mix(in srgb, var(--mode-admin-ink) 12%, transparent); }
