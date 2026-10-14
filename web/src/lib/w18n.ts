@@ -78,6 +78,9 @@ const ru: Record<string, string> = {
   na_title: 'Нет доступа', na_text: 'Этот раздел для другой роли. Если он нужен вам для работы, обратитесь к руководителю или в HR.', na_home: 'На главную',
   no_node: 'В структуре вы не указаны руководителем узла — обратитесь в HR',
   mt_home: 'Главная', mt_chat: 'Чаты', mt_schedule: 'График', mt_learn: 'Обучение', mt_start: 'Мой старт', mt_team: 'Команда', mt_inbox: 'Входящие', mt_people: 'Люди', mt_manage: 'Управление', mt_news: 'Новости', mt_kb: 'База знаний', mt_help: 'Помощь', mt_more: 'Ещё',
+  // роли словами: в Профиле и в «Учёте сотрудников» роль не выводится кодом (E6); employee — «Сотрудник», а не «Оператор»
+  role_employee: 'Сотрудник', role_newbie: 'Новичок', role_senior: 'Старший оператор', role_mentor: 'Наставник', role_manager: 'Руководитель группы', role_head: 'Руководитель отдела',
+  role_hr: 'HR', role_recruiter: 'Рекрутёр', role_accountant: 'Бухгалтерия', role_editor: 'Редактор базы знаний', role_admin: 'Администратор',
 };
 const uz: Record<string, string> = {
   i_leaves: 'Ta’tillar', af_helpful: 'Foydali', af_not: 'Yordam bermadi', af_thanks: 'Bahoyingiz uchun rahmat',
@@ -145,9 +148,16 @@ const uz: Record<string, string> = {
   na_title: 'Ruxsat yo‘q', na_text: 'Bu bo‘lim boshqa rol uchun. Ish uchun kerak bo‘lsa, rahbaringizga yoki HR ga murojaat qiling.', na_home: 'Bosh sahifaga',
   no_node: 'Tuzilmada siz bo‘lim rahbari sifatida ko‘rsatilmagansiz — HR ga murojaat qiling',
   mt_home: 'Bosh sahifa', mt_chat: 'Chatlar', mt_schedule: 'Jadval', mt_learn: 'O‘qish', mt_start: 'Moslashuv', mt_team: 'Jamoa', mt_inbox: 'Kiruvchi', mt_people: 'Xodimlar', mt_manage: 'Boshqaruv', mt_news: 'Yangiliklar', mt_kb: 'Bilimlar bazasi', mt_help: 'Yordam', mt_more: 'Yana',
+  role_employee: 'Xodim', role_newbie: 'Yangi xodim', role_senior: 'Katta operator', role_mentor: 'Ustoz', role_manager: 'Guruh rahbari', role_head: 'Bo‘lim rahbari',
+  role_hr: 'HR', role_recruiter: 'Rekruter', role_accountant: 'Buxgalteriya', role_editor: 'Bilimlar bazasi muharriri', role_admin: 'Administrator',
 };
 export const wt = (k: string, v?: Record<string, string | number>) => {
   let s = (app.lang === 'uz' && uz[k]) || ru[k] || k;
   if (v) for (const [a, b] of Object.entries(v)) s = s.replace(`{${a}}`, String(b));
   return s;
+};
+/** Роль словами на языке пользователя: employee → «Сотрудник» / «Xodim». Неизвестный код возвращается как есть. */
+export const roleLabel = (code: string): string => {
+  const k = `role_${code}`, s = wt(k);
+  return s === k ? code : s;
 };

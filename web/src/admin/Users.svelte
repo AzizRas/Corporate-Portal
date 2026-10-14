@@ -3,9 +3,11 @@
   import Modal from '../components/Modal.svelte';
   import { fmtDate } from '../lib/format';
   import { app } from '../lib/state.svelte';
+  import { roleLabel } from '../lib/w18n';
   const amAdmin = $derived(!!app.user?.roles.includes('admin'));
 
-  const ROLES = [['employee', 'Сотрудник'], ['newbie', 'Новичок'], ['mentor', 'Наставник'], ['senior', 'Старший оператор'], ['manager', 'Руководитель группы (супервайзер)'], ['head', 'Руководитель отдела'], ['hr', 'HR'], ['recruiter', 'Рекрутер'], ['accountant', 'Бухгалтерия'], ['editor', 'Редактор базы'], ['admin', 'Админ']];
+  // роли показываются словами на языке пользователя (roleLabel), а не кодами
+  const ROLES = ['employee', 'newbie', 'mentor', 'senior', 'manager', 'head', 'hr', 'recruiter', 'accountant', 'editor', 'admin'];
   let users: any[] = $state([]), depts: any[] = $state([]), edit: any = $state(null), isNew = $state(false), msg = $state(''), tempPw = $state(''), q = $state('');
   let imp: any = $state(null);
   async function runImport(commit: boolean) {
@@ -58,7 +60,7 @@
     <tbody>
       {#each shown as u}
         <tr style:opacity={u.active ? 1 : .5}><td>{u.tab_number ?? ''}</td><td><b>{u.name}</b><div class="muted xs">{u.login}</div></td><td>{u.position}</td><td>{nodePath(u.node_id) || deptName(u.dept_id)}{#if u.employment === 'intern'} <span class="chip">стажёр</span>{/if}</td>
-          <td>{#each u.roles as r}<span class="chip u-ec1174f">{r}</span>{/each}</td><td><button class="btn sm" onclick={() => open(u)}>Править</button></td></tr>
+          <td>{#each u.roles as r}<span class="chip u-ec1174f">{roleLabel(r)}</span>{/each}</td><td><button class="btn sm" onclick={() => open(u)}>Править</button></td></tr>
       {/each}
     </tbody>
   </table>
@@ -81,7 +83,7 @@
       <label class="f">Смена до<input type="time" bind:value={edit.shift_end} /></label>
     </div>
     <div class="muted small u-fdf33f2">Роли (можно несколько)</div>
-    <div class="row wrap u-2b583d7">{#each ROLES as [r, l]}<label class="chk chip" class:on={edit.roles.includes(r)}><input type="checkbox" class="sr" checked={edit.roles.includes(r)} onchange={() => toggleRole(r)} />{l}</label>{/each}</div>
+    <div class="row wrap u-2b583d7">{#each ROLES as r}<label class="chk chip" class:on={edit.roles.includes(r)}><input type="checkbox" class="sr" checked={edit.roles.includes(r)} onchange={() => toggleRole(r)} />{roleLabel(r)}</label>{/each}</div>
     {#if !isNew}<label class="chk u-2b583d7"><input type="checkbox" bind:checked={edit.active} /> Активен (при снятии фото прихода удаляются)</label>{/if}
     {#if amAdmin}<label class="chk u-2b583d7"><input type="checkbox" bind:checked={edit.is_system} /> Служебная учётная запись (не сотрудник: нет в структуре, графике и списках людей)</label>{/if}
     {#if tempPw}<div class="alert ok">Временный пароль (показывается один раз): <b class="u-28fa523">{tempPw}</b></div>{/if}

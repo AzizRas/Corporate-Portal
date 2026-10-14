@@ -5,7 +5,7 @@
   import { t } from '../lib/i18n';
   import { st } from '../lib/s18n';
   import Avatar from '../components/Avatar.svelte';
-  import { wt } from '../lib/w18n';
+  import { wt, roleLabel } from '../lib/w18n';
   import { setDensity, pickDensity, type Density } from '../lib/density';
   import WellnessSettings from '../wellness/WellnessSettings.svelte';
   import Payroll from './Payroll.svelte';
@@ -49,7 +49,6 @@
     } catch { perr = st('pf_photo_err'); } finally { busy = false; (e.currentTarget as HTMLInputElement).value = ''; }
   }
   async function dropPhoto() { await api.del('/api/me/avatar'); await loadMe(); }
-  const roleName: Record<string, string> = { employee: 'Оператор', newbie: 'Новичок', senior: 'Старший оператор', mentor: 'Наставник', manager: 'Супервайзер', head: 'Руководитель отдела', hr: 'HR', recruiter: 'Рекрутер', accountant: 'Бухгалтерия', editor: 'Редактор базы', admin: 'Администратор' };
 </script>
 
 {#if tab !== 'pay'}
@@ -69,7 +68,6 @@
           <button class:on={app.theme === v} onclick={() => setTheme(v as any)}>{t(k as any)}</button>
         {/each}</div></div>
     <div><div class="muted small">{wt('dn_title')}</div><div class="tabs u-c94d43e">{#each ['normal', 'compact'] as d}<button class:on={dens === d} onclick={() => chooseDens(d as Density)}>{wt(d === 'normal' ? 'dn_normal' : 'dn_compact')}</button>{/each}</div><p class="muted xs u-fe7b497">{wt('dn_hint')}</p></div>
-    <div><div class="muted small">{t('role')}</div><div class="row wrap u-8a77e5a">{#each app.user?.roles ?? [] as r}<span class="chip">{roleName[r] ?? r}</span>{/each}</div></div>
     <div class="row wrap u-33fcd4c"><button class="btn danger" onclick={logout}>{t('nav_logout')}</button><button class="btn" onclick={logoutOthers}>{wt('lo_others')}</button></div>
     <p class="muted xs">{loMsg || wt('lo_others_hint')}</p>
   </section>
@@ -103,6 +101,8 @@
     {#if perr}<div class="alert">{perr}</div>{/if}
     <label class="f u-1169661">{st('pf_status')}<input maxlength="80" bind:value={status} placeholder={st('pf_status_ph')} /></label>
     <label class="f u-1169661">{st('pf_birthday')}<input type="date" bind:value={birthday} /></label>
+    <!-- роли словами (E6): блок переехал сюда из «Настроек» -->
+    <div><div class="muted small">{t('role')}</div><div class="row wrap u-8a77e5a">{#each app.user?.roles ?? [] as r}<span class="chip">{roleLabel(r)}</span>{/each}</div></div>
     {#if pmsg}<div class="alert ok">{pmsg}</div>{/if}
     <button class="btn grad">{t('save')}</button>
   </form>

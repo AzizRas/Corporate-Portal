@@ -1372,3 +1372,47 @@ test('E5 «Спросить ИИ» (сервер): askKb вызывается д
   // вопросы о людях и данных (team, person, self) askKb не трогают: он вызывается только при intent === 'kb'
   assert.match(chat, /const kbIntent = plat\.intent === 'kb'/); assert.equal((chat.match(/await askKb\(/g) ?? []).length, 1);
 });
+
+/* ================= E6. Роли словами ================= */
+test('E6 «Роли»: для каждой роли из ALL_ROLES есть role_<код> на русском и узбекском; функция roleLabel; employee — «Сотрудник», а не «Оператор»', () => {
+  const auth = fs.readFileSync(serverUrl('auth.ts'), 'utf8');
+  const all = [...(/export const ALL_ROLES: Role\[\] = \[(.*?)\];/s.exec(auth)?.[1] ?? '').matchAll(/'(\w+)'/g)].map((m) => m[1]);
+  assert.equal(all.length, 11, `ролей в ALL_ROLES: ${all}`);
+  const d = dictOf(web('lib/w18n.ts'));
+  const want: Record<string, [string, string]> = {
+    employee: ['Сотрудник', 'Xodim'], newbie: ['Новичок', 'Yangi xodim'], senior: ['Старший оператор', 'Katta operator'], mentor: ['Наставник', 'Ustoz'], manager: ['Руководитель группы', 'Guruh rahbari'],
+    head: ['Руководитель отдела', 'Bo‘lim rahbari'], hr: ['HR', 'HR'], recruiter: ['Рекрутёр', 'Rekruter'], accountant: ['Бухгалтерия', 'Buxgalteriya'],
+    editor: ['Редактор базы знаний', 'Bilimlar bazasi muharriri'], admin: ['Администратор', 'Administrator'],
+  };
+  assert.deepEqual(Object.keys(want).sort(), [...all].sort(), 'таблица ТЗ и ALL_ROLES описывают одни и те же роли');
+  for (const code of all) {
+    assert.equal(d.ru[`role_${code}`], want[code][0], `role_${code} ru`); assert.equal(d.uz[`role_${code}`], want[code][1], `role_${code} uz`);
+    assert.doesNotMatch(d.uz[`role_${code}`], /[А-Яа-яЁё]/);
+  }
+  assert.notEqual(d.ru.role_employee, 'Оператор');
+  const w = web('lib/w18n.ts');
+  assert.match(w, /export const roleLabel = \(code: string\): string => \{/); assert.match(w, /const k = `role_\$\{code\}`, s = wt\(k\);\s*return s === k \? code : s;/, 'неизвестный код возвращается как есть');
+});
+
+test('E6 «Роли»: в Профиле роли словами в «Мои данные» (не в «Настройках»), в «Учёте сотрудников» — через roleLabel, кодов в интерфейсе нет', () => {
+  const profile = web('pages/Profile.svelte'), users = web('admin/Users.svelte');
+  assert.match(profile, /import \{ wt, roleLabel \} from '\.\.\/lib\/w18n'/); assert.doesNotMatch(profile, /roleName/, 'свой словарь ролей в Profile.svelte удалён');
+  assert.match(profile, /\{#each app\.user\?\.roles \?\? \[\] as r\}<span class="chip">\{roleLabel\(r\)\}<\/span>\{\/each\}/);
+  // блок «Роли» лежит в ветке «Мои данные» (после {:else}) и больше не в «Настройках»
+  const at = profile.indexOf('{#if tab === \'pay\'}<Payroll />'), settingsAt = profile.indexOf("{:else if tab === 'settings'}", at), meAt = profile.indexOf('{:else}', settingsAt);
+  const block = profile.indexOf("t('role')");
+  assert.ok(block > meAt && block === profile.lastIndexOf("t('role')"), 'блок «Роли» — в «Моих данных»');
+  assert.ok(profile.slice(settingsAt, meAt).indexOf("t('role')") < 0, 'в «Настройках» блока «Роли» нет');
+  assert.doesNotMatch(profile, /style="/);
+  // Users.svelte: ни одной роли кодом
+  assert.doesNotMatch(users, /\{r\}/, 'в списке ролей нет голого {r}'); assert.match(users, /import \{ roleLabel \} from '\.\.\/lib\/w18n'/);
+  assert.match(users, /\{#each u\.roles as r\}<span class="chip u-ec1174f">\{roleLabel\(r\)\}<\/span>\{\/each\}/); assert.match(users, /\{#each ROLES as r\}[\s\S]*\{roleLabel\(r\)\}<\/label>\{\/each\}/);
+  assert.doesNotMatch(users, /'Админ'|'Рекрутер'|супервайзер/, 'старые подписи ролей в Users.svelte удалены');
+  // во всём интерфейсе роли не выводятся кодом: нет шаблонов вида {r} / {role} внутри перебора ролей
+  const bad: string[] = [];
+  for (const f of walk(dirOf(webUrl('src/'))).filter((x) => x.endsWith('.svelte'))) {
+    const s = fs.readFileSync(f, 'utf8');
+    if (/\{#each [\w.?]*roles(?: \?\? \[\])? as (\w+)\}[^\n]*\{\1\}/.test(s)) bad.push(path.basename(f));
+  }
+  assert.deepEqual(bad, []);
+});
