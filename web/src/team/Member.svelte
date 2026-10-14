@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api } from '../lib/api';
+  import { api, ApiError } from '../lib/api';
+  import Person from '../growth/Person.svelte';
   import { app } from '../lib/state.svelte';
   import { fmtTime, fmtDate } from '../lib/format';
   import Avatar from '../components/Avatar.svelte';
@@ -15,12 +16,15 @@
   const EV: Record<string, [string, string]> = { hired: ['Принят', 'Qabul qilindi'], transfer: ['Перевод', 'Ko‘chirish'], transfer_applied: ['Перевод вступил в силу', 'Ko‘chirish kuchga kirdi'], to_staff: ['Переведён в штат', 'Shtatga o‘tkazildi'], vacation: ['Отпуск', 'Ta’til'], sick: ['Больничный', 'Kasallik'], dismiss: ['Уволен', 'Bo‘shatildi'], restore: ['Восстановлен', 'Tiklandi'] };
 
   let data: any = $state(null), err: unknown = $state(null);
+  // нет прав на рабочий вид (человек не из вашей ветки) — открываем карточку роста: она сама скажет, что доступа нет, или покажет то, что вам разрешено (ТЗ №4, A4: /people/:id)
+  const forbidden = $derived(err instanceof ApiError && err.status === 403);
   const load = () => { err = null; api.get(`/api/team/member/${id}`).then((r) => (data = r)).catch((e) => (err = e)); };
   $effect(() => { id; load(); });
 </script>
 
-<a class="small" href="#/team">← {L.back}</a>
-{#if err}<ErrorState error={err} retry={load} />
+{#if !forbidden}<a class="small" href="#/team">← {L.back}</a>{/if}
+{#if forbidden}<Person {id} />
+{:else if err}<ErrorState error={err} retry={load} />
 {:else if !data}<Skeleton rows={6} />
 {:else}
   {@const p = data.person}

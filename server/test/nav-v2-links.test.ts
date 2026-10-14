@@ -106,3 +106,15 @@ test('Стабилизация: четыре замечания svelte-check в 
   assert.match(web('components/NotifyBell.svelte'), /-webkit-line-clamp: 2; line-clamp: 2;/);
   assert.doesNotMatch(web('chat/ChatInfo.svelte'), /name = \$state\(chan\.name_ru\)/); assert.match(web('chat/ChatInfo.svelte'), /\$effect\(\(\) => \{ name = chan\.name_ru; \}\);/);
 });
+
+test('Стабилизация A4: /people/:id — рабочий вид руководителя, а если прав на него нет (человек не из ветки) — карточка роста Person.svelte', () => {
+  const m = web('team/Member.svelte');
+  assert.match(m, /import \{ api, ApiError \} from '\.\.\/lib\/api'/); assert.match(m, /import Person from '\.\.\/growth\/Person\.svelte'/);
+  assert.match(m, /const forbidden = \$derived\(err instanceof ApiError && err\.status === 403\);/);
+  assert.match(m, /\{#if forbidden\}<Person \{id\} \/>\s*\{:else if err\}<ErrorState error=\{err\} retry=\{load\} \/>/, 'при 403 — Person, при другой ошибке — прежнее сообщение с «Повторить»');
+  assert.match(m, /\{#if !forbidden\}<a class="small" href="#\/team">/, 'второй ссылки «назад» над карточкой роста нет');
+  // роутер выбирает рабочий вид по роли, а карточку роста — для остальных и для своей
+  const router = web('Router.svelte');
+  assert.match(router, /personRich = \$derived\(parts\[0\] === 'people' && !!parts\[1\] && query\.get\('tab'\) !== 'growth' && num\(parts\[1\]\) !== app\.user\?\.id/);
+  assert.match(router, /\{:else if personRich\}<Lazy load=\{memberLoader\} id=\{num\(parts\[1\]\)\} \/>\s*\{:else\}<Lazy load=\{personLoader\} id=\{num\(parts\[1\]\)\} \/>/);
+});
